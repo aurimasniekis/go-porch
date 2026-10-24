@@ -15,6 +15,30 @@ import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
+import { Route as AppAdminIAlertsRouteImport } from './routes/_app/admin/i/alerts'
+import { Route as AppAdminIAuditRouteImport } from './routes/_app/admin/i/audit'
+import { Route as AppAdminIHealthRouteImport } from './routes/_app/admin/i/health'
+import { Route as AppAdminIKeysRouteImport } from './routes/_app/admin/i/keys'
+import { Route as AppAdminIOperatorsRouteImport } from './routes/_app/admin/i/operators'
+import { Route as AppAdminIProvidersRouteImport } from './routes/_app/admin/i/providers'
+import { Route as AppAdminISessionsRouteImport } from './routes/_app/admin/i/sessions'
+import { Route as AppAdminITenantsRouteImport } from './routes/_app/admin/i/tenants'
+import { Route as AppAdminIUsersRouteImport } from './routes/_app/admin/i/users'
+import { Route as AppAdminTTenantAccessRouteImport } from './routes/_app/admin/t/$tenant/access'
+import { Route as AppAdminTTenantApplicationsRouteImport } from './routes/_app/admin/t/$tenant/applications'
+import { Route as AppAdminTTenantAssignmentsRouteImport } from './routes/_app/admin/t/$tenant/assignments'
+import { Route as AppAdminTTenantAuditRouteImport } from './routes/_app/admin/t/$tenant/audit'
+import { Route as AppAdminTTenantDomainsRouteImport } from './routes/_app/admin/t/$tenant/domains'
+import { Route as AppAdminTTenantGroupsRouteImport } from './routes/_app/admin/t/$tenant/groups'
+import { Route as AppAdminTTenantInvitesRouteImport } from './routes/_app/admin/t/$tenant/invites'
+import { Route as AppAdminTTenantMembersRouteImport } from './routes/_app/admin/t/$tenant/members'
+import { Route as AppAdminTTenantPoliciesRouteImport } from './routes/_app/admin/t/$tenant/policies'
+import { Route as AppAdminTTenantResourcesRouteImport } from './routes/_app/admin/t/$tenant/resources'
+import { Route as AppAdminTTenantRolesRouteImport } from './routes/_app/admin/t/$tenant/roles'
+import { Route as AppAdminTTenantServiceAccountsRouteImport } from './routes/_app/admin/t/$tenant/service-accounts'
+import { Route as AppAdminTTenantSettingsRouteImport } from './routes/_app/admin/t/$tenant/settings'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -45,6 +69,130 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIAlertsRoute = AppAdminIAlertsRouteImport.update({
+  id: '/i/alerts',
+  path: '/i/alerts',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIAuditRoute = AppAdminIAuditRouteImport.update({
+  id: '/i/audit',
+  path: '/i/audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIHealthRoute = AppAdminIHealthRouteImport.update({
+  id: '/i/health',
+  path: '/i/health',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIKeysRoute = AppAdminIKeysRouteImport.update({
+  id: '/i/keys',
+  path: '/i/keys',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIOperatorsRoute = AppAdminIOperatorsRouteImport.update({
+  id: '/i/operators',
+  path: '/i/operators',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIProvidersRoute = AppAdminIProvidersRouteImport.update({
+  id: '/i/providers',
+  path: '/i/providers',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminISessionsRoute = AppAdminISessionsRouteImport.update({
+  id: '/i/sessions',
+  path: '/i/sessions',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminITenantsRoute = AppAdminITenantsRouteImport.update({
+  id: '/i/tenants',
+  path: '/i/tenants',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIUsersRoute = AppAdminIUsersRouteImport.update({
+  id: '/i/users',
+  path: '/i/users',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantAccessRoute = AppAdminTTenantAccessRouteImport.update({
+  id: '/t/$tenant/access',
+  path: '/t/$tenant/access',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantApplicationsRoute =
+  AppAdminTTenantApplicationsRouteImport.update({
+    id: '/t/$tenant/applications',
+    path: '/t/$tenant/applications',
+    getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppAdminTTenantAssignmentsRoute =
+  AppAdminTTenantAssignmentsRouteImport.update({
+    id: '/t/$tenant/assignments',
+    path: '/t/$tenant/assignments',
+    getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppAdminTTenantAuditRoute = AppAdminTTenantAuditRouteImport.update({
+  id: '/t/$tenant/audit',
+  path: '/t/$tenant/audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantDomainsRoute = AppAdminTTenantDomainsRouteImport.update({
+  id: '/t/$tenant/domains',
+  path: '/t/$tenant/domains',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantGroupsRoute = AppAdminTTenantGroupsRouteImport.update({
+  id: '/t/$tenant/groups',
+  path: '/t/$tenant/groups',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantInvitesRoute = AppAdminTTenantInvitesRouteImport.update({
+  id: '/t/$tenant/invites',
+  path: '/t/$tenant/invites',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantMembersRoute = AppAdminTTenantMembersRouteImport.update({
+  id: '/t/$tenant/members',
+  path: '/t/$tenant/members',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantPoliciesRoute = AppAdminTTenantPoliciesRouteImport.update({
+  id: '/t/$tenant/policies',
+  path: '/t/$tenant/policies',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantResourcesRoute =
+  AppAdminTTenantResourcesRouteImport.update({
+    id: '/t/$tenant/resources',
+    path: '/t/$tenant/resources',
+    getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppAdminTTenantRolesRoute = AppAdminTTenantRolesRouteImport.update({
+  id: '/t/$tenant/roles',
+  path: '/t/$tenant/roles',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTTenantServiceAccountsRoute =
+  AppAdminTTenantServiceAccountsRouteImport.update({
+    id: '/t/$tenant/service-accounts',
+    path: '/t/$tenant/service-accounts',
+    getParentRoute: () => AppAdminRoute,
+  } as any)
+const AppAdminTTenantSettingsRoute = AppAdminTTenantSettingsRouteImport.update({
+  id: '/t/$tenant/settings',
+  path: '/t/$tenant/settings',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -52,6 +200,30 @@ export interface FileRoutesByFullPath {
   '/recovery': typeof RecoveryRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/admin/': typeof AppAdminIndexRoute
+  '/admin/i/alerts': typeof AppAdminIAlertsRoute
+  '/admin/i/audit': typeof AppAdminIAuditRoute
+  '/admin/i/health': typeof AppAdminIHealthRoute
+  '/admin/i/keys': typeof AppAdminIKeysRoute
+  '/admin/i/operators': typeof AppAdminIOperatorsRoute
+  '/admin/i/providers': typeof AppAdminIProvidersRoute
+  '/admin/i/sessions': typeof AppAdminISessionsRoute
+  '/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/admin/i/users': typeof AppAdminIUsersRoute
+  '/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
+  '/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
+  '/admin/t/$tenant/assignments': typeof AppAdminTTenantAssignmentsRoute
+  '/admin/t/$tenant/audit': typeof AppAdminTTenantAuditRoute
+  '/admin/t/$tenant/domains': typeof AppAdminTTenantDomainsRoute
+  '/admin/t/$tenant/groups': typeof AppAdminTTenantGroupsRoute
+  '/admin/t/$tenant/invites': typeof AppAdminTTenantInvitesRoute
+  '/admin/t/$tenant/members': typeof AppAdminTTenantMembersRoute
+  '/admin/t/$tenant/policies': typeof AppAdminTTenantPoliciesRoute
+  '/admin/t/$tenant/resources': typeof AppAdminTTenantResourcesRoute
+  '/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
+  '/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
+  '/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -59,6 +231,29 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
   '/': typeof AppIndexRoute
+  '/admin': typeof AppAdminIndexRoute
+  '/admin/i/alerts': typeof AppAdminIAlertsRoute
+  '/admin/i/audit': typeof AppAdminIAuditRoute
+  '/admin/i/health': typeof AppAdminIHealthRoute
+  '/admin/i/keys': typeof AppAdminIKeysRoute
+  '/admin/i/operators': typeof AppAdminIOperatorsRoute
+  '/admin/i/providers': typeof AppAdminIProvidersRoute
+  '/admin/i/sessions': typeof AppAdminISessionsRoute
+  '/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/admin/i/users': typeof AppAdminIUsersRoute
+  '/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
+  '/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
+  '/admin/t/$tenant/assignments': typeof AppAdminTTenantAssignmentsRoute
+  '/admin/t/$tenant/audit': typeof AppAdminTTenantAuditRoute
+  '/admin/t/$tenant/domains': typeof AppAdminTTenantDomainsRoute
+  '/admin/t/$tenant/groups': typeof AppAdminTTenantGroupsRoute
+  '/admin/t/$tenant/invites': typeof AppAdminTTenantInvitesRoute
+  '/admin/t/$tenant/members': typeof AppAdminTTenantMembersRoute
+  '/admin/t/$tenant/policies': typeof AppAdminTTenantPoliciesRoute
+  '/admin/t/$tenant/resources': typeof AppAdminTTenantResourcesRoute
+  '/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
+  '/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
+  '/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -67,13 +262,94 @@ export interface FileRoutesById {
   '/recovery': typeof RecoveryRoute
   '/setup': typeof SetupRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
+  '/_app/admin/i/alerts': typeof AppAdminIAlertsRoute
+  '/_app/admin/i/audit': typeof AppAdminIAuditRoute
+  '/_app/admin/i/health': typeof AppAdminIHealthRoute
+  '/_app/admin/i/keys': typeof AppAdminIKeysRoute
+  '/_app/admin/i/operators': typeof AppAdminIOperatorsRoute
+  '/_app/admin/i/providers': typeof AppAdminIProvidersRoute
+  '/_app/admin/i/sessions': typeof AppAdminISessionsRoute
+  '/_app/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/_app/admin/i/users': typeof AppAdminIUsersRoute
+  '/_app/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
+  '/_app/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
+  '/_app/admin/t/$tenant/assignments': typeof AppAdminTTenantAssignmentsRoute
+  '/_app/admin/t/$tenant/audit': typeof AppAdminTTenantAuditRoute
+  '/_app/admin/t/$tenant/domains': typeof AppAdminTTenantDomainsRoute
+  '/_app/admin/t/$tenant/groups': typeof AppAdminTTenantGroupsRoute
+  '/_app/admin/t/$tenant/invites': typeof AppAdminTTenantInvitesRoute
+  '/_app/admin/t/$tenant/members': typeof AppAdminTTenantMembersRoute
+  '/_app/admin/t/$tenant/policies': typeof AppAdminTTenantPoliciesRoute
+  '/_app/admin/t/$tenant/resources': typeof AppAdminTTenantResourcesRoute
+  '/_app/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
+  '/_app/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
+  '/_app/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/recovery' | '/setup' | '/account'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/recovery'
+    | '/setup'
+    | '/account'
+    | '/admin'
+    | '/admin/'
+    | '/admin/i/alerts'
+    | '/admin/i/audit'
+    | '/admin/i/health'
+    | '/admin/i/keys'
+    | '/admin/i/operators'
+    | '/admin/i/providers'
+    | '/admin/i/sessions'
+    | '/admin/i/tenants'
+    | '/admin/i/users'
+    | '/admin/t/$tenant/access'
+    | '/admin/t/$tenant/applications'
+    | '/admin/t/$tenant/assignments'
+    | '/admin/t/$tenant/audit'
+    | '/admin/t/$tenant/domains'
+    | '/admin/t/$tenant/groups'
+    | '/admin/t/$tenant/invites'
+    | '/admin/t/$tenant/members'
+    | '/admin/t/$tenant/policies'
+    | '/admin/t/$tenant/resources'
+    | '/admin/t/$tenant/roles'
+    | '/admin/t/$tenant/service-accounts'
+    | '/admin/t/$tenant/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/recovery' | '/setup' | '/account' | '/'
+  to:
+    | '/login'
+    | '/recovery'
+    | '/setup'
+    | '/account'
+    | '/'
+    | '/admin'
+    | '/admin/i/alerts'
+    | '/admin/i/audit'
+    | '/admin/i/health'
+    | '/admin/i/keys'
+    | '/admin/i/operators'
+    | '/admin/i/providers'
+    | '/admin/i/sessions'
+    | '/admin/i/tenants'
+    | '/admin/i/users'
+    | '/admin/t/$tenant/access'
+    | '/admin/t/$tenant/applications'
+    | '/admin/t/$tenant/assignments'
+    | '/admin/t/$tenant/audit'
+    | '/admin/t/$tenant/domains'
+    | '/admin/t/$tenant/groups'
+    | '/admin/t/$tenant/invites'
+    | '/admin/t/$tenant/members'
+    | '/admin/t/$tenant/policies'
+    | '/admin/t/$tenant/resources'
+    | '/admin/t/$tenant/roles'
+    | '/admin/t/$tenant/service-accounts'
+    | '/admin/t/$tenant/settings'
   id:
     | '__root__'
     | '/_app'
@@ -81,7 +357,31 @@ export interface FileRouteTypes {
     | '/recovery'
     | '/setup'
     | '/_app/account'
+    | '/_app/admin'
     | '/_app/'
+    | '/_app/admin/'
+    | '/_app/admin/i/alerts'
+    | '/_app/admin/i/audit'
+    | '/_app/admin/i/health'
+    | '/_app/admin/i/keys'
+    | '/_app/admin/i/operators'
+    | '/_app/admin/i/providers'
+    | '/_app/admin/i/sessions'
+    | '/_app/admin/i/tenants'
+    | '/_app/admin/i/users'
+    | '/_app/admin/t/$tenant/access'
+    | '/_app/admin/t/$tenant/applications'
+    | '/_app/admin/t/$tenant/assignments'
+    | '/_app/admin/t/$tenant/audit'
+    | '/_app/admin/t/$tenant/domains'
+    | '/_app/admin/t/$tenant/groups'
+    | '/_app/admin/t/$tenant/invites'
+    | '/_app/admin/t/$tenant/members'
+    | '/_app/admin/t/$tenant/policies'
+    | '/_app/admin/t/$tenant/resources'
+    | '/_app/admin/t/$tenant/roles'
+    | '/_app/admin/t/$tenant/service-accounts'
+    | '/_app/admin/t/$tenant/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -135,16 +435,242 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/alerts': {
+      id: '/_app/admin/i/alerts'
+      path: '/i/alerts'
+      fullPath: '/admin/i/alerts'
+      preLoaderRoute: typeof AppAdminIAlertsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/audit': {
+      id: '/_app/admin/i/audit'
+      path: '/i/audit'
+      fullPath: '/admin/i/audit'
+      preLoaderRoute: typeof AppAdminIAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/health': {
+      id: '/_app/admin/i/health'
+      path: '/i/health'
+      fullPath: '/admin/i/health'
+      preLoaderRoute: typeof AppAdminIHealthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/keys': {
+      id: '/_app/admin/i/keys'
+      path: '/i/keys'
+      fullPath: '/admin/i/keys'
+      preLoaderRoute: typeof AppAdminIKeysRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/operators': {
+      id: '/_app/admin/i/operators'
+      path: '/i/operators'
+      fullPath: '/admin/i/operators'
+      preLoaderRoute: typeof AppAdminIOperatorsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/providers': {
+      id: '/_app/admin/i/providers'
+      path: '/i/providers'
+      fullPath: '/admin/i/providers'
+      preLoaderRoute: typeof AppAdminIProvidersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/sessions': {
+      id: '/_app/admin/i/sessions'
+      path: '/i/sessions'
+      fullPath: '/admin/i/sessions'
+      preLoaderRoute: typeof AppAdminISessionsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/tenants': {
+      id: '/_app/admin/i/tenants'
+      path: '/i/tenants'
+      fullPath: '/admin/i/tenants'
+      preLoaderRoute: typeof AppAdminITenantsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/users': {
+      id: '/_app/admin/i/users'
+      path: '/i/users'
+      fullPath: '/admin/i/users'
+      preLoaderRoute: typeof AppAdminIUsersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/access': {
+      id: '/_app/admin/t/$tenant/access'
+      path: '/t/$tenant/access'
+      fullPath: '/admin/t/$tenant/access'
+      preLoaderRoute: typeof AppAdminTTenantAccessRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/applications': {
+      id: '/_app/admin/t/$tenant/applications'
+      path: '/t/$tenant/applications'
+      fullPath: '/admin/t/$tenant/applications'
+      preLoaderRoute: typeof AppAdminTTenantApplicationsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/assignments': {
+      id: '/_app/admin/t/$tenant/assignments'
+      path: '/t/$tenant/assignments'
+      fullPath: '/admin/t/$tenant/assignments'
+      preLoaderRoute: typeof AppAdminTTenantAssignmentsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/audit': {
+      id: '/_app/admin/t/$tenant/audit'
+      path: '/t/$tenant/audit'
+      fullPath: '/admin/t/$tenant/audit'
+      preLoaderRoute: typeof AppAdminTTenantAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/domains': {
+      id: '/_app/admin/t/$tenant/domains'
+      path: '/t/$tenant/domains'
+      fullPath: '/admin/t/$tenant/domains'
+      preLoaderRoute: typeof AppAdminTTenantDomainsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/groups': {
+      id: '/_app/admin/t/$tenant/groups'
+      path: '/t/$tenant/groups'
+      fullPath: '/admin/t/$tenant/groups'
+      preLoaderRoute: typeof AppAdminTTenantGroupsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/invites': {
+      id: '/_app/admin/t/$tenant/invites'
+      path: '/t/$tenant/invites'
+      fullPath: '/admin/t/$tenant/invites'
+      preLoaderRoute: typeof AppAdminTTenantInvitesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/members': {
+      id: '/_app/admin/t/$tenant/members'
+      path: '/t/$tenant/members'
+      fullPath: '/admin/t/$tenant/members'
+      preLoaderRoute: typeof AppAdminTTenantMembersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/policies': {
+      id: '/_app/admin/t/$tenant/policies'
+      path: '/t/$tenant/policies'
+      fullPath: '/admin/t/$tenant/policies'
+      preLoaderRoute: typeof AppAdminTTenantPoliciesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/resources': {
+      id: '/_app/admin/t/$tenant/resources'
+      path: '/t/$tenant/resources'
+      fullPath: '/admin/t/$tenant/resources'
+      preLoaderRoute: typeof AppAdminTTenantResourcesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/roles': {
+      id: '/_app/admin/t/$tenant/roles'
+      path: '/t/$tenant/roles'
+      fullPath: '/admin/t/$tenant/roles'
+      preLoaderRoute: typeof AppAdminTTenantRolesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/service-accounts': {
+      id: '/_app/admin/t/$tenant/service-accounts'
+      path: '/t/$tenant/service-accounts'
+      fullPath: '/admin/t/$tenant/service-accounts'
+      preLoaderRoute: typeof AppAdminTTenantServiceAccountsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/t/$tenant/settings': {
+      id: '/_app/admin/t/$tenant/settings'
+      path: '/t/$tenant/settings'
+      fullPath: '/admin/t/$tenant/settings'
+      preLoaderRoute: typeof AppAdminTTenantSettingsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+  AppAdminIAlertsRoute: typeof AppAdminIAlertsRoute
+  AppAdminIAuditRoute: typeof AppAdminIAuditRoute
+  AppAdminIHealthRoute: typeof AppAdminIHealthRoute
+  AppAdminIKeysRoute: typeof AppAdminIKeysRoute
+  AppAdminIOperatorsRoute: typeof AppAdminIOperatorsRoute
+  AppAdminIProvidersRoute: typeof AppAdminIProvidersRoute
+  AppAdminISessionsRoute: typeof AppAdminISessionsRoute
+  AppAdminITenantsRoute: typeof AppAdminITenantsRoute
+  AppAdminIUsersRoute: typeof AppAdminIUsersRoute
+  AppAdminTTenantAccessRoute: typeof AppAdminTTenantAccessRoute
+  AppAdminTTenantApplicationsRoute: typeof AppAdminTTenantApplicationsRoute
+  AppAdminTTenantAssignmentsRoute: typeof AppAdminTTenantAssignmentsRoute
+  AppAdminTTenantAuditRoute: typeof AppAdminTTenantAuditRoute
+  AppAdminTTenantDomainsRoute: typeof AppAdminTTenantDomainsRoute
+  AppAdminTTenantGroupsRoute: typeof AppAdminTTenantGroupsRoute
+  AppAdminTTenantInvitesRoute: typeof AppAdminTTenantInvitesRoute
+  AppAdminTTenantMembersRoute: typeof AppAdminTTenantMembersRoute
+  AppAdminTTenantPoliciesRoute: typeof AppAdminTTenantPoliciesRoute
+  AppAdminTTenantResourcesRoute: typeof AppAdminTTenantResourcesRoute
+  AppAdminTTenantRolesRoute: typeof AppAdminTTenantRolesRoute
+  AppAdminTTenantServiceAccountsRoute: typeof AppAdminTTenantServiceAccountsRoute
+  AppAdminTTenantSettingsRoute: typeof AppAdminTTenantSettingsRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminIndexRoute: AppAdminIndexRoute,
+  AppAdminIAlertsRoute: AppAdminIAlertsRoute,
+  AppAdminIAuditRoute: AppAdminIAuditRoute,
+  AppAdminIHealthRoute: AppAdminIHealthRoute,
+  AppAdminIKeysRoute: AppAdminIKeysRoute,
+  AppAdminIOperatorsRoute: AppAdminIOperatorsRoute,
+  AppAdminIProvidersRoute: AppAdminIProvidersRoute,
+  AppAdminISessionsRoute: AppAdminISessionsRoute,
+  AppAdminITenantsRoute: AppAdminITenantsRoute,
+  AppAdminIUsersRoute: AppAdminIUsersRoute,
+  AppAdminTTenantAccessRoute: AppAdminTTenantAccessRoute,
+  AppAdminTTenantApplicationsRoute: AppAdminTTenantApplicationsRoute,
+  AppAdminTTenantAssignmentsRoute: AppAdminTTenantAssignmentsRoute,
+  AppAdminTTenantAuditRoute: AppAdminTTenantAuditRoute,
+  AppAdminTTenantDomainsRoute: AppAdminTTenantDomainsRoute,
+  AppAdminTTenantGroupsRoute: AppAdminTTenantGroupsRoute,
+  AppAdminTTenantInvitesRoute: AppAdminTTenantInvitesRoute,
+  AppAdminTTenantMembersRoute: AppAdminTTenantMembersRoute,
+  AppAdminTTenantPoliciesRoute: AppAdminTTenantPoliciesRoute,
+  AppAdminTTenantResourcesRoute: AppAdminTTenantResourcesRoute,
+  AppAdminTTenantRolesRoute: AppAdminTTenantRolesRoute,
+  AppAdminTTenantServiceAccountsRoute: AppAdminTTenantServiceAccountsRoute,
+  AppAdminTTenantSettingsRoute: AppAdminTTenantSettingsRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppAdminRoute: typeof AppAdminRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppAdminRoute: AppAdminRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 

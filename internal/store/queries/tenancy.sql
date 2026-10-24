@@ -62,3 +62,6 @@ SELECT m.id, m.tenant_id, m.user_id, m.status, m.source, m.version, m.managed_by
   u.display_name, u.primary_email, u.status AS user_status
 FROM memberships m JOIN users u ON u.id = m.user_id
 WHERE m.tenant_id = sqlc.arg(tenant_id) AND m.id > sqlc.arg(after) ORDER BY m.id LIMIT sqlc.arg(lim);
+
+-- name: ListAllTenants :many
+SELECT id, slug, name, status FROM tenants ORDER BY slug;

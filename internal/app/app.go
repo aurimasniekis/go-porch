@@ -28,6 +28,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/netguard"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
 	"github.com/aurimasniekis/go-porch/internal/oidcop"
+	"github.com/aurimasniekis/go-porch/internal/serviceacct"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -50,6 +51,7 @@ type App struct {
 	IDP      *idp.Service
 	Local    *localauth.Service
 	Apps     *apps.Service
+	SAs      *serviceacct.Service
 	OP       *oidcop.Provider
 	Engine   *authz.Engine
 	Authz    *authz.Admin
@@ -134,6 +136,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	a.Local = localauth.New(a.Store, a.Keyring, a.Audit, a.Sessions, a.Clock, a.Metrics, pol)
 	a.Apps = apps.New(a.Store, a.Keyring, a.Audit)
 	a.Apps.AllowInsecureRedirects = !cfg.IsProduction()
+	a.SAs = serviceacct.New(a.Store, a.Keyring, a.Audit)
 	keys := oidcop.NewKeys(a.Store, a.Keyring, a.Audit)
 	if opts.RSABits > 0 {
 		keys.RSABits = opts.RSABits
@@ -143,7 +146,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	}
 	a.Engine = authz.NewEngine(a.Store, a.Clock, a.Metrics, cfg.Authz.TrustedNetworks)
 	a.Authz = authz.NewAdmin(a.Store, a.Audit)
-	a.OP = &oidcop.Provider{Issuer: cfg.PublicOrigin(), Store: a.Store, Keyring: a.Keyring, Audit: a.Audit, Signing: keys, Apps: a.Apps,
+	a.OP = &oidcop.Provider{Issuer: cfg.PublicOrigin(), Store: a.Store, Keyring: a.Keyring, Audit: a.Audit, Signing: keys, Apps: a.Apps, ServiceAccounts: a.SAs,
 		Sessions: a.Sessions, Tenants: a.Tenants, Engine: a.Engine, Clock: a.Clock, Metrics: a.Metrics, Log: a.Log}
 	peers := cfg.Forward.TrustedPeers
 	if len(peers) == 0 {

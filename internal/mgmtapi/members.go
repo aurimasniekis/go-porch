@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
@@ -64,9 +65,9 @@ func registerMembers(api huma.API, d *Deps) {
 		Pagination
 	}
 	huma.Register(api, huma.Operation{OperationID: "list-members", Method: http.MethodGet, Path: "/tenants/{tenant}/members",
-		Summary: "List tenant members", Tags: tags, Security: sessionSecurity},
+		Summary: "List tenant members (member, group or role managers)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *listInput) (*struct{ Body MemberList }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdminAny(ctx, in.Tenant, authz.PermMemberManage, authz.PermGroupManage, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +94,7 @@ func registerMembers(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "add-member", Method: http.MethodPost, Path: "/tenants/{tenant}/members",
 		DefaultStatus: http.StatusCreated, Summary: "Add a user to a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *addInput) (*memberOutput, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermMemberManage)
 			if err != nil {
 				return nil, err
 			}
@@ -118,7 +119,7 @@ func registerMembers(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "update-member", Method: http.MethodPatch, Path: "/tenants/{tenant}/members/{member}",
 		Summary: "Suspend or reactivate a membership", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *updateInput) (*memberOutput, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermMemberManage)
 			if err != nil {
 				return nil, err
 			}
@@ -141,7 +142,7 @@ func registerMembers(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "remove-member", Method: http.MethodDelete, Path: "/tenants/{tenant}/members/{member}",
 		DefaultStatus: http.StatusNoContent, Summary: "Remove a user from a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *deleteInput) (*struct{}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermMemberManage)
 			if err != nil {
 				return nil, err
 			}

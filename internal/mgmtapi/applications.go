@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/aurimasniekis/go-porch/internal/apps"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 )
 
 // Disclosure controls optional claims released to an application.
@@ -229,7 +230,7 @@ func registerApplications(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-applications", Method: http.MethodGet, Path: "/tenants/{tenant}/applications",
 		Summary: "Applications of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []Application }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -258,7 +259,7 @@ func registerApplications(api huma.API, d *Deps) {
 			ETag string `header:"ETag"`
 			Body CreatedApplication
 		}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -286,7 +287,7 @@ func registerApplications(api huma.API, d *Deps) {
 			ETag string `header:"ETag"`
 			Body Application
 		}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -311,7 +312,7 @@ func registerApplications(api huma.API, d *Deps) {
 			ETag string `header:"ETag"`
 			Body Application
 		}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -340,7 +341,7 @@ func registerApplications(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "rotate-client-secret", Method: http.MethodPost, Path: "/tenants/{tenant}/applications/{app}/rotate-secret",
 		Summary: "Issue a new client secret (needs a recent sign-in; the old secret stops working)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *AppRef) (*struct{ Body ClientSecret }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -365,7 +366,7 @@ func registerApplications(api huma.API, d *Deps) {
 			ManagedBy
 			IfMatch
 		}) (*struct{}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}

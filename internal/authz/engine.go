@@ -141,7 +141,7 @@ func (e *Engine) Check(ctx context.Context, req Request) (Decision, error) {
 
 func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 	now := e.clock.Now()
-	var tr Trace
+	tr := Trace{Groups: []string{}, Candidates: []GrantTrace{}, DenyPolicies: []PolicyTrace{}}
 	if !ValidPermission(req.Action) || strings.Contains(req.Action, "*") || req.TenantID == "" || req.Subject.ID == "" {
 		return deny("invalid_request", tr), nil
 	}
@@ -157,6 +157,9 @@ func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 	// Context: server-derived unless simulating.
 	if req.SimulatedContext != nil {
 		tr.Context, tr.Simulated = *req.SimulatedContext, true
+		if tr.Context.TenantSlug == "" {
+			tr.Context.TenantSlug = tenant.Slug // the tenant is never simulated
+		}
 	} else {
 		tr.Context = ContextV1{IP: req.ClientIP.String(), Network: "external", TenantSlug: tenant.Slug, Hour: now.UTC().Hour(),
 			Weekday: now.UTC().Weekday().String()[:3]}
@@ -222,6 +225,13 @@ func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 		if directGroups, err = e.s.R().ListUserGroupIDs(ctx, db.ListUserGroupIDsParams{TenantID: req.TenantID, UserID: u.ID}); err != nil {
 			return Decision{}, err
 		}
+	case "service_account":
+		sa, err := e.s.R().GetServiceAccountByID(ctx, req.Subject.ID)
+		if err != nil || sa.TenantID != req.TenantID || sa.Enabled != 1 {
+			return deny("tenant_gate", tr), nil //nolint:nilerr // unknown, foreign or disabled service account
+		}
+		pr.ID = sa.ID
+		tr.TenantGate = GateTrace{Passed: true, Via: "service_account"}
 	default:
 		return deny("tenant_gate", tr), nil
 	}
@@ -236,7 +246,7 @@ func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 	}
 	slices.Sort(pr.Groups)
 	// Candidate grants.
-	via := map[string]string{"user:" + req.Subject.ID: "user"}
+	via := map[string]string{req.Subject.Type + ":" + req.Subject.ID: req.Subject.Type}
 	for _, g := range groups {
 		via["group:"+g] = "group:" + m.groups[g].Slug
 	}
@@ -281,7 +291,7 @@ func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 		pr.Roles = append(pr.Roles, s)
 	}
 	slices.Sort(pr.Roles)
-	if app != nil && req.Action == PermAppAccess && app.AccessMode == "all_members" {
+	if app != nil && req.Subject.Type == "user" && req.Action == PermAppAccess && app.AccessMode == "all_members" {
 		viaGate := "implicit:all_members"
 		if strings.HasPrefix(tr.TenantGate.Via, "share:") {
 			viaGate = "share"

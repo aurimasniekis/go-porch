@@ -225,7 +225,7 @@ func (svc *Service) validateClient(p *ClientParams, v *apperr.Validation) {
 		}
 	}
 	for _, a := range p.Audiences {
-		if u, err := url.Parse(a); err != nil || len(a) > 512 || (u.Scheme != "" && u.Host == "") || strings.TrimSpace(a) != a || a == "" {
+		if !ValidAudience(a) {
 			v.Add("audiences", "%q is not a valid audience (use an absolute URI or a short identifier)", a)
 		}
 	}
@@ -285,6 +285,12 @@ func (svc *Service) newSecret() (secret string, mac []byte, hint string, err err
 	secret = "porch_cs_" + r
 	mac, err = svc.kr.MAC(keyring.PurposeToken, []byte("porch/client-secret/v1|"+secret))
 	return secret, mac, secret[len(secret)-4:], err
+}
+
+// ValidAudience reports whether a is an absolute URI or a short identifier usable as an access-token audience.
+func ValidAudience(a string) bool {
+	u, err := url.Parse(a)
+	return err == nil && len(a) <= 512 && (u.Scheme == "" || u.Host != "") && strings.TrimSpace(a) == a && a != ""
 }
 
 // VerifySecret checks a client secret in constant time against every non-retired token key version.

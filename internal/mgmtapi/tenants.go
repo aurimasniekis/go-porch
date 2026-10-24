@@ -7,6 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/apperr"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
@@ -123,7 +125,7 @@ func registerTenants(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-tenant", Method: http.MethodGet, Path: "/tenants/{tenant}", Summary: "Get a tenant",
 		Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*tenantOutput, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermTenantManage)
 			if err != nil {
 				return nil, err
 			}
@@ -143,9 +145,12 @@ func registerTenants(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "update-tenant", Method: http.MethodPatch, Path: "/tenants/{tenant}", Summary: "Update a tenant",
 		Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *updateInput) (*tenantOutput, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermTenantManage)
 			if err != nil {
 				return nil, err
+			}
+			if in.Body.Status != nil && sc.Via() != tenancy.ViaOperator {
+				return nil, problem(http.StatusForbidden, apperr.CodeForbidden, "only installation operators can enable or disable tenants", nil)
 			}
 			v, err := in.Version()
 			if err != nil {

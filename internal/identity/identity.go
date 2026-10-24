@@ -165,6 +165,8 @@ func (svc *Service) Get(ctx context.Context, id string) (User, error) {
 type ListFilter struct {
 	Email  string
 	Status string
+	// Query matches a case-insensitive substring of the display name or primary email.
+	Query string
 }
 
 // List returns one page of users ordered by ID.
@@ -175,6 +177,9 @@ func (svc *Service) List(ctx context.Context, page domain.Page, f ListFilter) ([
 	}
 	if f.Status != "" {
 		p.Status = f.Status
+	}
+	if q := strings.ToLower(strings.TrimSpace(f.Query)); q != "" {
+		p.Q = q
 	}
 	rows, err := svc.s.R().ListUsers(ctx, p)
 	if err != nil {
@@ -313,6 +318,29 @@ func (svc *Service) Delete(ctx context.Context, ch domain.Change, id string, ifV
 		_, err = outbox.Enqueue(ctx, tx, outbox.Event{Area: "identity", Entity: "user", Action: "deleted", Payload: map[string]any{"user_id": id}})
 		return err
 	})
+}
+
+// RevokeOperatorRoleTx removes an installation role inside tx. The last owner cannot be removed.
+func (svc *Service) RevokeOperatorRoleTx(ctx context.Context, tx *store.Tx, ch domain.Change, userID, role string) error {
+	n, err := tx.Q.DeleteOperatorRole(ctx, db.DeleteOperatorRoleParams{UserID: userID, Role: role})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return apperr.New(apperr.CodeNotFound, "the user does not have installation role %s", role)
+	}
+	if role == RoleOwner {
+		owners, err := tx.Q.CountOwners(ctx)
+		if err != nil {
+			return err
+		}
+		if owners == 0 {
+			return apperr.New(apperr.CodeConflict, "the installation must keep at least one owner")
+		}
+	}
+	_, err = svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, Action: "installation.role_revoked",
+		Target: audit.Target{Type: "user", ID: userID}, Details: map[string]any{"role": role}})
+	return err
 }
 
 // OperatorRoles returns the installation roles of a user.

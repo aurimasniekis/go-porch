@@ -59,6 +59,8 @@ test.describe.serial('M2: setup, Google login, backup login', () => {
       hosts: ['whoami.localhost'],
       launch_url: `${process.env.PORCH_E2E_FWD ?? 'http://whoami.localhost:9998'}/`,
     })
+    // M5 specs act as the owner through this saved session (setup sessions are not federated and last 1 h).
+    await page.context().storageState({ path: process.env.PORCH_E2E_OWNER_STATE ?? 'e2e-owner.json' })
     const client = app?.client as { client_id: string }
     writeFileSync(
       process.env.PORCH_E2E_STATE ?? 'e2e-state.json',

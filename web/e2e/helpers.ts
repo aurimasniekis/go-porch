@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test'
 
 export const BASE = process.env.PORCH_E2E_URL ?? 'http://localhost:8080'
 export const IDP = process.env.PORCH_E2E_IDP ?? 'http://127.0.0.1:9999'
@@ -86,4 +86,27 @@ export async function startDemo(state: DemoState): Promise<ChildProcess> {
   }
   demo.kill()
   throw new Error('demo app did not start')
+}
+
+/** A browser context signed in as the installation owner (saved by m2-login.spec.ts right after setup). */
+export async function ownerContext(browser: Browser): Promise<BrowserContext> {
+  return browser.newContext({ storageState: process.env.PORCH_E2E_OWNER_STATE ?? 'e2e-owner.json' })
+}
+
+/** Like apiCall, but returns the status and body instead of asserting success. */
+export async function apiTry(
+  req: APIRequestContext,
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; body: Record<string, unknown> | null }> {
+  const me = await req.get(`${BASE}/api/v1/me`)
+  const csrf = ((await me.json()) as { csrf_token: string }).csrf_token
+  const res = await req.fetch(`${BASE}/api/v1${path}`, {
+    method,
+    headers: { 'X-Porch-CSRF': csrf, Origin: BASE, 'Content-Type': 'application/json' },
+    data: body === undefined ? undefined : JSON.stringify(body),
+  })
+  const text = await res.text()
+  return { status: res.status(), body: text ? (JSON.parse(text) as Record<string, unknown>) : null }
 }

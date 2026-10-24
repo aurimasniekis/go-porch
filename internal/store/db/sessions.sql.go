@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countActiveSessions = `-- name: CountActiveSessions :one
+SELECT count(*) FROM sessions WHERE revoked_at IS NULL AND absolute_expires_at > ?
+`
+
+func (q *Queries) CountActiveSessions(ctx context.Context, absoluteExpiresAt int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveSessions, absoluteExpiresAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getSession = `-- name: GetSession :one
 SELECT id, mac, user_id, tenant_id, method, provider_id, auth_time, upstream_checked_at, csrf_secret, install_epoch, user_epoch, idle_secs, absolute_expires_at, created_at, last_seen_at, ip, user_agent, revoked_at, revoke_reason FROM sessions WHERE id = ?
 `
@@ -119,6 +130,73 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.UserAgent,
 	)
 	return err
+}
+
+const listActiveSessions = `-- name: ListActiveSessions :many
+SELECT s.id, s.user_id, s.tenant_id, s.method, s.auth_time, s.created_at, s.last_seen_at, s.absolute_expires_at, s.ip, s.user_agent,
+  u.display_name, u.primary_email
+FROM sessions s JOIN users u ON u.id = s.user_id
+WHERE s.revoked_at IS NULL AND s.absolute_expires_at > ?1
+  AND (?2 IS NULL OR s.user_id = ?2)
+ORDER BY s.last_seen_at DESC
+LIMIT ?3
+`
+
+type ListActiveSessionsParams struct {
+	Now    int64
+	UserID interface{}
+	Lim    int64
+}
+
+type ListActiveSessionsRow struct {
+	ID                string
+	UserID            string
+	TenantID          sql.NullString
+	Method            string
+	AuthTime          int64
+	CreatedAt         int64
+	LastSeenAt        int64
+	AbsoluteExpiresAt int64
+	Ip                string
+	UserAgent         string
+	DisplayName       string
+	PrimaryEmail      sql.NullString
+}
+
+func (q *Queries) ListActiveSessions(ctx context.Context, arg ListActiveSessionsParams) ([]ListActiveSessionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveSessions, arg.Now, arg.UserID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActiveSessionsRow{}
+	for rows.Next() {
+		var i ListActiveSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.TenantID,
+			&i.Method,
+			&i.AuthTime,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+			&i.AbsoluteExpiresAt,
+			&i.Ip,
+			&i.UserAgent,
+			&i.DisplayName,
+			&i.PrimaryEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUserSessions = `-- name: ListUserSessions :many

@@ -498,6 +498,36 @@ func TestBackupLoginAndDoSIsolation(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("cross-origin login POST: %d", resp.StatusCode)
 	}
+	// Operators see the lockout state and can lift it (step-up) without seeing the credential.
+	adaID := b.me()["user_id"].(string)
+	code, _ = anon.api(http.MethodPost, "/api/v1/auth/backup/start", map[string]string{"identifier": "ada@smith.example", "password": "nope-nope-nope"})
+	if code != http.StatusUnauthorized {
+		t.Fatalf("relock: %d", code)
+	}
+	tok, _, err := st.a.Setup.Issue(context.Background(), time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := st.browser()
+	if code, p := owner.api(http.MethodPost, "/api/v1/setup", map[string]string{"token": tok, "display_name": "Olga Owner"}); code != http.StatusCreated {
+		t.Fatalf("setup %d %v", code, p)
+	}
+	owner.me()
+	code, u := owner.api(http.MethodGet, "/api/v1/users/"+adaID, nil)
+	bl, _ := u["backup_login"].(map[string]any)
+	if code != http.StatusOK || bl["enrolled"] != true || bl["locked_until"] == nil {
+		t.Fatalf("lockout status %d %v", code, u)
+	}
+	if code, p := owner.api(http.MethodPost, "/api/v1/users/"+adaID+"/backup-lockout/unlock", nil); code != http.StatusNoContent {
+		t.Fatalf("unlock %d %v", code, p)
+	}
+	if _, u = owner.api(http.MethodGet, "/api/v1/users/"+adaID, nil); u["backup_login"].(map[string]any)["locked_until"] != nil {
+		t.Fatalf("still locked %v", u)
+	}
+	code, _ = anon.api(http.MethodPost, "/api/v1/auth/backup/start", map[string]string{"identifier": "ada@smith.example", "password": "correct-Horse-battery-79!"})
+	if code != http.StatusOK {
+		t.Fatalf("after unlock: %d", code)
+	}
 }
 
 // Sessions and recovery survive a restart; the first owner can link Google after setup via a step-up.

@@ -25,12 +25,43 @@ export const theme = createTheme({
   cursorType: 'pointer',
   components: {
     Card: { defaultProps: { withBorder: true, padding: 'lg', radius: 'md' } },
+    // Close buttons need an accessible name (axe button-name).
+    // Scroll lock (react-remove-scroll) injects a <style> without the CSP nonce, so it stays off.
+    Modal: { defaultProps: { closeButtonProps: { 'aria-label': 'Close' }, lockScroll: false } },
+    Drawer: { defaultProps: { closeButtonProps: { 'aria-label': 'Close' }, lockScroll: false } },
+    Notification: { defaultProps: { closeButtonProps: { 'aria-label': 'Close notification' } } },
   },
 })
 
-/** Mantine's default dimmed grey (#868e96) fails WCAG AA contrast on white; use darker/lighter greys. */
+/**
+ * Text colour of the `light` variant (badges, alerts, light buttons) in the light scheme. Mantine uses shade 6, which
+ * fails WCAG AA on the variant's own tint; these values reach at least 4.6:1 on the tint over white and over striped
+ * table rows (computed, see docs/DECISIONS.md ADR-0040).
+ */
+const lightVariantText: Record<string, string> = {
+  porch: '#003b97',
+  blue: '#1864ab',
+  cyan: '#0b7082',
+  grape: '#862e9c',
+  green: '#247434',
+  indigo: '#364fc7',
+  lime: '#48730a',
+  orange: '#b63c0d',
+  pink: '#a61e4d',
+  red: '#bd2727',
+  teal: '#077554',
+  violet: '#5f3dc4',
+  yellow: '#a15300',
+  gray: '#212529',
+}
+
+/** Mantine's default dimmed grey (#868e96) and error red (#fa5252) fail WCAG AA contrast on white. */
 export const cssVariablesResolver: CSSVariablesResolver = () => ({
   variables: {},
-  light: { '--mantine-color-dimmed': 'var(--mantine-color-gray-7)' },
+  light: {
+    '--mantine-color-dimmed': 'var(--mantine-color-gray-7)',
+    '--mantine-color-error': 'var(--mantine-color-red-9)',
+    ...Object.fromEntries(Object.entries(lightVariantText).map(([c, v]) => [`--mantine-color-${c}-light-color`, v])),
+  },
   dark: { '--mantine-color-dimmed': 'var(--mantine-color-dark-1)' },
 })

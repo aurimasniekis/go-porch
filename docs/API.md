@@ -28,6 +28,15 @@ authentication, CSRF and caching rules.
 - Step-up: operations listed in ADR-0010 return `403 reauth_required` when `auth_time` is older than 5 minutes.
 - Authorization decision API: `POST /api/v1/tenants/{tenant}/authz/check` and `/authz/check-batch`, returning
   `{allowed, reason, trace}`.
+- Delegated administration (ADR-0038): each tenant-scoped operation needs one tenant permission; callers without it
+  get `404` (same as a missing tenant). Granting more than you hold returns `403 privilege_escalation` with the missing
+  permissions in `fields`. `GET /api/v1/me/admin` lists what the caller can administer.
+- Authorization model: `/tenants/{t}/roles`, `/groups` (+ `/members/{user}`, `/parents/{parent}`), `/resources`,
+  `/policies` (+ `/validate`), `/assignments`, `/permissions`, `/authz/effective`.
+- Service accounts (ADR-0037): `/tenants/{t}/service-accounts` (+ `/rotate-secret`); tokens from `/oauth2/token` with
+  `grant_type=client_credentials`.
+- Operations (ADR-0039): `/audit`, `/tenants/{t}/audit`, `/sessions`, `/users/{u}/revoke-sessions`,
+  `/installation/health`.
 
 ## What is deliberately not exposed
 

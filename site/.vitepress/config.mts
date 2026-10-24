@@ -61,6 +61,7 @@ export default withMermaid(
             { text: 'Concepts', link: '/guide/concepts' },
             { text: 'Signing in', link: '/guide/signing-in' },
             { text: 'Connect an application', link: '/guide/connect-an-app' },
+            { text: 'Administer a tenant', link: '/guide/administration' },
             { text: 'Project status', link: '/guide/status' },
           ],
         },

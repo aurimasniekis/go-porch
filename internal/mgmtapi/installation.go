@@ -7,9 +7,11 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/installation"
+	"github.com/aurimasniekis/go-porch/internal/store"
 )
 
 // InstallationInfo describes the installation.
@@ -29,6 +31,12 @@ type Operator struct {
 	Role        string    `json:"role"`
 	Source      string    `json:"source"`
 	CreatedAt   time.Time `json:"created_at"`
+}
+
+// OperatorGrant gives a user an installation role.
+type OperatorGrant struct {
+	UserID string `json:"user_id" minLength:"1" maxLength:"64"`
+	Role   string `json:"role" enum:"owner,admin,auditor"`
 }
 
 // AuditVerification is the result of verifying the audit hash chain.
@@ -71,6 +79,49 @@ func registerInstallation(api huma.API, d *Deps) {
 					CreatedAt: time.UnixMicro(r.CreatedAt).UTC()})
 			}
 			return &struct{ Body []Operator }{Body: out}, nil
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "grant-operator-role", Method: http.MethodPost, Path: "/installation/operators",
+		DefaultStatus: http.StatusNoContent, Summary: "Give a user an installation role (owner only; needs a recent sign-in)", Tags: tags,
+		Security: sessionSecurity},
+		func(ctx context.Context, in *struct{ Body OperatorGrant }) (*struct{}, error) {
+			if _, err := requireOperator(ctx, identity.RoleOwner); err != nil {
+				return nil, err
+			}
+			if err := d.stepUp(ctx); err != nil {
+				return nil, err
+			}
+			err := d.Store.W().TxNamed(ctx, "installation.grant_role", func(tx *store.Tx) error {
+				if _, err := tx.Q.GetUser(ctx, in.Body.UserID); err != nil {
+					return apperr.New(apperr.CodeNotFound, "user not found")
+				}
+				return d.Users.GrantOperatorRoleTx(ctx, tx, change(ctx, ""), in.Body.UserID, in.Body.Role, "manual")
+			})
+			if err != nil {
+				return nil, d.fail("grant-operator-role", err)
+			}
+			return &struct{}{}, nil
+		})
+	huma.Register(api, huma.Operation{OperationID: "revoke-operator-role", Method: http.MethodDelete, Path: "/installation/operators/{user}/{role}",
+		DefaultStatus: http.StatusNoContent, Summary: "Remove an installation role (owner only; needs a recent sign-in; the last owner stays)",
+		Tags: tags, Security: sessionSecurity},
+		func(ctx context.Context, in *struct {
+			User string `path:"user" maxLength:"64"`
+			Role string `path:"role" enum:"owner,admin,auditor"`
+		}) (*struct{}, error) {
+			if _, err := requireOperator(ctx, identity.RoleOwner); err != nil {
+				return nil, err
+			}
+			if err := d.stepUp(ctx); err != nil {
+				return nil, err
+			}
+			err := d.Store.W().TxNamed(ctx, "installation.revoke_role", func(tx *store.Tx) error {
+				return d.Users.RevokeOperatorRoleTx(ctx, tx, change(ctx, ""), in.User, in.Role)
+			})
+			if err != nil {
+				return nil, d.fail("revoke-operator-role", err)
+			}
+			return &struct{}{}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "verify-audit-chain", Method: http.MethodGet, Path: "/installation/audit/verify",

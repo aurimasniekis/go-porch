@@ -15,6 +15,134 @@
         ],
         "type": "object"
       },
+      "AdminCapabilities": {
+        "additionalProperties": false,
+        "properties": {
+          "auditor": {
+            "description": "Installation-wide audit and health (owner, admin or auditor).",
+            "type": "boolean"
+          },
+          "installation": {
+            "description": "Installation administration (owner or admin).",
+            "type": "boolean"
+          },
+          "operator_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenants": {
+            "items": {
+              "$ref": "#/components/schemas/AdminTenant"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "operator_roles",
+          "installation",
+          "auditor",
+          "tenants"
+        ],
+        "type": "object"
+      },
+      "AdminSession": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          },
+          "user_email": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "user_name",
+          "method",
+          "auth_time",
+          "created_at",
+          "last_seen_at",
+          "expires_at",
+          "current"
+        ],
+        "type": "object"
+      },
+      "AdminTenant": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "description": "Management permissions held at tenant scope (system catalogue subset).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "via": {
+            "enum": [
+              "operator",
+              "delegated"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "via",
+          "permissions"
+        ],
+        "type": "object"
+      },
       "Alert": {
         "additionalProperties": false,
         "properties": {
@@ -205,6 +333,208 @@
         ],
         "type": "object"
       },
+      "Assignment": {
+        "additionalProperties": false,
+        "properties": {
+          "condition_policy_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "scope_resource_id": {
+            "type": "string"
+          },
+          "scope_resource_type": {
+            "type": "string"
+          },
+          "scope_type": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "subject_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "subject_type",
+          "subject_id",
+          "role_id",
+          "scope_type",
+          "source",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "AssignmentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "condition_policy_id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "role_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope_resource_id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "scope_resource_type": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "scope_type": {
+            "enum": [
+              "tenant",
+              "resource_type",
+              "resource"
+            ],
+            "type": "string"
+          },
+          "subject_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject_type": {
+            "enum": [
+              "user",
+              "group",
+              "service_account"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_type",
+          "subject_id",
+          "role_id",
+          "scope_type"
+        ],
+        "type": "object"
+      },
+      "AuditEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "auth_method": {
+            "type": "string"
+          },
+          "chain_hash_prefix": {
+            "description": "First bytes of the event's chain hash (hex), for cross-checking exports.",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "success",
+              "failure",
+              "denied"
+            ],
+            "type": "string"
+          },
+          "reason_code": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "sealed_details": {
+            "description": "The event has encrypted details (readable only with host access).",
+            "type": "boolean"
+          },
+          "seq": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "source_ip": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "seq",
+          "at",
+          "actor_type",
+          "action",
+          "outcome",
+          "sealed_details",
+          "chain_hash_prefix"
+        ],
+        "type": "object"
+      },
+      "AuditPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            },
+            "type": "array"
+          },
+          "next_cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "AuditVerification": {
         "additionalProperties": false,
         "properties": {
@@ -378,6 +708,48 @@
         ],
         "type": "object"
       },
+      "BackupHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "last_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "last_ok"
+        ],
+        "type": "object"
+      },
+      "BackupLoginStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "enrolled": {
+            "type": "boolean"
+          },
+          "failures": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "locked_until": {
+            "description": "Set while the backup login is locked out.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enrolled",
+          "failures"
+        ],
+        "type": "object"
+      },
       "BackupStartRequest": {
         "additionalProperties": false,
         "properties": {
@@ -532,6 +904,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "hour"
+        ],
         "type": "object"
       },
       "CreateApplicationRequest": {
@@ -854,6 +1229,89 @@
         ],
         "type": "object"
       },
+      "CreatedServiceAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token_ttl_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "client_secret": {
+            "description": "Shown only in this response. Store it now.",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_changed_by": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret_hint": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "client_secret",
+          "token_endpoint",
+          "id",
+          "tenant_id",
+          "slug",
+          "name",
+          "description",
+          "enabled",
+          "secret_hint",
+          "audiences",
+          "access_token_ttl_seconds",
+          "version",
+          "managed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "Decision": {
         "additionalProperties": false,
         "properties": {
@@ -958,6 +1416,38 @@
           "managed_by",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "EffectiveGrant": {
+        "additionalProperties": false,
+        "properties": {
+          "conditional": {
+            "type": "boolean"
+          },
+          "expires": {
+            "type": "boolean"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission",
+          "scope",
+          "role",
+          "via",
+          "conditional",
+          "expires"
         ],
         "type": "object"
       },
@@ -1077,6 +1567,101 @@
         ],
         "type": "object"
       },
+      "Group": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "parents",
+          "members",
+          "version",
+          "managed_by",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "GroupRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 63,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GroupUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
       "HandleRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1088,6 +1673,26 @@
         },
         "required": [
           "handle"
+        ],
+        "type": "object"
+      },
+      "HealthStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "since"
         ],
         "type": "object"
       },
@@ -1707,6 +2312,149 @@
         ],
         "type": "object"
       },
+      "OperatorGrant": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "enum": [
+              "owner",
+              "admin",
+              "auditor"
+            ],
+            "type": "string"
+          },
+          "user_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "PermissionCatalogue": {
+        "additionalProperties": false,
+        "properties": {
+          "custom": {
+            "description": "Permissions used by this tenant's roles that are not system permissions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "system": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "system",
+          "custom"
+        ],
+        "type": "object"
+      },
+      "PolicyDef": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "effect": {
+            "type": "string"
+          },
+          "env_version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expression": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "effect",
+          "actions",
+          "expression",
+          "env_version",
+          "version",
+          "managed_by",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "PolicyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "description": "Deny policies only: permissions it applies to (* for all).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "effect": {
+            "description": "condition: referenced by assignments, must be true for them to apply; deny: overrides grants for its actions.",
+            "enum": [
+              "condition",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "expression": {
+            "description": "expr-lang boolean expression over principal, resource, action, context, now (environment v1).",
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "description": "Create only.",
+            "maxLength": 63,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effect",
+          "expression"
+        ],
+        "type": "object"
+      },
       "PolicyTrace": {
         "additionalProperties": false,
         "properties": {
@@ -1727,6 +2475,34 @@
           "policy_id",
           "slug",
           "result"
+        ],
+        "type": "object"
+      },
+      "PolicyValidateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expression": {
+            "maxLength": 4096,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "type": "object"
+      },
+      "PolicyValidation": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
         ],
         "type": "object"
       },
@@ -1781,6 +2557,33 @@
         ],
         "type": "object"
       },
+      "PurposeStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "active_version": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "purpose",
+          "active_version",
+          "versions"
+        ],
+        "type": "object"
+      },
       "RecoveryPair": {
         "additionalProperties": false,
         "properties": {
@@ -1816,6 +2619,209 @@
         ],
         "type": "object"
       },
+      "ResourceDef": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "slug",
+          "name",
+          "attributes",
+          "version",
+          "managed_by",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ResourceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Visible to policies as resource.attributes.",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 63,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "description": "Lowercase identifier; app and tenant are reserved.",
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "slug",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ResourceUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "attributes"
+        ],
+        "type": "object"
+      },
+      "Role": {
+        "additionalProperties": false,
+        "properties": {
+          "built_in": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "includes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "built_in",
+          "permissions",
+          "includes",
+          "version",
+          "managed_by",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "RoleRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "includes": {
+            "description": "IDs of roles bundled into this one (DAG, depth ≤ 5).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "permissions": {
+            "description": "\u003cresource_type\u003e:\u003caction\u003e; either side may be *. Built-in roles keep their permissions.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "slug": {
+            "description": "Create only.",
+            "maxLength": 63,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "type": "object"
+      },
       "RotateKeyRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1837,6 +2843,153 @@
         "required": [
           "alg"
         ],
+        "type": "object"
+      },
+      "ServiceAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token_ttl_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_changed_by": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret_hint": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token_endpoint",
+          "id",
+          "tenant_id",
+          "slug",
+          "name",
+          "description",
+          "enabled",
+          "secret_hint",
+          "audiences",
+          "access_token_ttl_seconds",
+          "version",
+          "managed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ServiceAccountRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token_ttl_seconds": {
+            "description": "0 = default (600).",
+            "format": "int64",
+            "maximum": 3600,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "audiences": {
+            "description": "API audiences its access tokens may target (RFC 8707 resource values).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 63,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ServiceAccountUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "access_token_ttl_seconds": {
+            "format": "int64",
+            "maximum": 3600,
+            "minimum": 60,
+            "type": "integer"
+          },
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SessionInfo": {
@@ -1973,6 +3126,125 @@
           "password_score",
           "combined_bits_estimate",
           "note"
+        ],
+        "type": "object"
+      },
+      "SystemCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "warning",
+              "critical"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ],
+        "type": "object"
+      },
+      "SystemHealth": {
+        "additionalProperties": false,
+        "properties": {
+          "active_sessions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "audit_events": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "backups": {
+            "$ref": "#/components/schemas/BackupHealth"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/SystemCheck"
+            },
+            "type": "array"
+          },
+          "db_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "keyring": {
+            "items": {
+              "$ref": "#/components/schemas/PurposeStatus"
+            },
+            "type": "array"
+          },
+          "open_alerts": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outbox_dead": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outbox_oldest_pending_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outbox_pending": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "ready_error": {
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "tenants": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "users": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          },
+          "wal_bytes": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "started_at",
+          "ready",
+          "storage",
+          "db_bytes",
+          "wal_bytes",
+          "keyring",
+          "outbox_pending",
+          "outbox_dead",
+          "open_alerts",
+          "audit_events",
+          "tenants",
+          "users",
+          "active_sessions",
+          "backups",
+          "checks"
         ],
         "type": "object"
       },
@@ -2253,6 +3525,9 @@
       "User": {
         "additionalProperties": false,
         "properties": {
+          "backup_login": {
+            "$ref": "#/components/schemas/BackupLoginStatus"
+          },
           "created_at": {
             "format": "date-time",
             "type": "string"
@@ -2342,6 +3617,142 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/audit": {
+      "get": {
+        "operationId": "search-audit",
+        "parameters": [
+          {
+            "description": "Actor ID.",
+            "explode": false,
+            "in": "query",
+            "name": "actor",
+            "schema": {
+              "description": "Actor ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Target ID.",
+            "explode": false,
+            "in": "query",
+            "name": "target",
+            "schema": {
+              "description": "Target ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Action prefix, e.g. role. or oidc.token_issued.",
+            "explode": false,
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "description": "Action prefix, e.g. role. or oidc.token_issued.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "outcome",
+            "schema": {
+              "enum": [
+                "success",
+                "failure",
+                "denied"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from next_cursor.",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "Opaque cursor from next_cursor.",
+              "maxLength": 20,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tenant ID.",
+            "explode": false,
+            "in": "query",
+            "name": "tenant",
+            "schema": {
+              "description": "Tenant ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Search the installation audit log (owner, admin or auditor)",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
     "/auth/backup/finish": {
       "post": {
         "operationId": "backup-login-finish",
@@ -3020,6 +4431,42 @@
         ]
       }
     },
+    "/installation/health": {
+      "get": {
+        "operationId": "get-system-health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemHealth"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "System health (owner, admin or auditor)",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
     "/installation/operators": {
       "get": {
         "operationId": "list-operators",
@@ -3054,6 +4501,96 @@
           }
         ],
         "summary": "Users with installation roles",
+        "tags": [
+          "installation"
+        ]
+      },
+      "post": {
+        "operationId": "grant-operator-role",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatorGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Give a user an installation role (owner only; needs a recent sign-in)",
+        "tags": [
+          "installation"
+        ]
+      }
+    },
+    "/installation/operators/{user}/{role}": {
+      "delete": {
+        "operationId": "revoke-operator-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "enum": [
+                "owner",
+                "admin",
+                "auditor"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Remove an installation role (owner only; needs a recent sign-in; the last owner stays)",
         "tags": [
           "installation"
         ]
@@ -3213,6 +4750,42 @@
         "summary": "The authenticated caller",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/me/admin": {
+      "get": {
+        "operationId": "get-my-admin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCapabilities"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "What the caller can administer",
+        "tags": [
+          "me"
         ]
       }
     },
@@ -3621,6 +5194,110 @@
         "summary": "Random words from the EFF large wordlist (optional help for recovery answers)",
         "tags": [
           "account"
+        ]
+      }
+    },
+    "/sessions": {
+      "get": {
+        "operationId": "list-sessions",
+        "parameters": [
+          {
+            "description": "Only this user's sessions.",
+            "explode": false,
+            "in": "query",
+            "name": "user",
+            "schema": {
+              "description": "Only this user's sessions.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 200,
+              "format": "int64",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminSession"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Active browser sessions across the installation (owner or admin)",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
+    "/sessions/{session}": {
+      "delete": {
+        "operationId": "revoke-session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "End a browser session (owner or admin)",
+        "tags": [
+          "operations"
         ]
       }
     },
@@ -4650,6 +6327,347 @@
         ]
       }
     },
+    "/tenants/{tenant}/assignments": {
+      "get": {
+        "operationId": "list-assignments",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "subject_type",
+            "schema": {
+              "enum": [
+                "user",
+                "group",
+                "service_account"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "subject_id",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "role_id",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Assignment"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Role assignments of a tenant",
+        "tags": [
+          "authz"
+        ]
+      },
+      "post": {
+        "operationId": "create-assignment",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Assignment"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Assign a role (delegated administrators may only grant roles whose permissions they hold)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/assignments/{assignment}": {
+      "delete": {
+        "operationId": "delete-assignment",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assignment",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Remove a role assignment",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/audit": {
+      "get": {
+        "operationId": "search-tenant-audit",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Actor ID.",
+            "explode": false,
+            "in": "query",
+            "name": "actor",
+            "schema": {
+              "description": "Actor ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Target ID.",
+            "explode": false,
+            "in": "query",
+            "name": "target",
+            "schema": {
+              "description": "Target ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Action prefix, e.g. role. or oidc.token_issued.",
+            "explode": false,
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "description": "Action prefix, e.g. role. or oidc.token_issued.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "outcome",
+            "schema": {
+              "enum": [
+                "success",
+                "failure",
+                "denied"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Opaque cursor from next_cursor.",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "Opaque cursor from next_cursor.",
+              "maxLength": 20,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Search a tenant's audit events (audit:read)",
+        "tags": [
+          "operations"
+        ]
+      }
+    },
     "/tenants/{tenant}/authz/check": {
       "post": {
         "operationId": "authz-check",
@@ -4768,6 +6786,82 @@
         "summary": "Several authorization decisions at once",
         "tags": [
           "authorization"
+        ]
+      }
+    },
+    "/tenants/{tenant}/authz/effective": {
+      "get": {
+        "operationId": "effective-permissions",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "subject_type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "user",
+                "service_account"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "subject_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EffectiveGrant"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Every grant reaching a subject and how (conditions are reported, not evaluated)",
+        "tags": [
+          "authz"
         ]
       }
     },
@@ -4972,6 +7066,604 @@
         "summary": "Delete a rule and the memberships derived from it (needs a recent sign-in)",
         "tags": [
           "enrollment"
+        ]
+      }
+    },
+    "/tenants/{tenant}/groups": {
+      "get": {
+        "operationId": "list-groups",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Groups of a tenant (direct members and parents)",
+        "tags": [
+          "authz"
+        ]
+      },
+      "post": {
+        "operationId": "create-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a group",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/groups/{group}": {
+      "delete": {
+        "operationId": "delete-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a group (memberships, nesting and its assignments)",
+        "tags": [
+          "authz"
+        ]
+      },
+      "get": {
+        "operationId": "get-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get a group",
+        "tags": [
+          "authz"
+        ]
+      },
+      "patch": {
+        "operationId": "update-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Rename or describe a group",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/groups/{group}/members/{user}": {
+      "delete": {
+        "operationId": "remove-group-member",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "User ID.",
+            "in": "path",
+            "name": "user",
+            "required": true,
+            "schema": {
+              "description": "User ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Remove a user from a group",
+        "tags": [
+          "authz"
+        ]
+      },
+      "put": {
+        "operationId": "add-group-member",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "User ID.",
+            "in": "path",
+            "name": "user",
+            "required": true,
+            "schema": {
+              "description": "User ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Add a tenant member to a group (delegated administrators may only confer what they hold)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/groups/{group}/parents/{parent}": {
+      "delete": {
+        "operationId": "unnest-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Parent group ID or slug.",
+            "in": "path",
+            "name": "parent",
+            "required": true,
+            "schema": {
+              "description": "Parent group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Remove a group from a parent group",
+        "tags": [
+          "authz"
+        ]
+      },
+      "put": {
+        "operationId": "nest-group",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Group ID or slug.",
+            "in": "path",
+            "name": "group",
+            "required": true,
+            "schema": {
+              "description": "Group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Parent group ID or slug.",
+            "in": "path",
+            "name": "parent",
+            "required": true,
+            "schema": {
+              "description": "Parent group ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Make a group a member of a parent group (DAG, depth ≤ 5)",
+        "tags": [
+          "authz"
         ]
       }
     },
@@ -5217,7 +7909,7 @@
             "session": []
           }
         ],
-        "summary": "List tenant members",
+        "summary": "List tenant members (member, group or role managers)",
         "tags": [
           "members"
         ]
@@ -5475,6 +8167,1575 @@
         ]
       }
     },
+    "/tenants/{tenant}/permissions": {
+      "get": {
+        "operationId": "list-permissions",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionCatalogue"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Known permissions (system catalogue and custom ones in use)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/policies": {
+      "get": {
+        "operationId": "list-policies",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyDef"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Policies of a tenant",
+        "tags": [
+          "authz"
+        ]
+      },
+      "post": {
+        "operationId": "create-policy",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDef"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a policy (needs a recent sign-in)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/policies/validate": {
+      "post": {
+        "operationId": "validate-policy",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyValidation"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Compile an expression against the policy environment without saving it",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/policies/{policy}": {
+      "delete": {
+        "operationId": "delete-policy",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Policy ID or slug.",
+            "in": "path",
+            "name": "policy",
+            "required": true,
+            "schema": {
+              "description": "Policy ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a policy and the conditional assignments using it (needs a recent sign-in)",
+        "tags": [
+          "authz"
+        ]
+      },
+      "get": {
+        "operationId": "get-policy",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Policy ID or slug.",
+            "in": "path",
+            "name": "policy",
+            "required": true,
+            "schema": {
+              "description": "Policy ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDef"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get a policy",
+        "tags": [
+          "authz"
+        ]
+      },
+      "put": {
+        "operationId": "update-policy",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Policy ID or slug.",
+            "in": "path",
+            "name": "policy",
+            "required": true,
+            "schema": {
+              "description": "Policy ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDef"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Replace a policy (needs a recent sign-in)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/resources": {
+      "get": {
+        "operationId": "list-resources",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceDef"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Resources of a tenant (assignment scopes; parents form a hierarchy)",
+        "tags": [
+          "authz"
+        ]
+      },
+      "post": {
+        "operationId": "create-resource",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDef"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a resource",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/resources/{resource}": {
+      "delete": {
+        "operationId": "delete-resource",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a resource, its children and assignments scoped to it",
+        "tags": [
+          "authz"
+        ]
+      },
+      "get": {
+        "operationId": "get-resource",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDef"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get a resource",
+        "tags": [
+          "authz"
+        ]
+      },
+      "patch": {
+        "operationId": "update-resource",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "resource",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDef"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Rename a resource or replace its attributes",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/roles": {
+      "get": {
+        "operationId": "list-roles",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Role"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Roles of a tenant",
+        "tags": [
+          "authz"
+        ]
+      },
+      "post": {
+        "operationId": "create-role",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a role (delegated administrators may only include permissions they hold)",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/roles/{role}": {
+      "delete": {
+        "operationId": "delete-role",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Role ID or slug.",
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "description": "Role ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a custom role and its assignments",
+        "tags": [
+          "authz"
+        ]
+      },
+      "get": {
+        "operationId": "get-role",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Role ID or slug.",
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "description": "Role ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get a role",
+        "tags": [
+          "authz"
+        ]
+      },
+      "put": {
+        "operationId": "update-role",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Role ID or slug.",
+            "in": "path",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "description": "Role ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Replace a role's definition",
+        "tags": [
+          "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/service-accounts": {
+      "get": {
+        "operationId": "list-service-accounts",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceAccount"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Service accounts of a tenant",
+        "tags": [
+          "service-accounts"
+        ]
+      },
+      "post": {
+        "operationId": "create-service-account",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedServiceAccount"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a service account (grant it roles with assignments)",
+        "tags": [
+          "service-accounts"
+        ]
+      }
+    },
+    "/tenants/{tenant}/service-accounts/{sa}": {
+      "delete": {
+        "operationId": "delete-service-account",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Service account ID or slug.",
+            "in": "path",
+            "name": "sa",
+            "required": true,
+            "schema": {
+              "description": "Service account ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a service account and its role assignments",
+        "tags": [
+          "service-accounts"
+        ]
+      },
+      "get": {
+        "operationId": "get-service-account",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Service account ID or slug.",
+            "in": "path",
+            "name": "sa",
+            "required": true,
+            "schema": {
+              "description": "Service account ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccount"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get a service account",
+        "tags": [
+          "service-accounts"
+        ]
+      },
+      "patch": {
+        "operationId": "update-service-account",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Service account ID or slug.",
+            "in": "path",
+            "name": "sa",
+            "required": true,
+            "schema": {
+              "description": "Service account ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAccountUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccount"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Update a service account",
+        "tags": [
+          "service-accounts"
+        ]
+      }
+    },
+    "/tenants/{tenant}/service-accounts/{sa}/rotate-secret": {
+      "post": {
+        "operationId": "rotate-service-account-secret",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Service account ID or slug.",
+            "in": "path",
+            "name": "sa",
+            "required": true,
+            "schema": {
+              "description": "Service account ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientSecret"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Issue a new secret (needs a recent sign-in; the old secret stops working)",
+        "tags": [
+          "service-accounts"
+        ]
+      }
+    },
     "/users": {
       "get": {
         "operationId": "list-users",
@@ -5505,10 +9766,12 @@
             }
           },
           {
+            "description": "Exact primary email.",
             "explode": false,
             "in": "query",
             "name": "email",
             "schema": {
+              "description": "Exact primary email.",
               "maxLength": 254,
               "type": "string"
             }
@@ -5523,6 +9786,17 @@
                 "disabled",
                 ""
               ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive substring of the name or primary email.",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Case-insensitive substring of the name or primary email.",
+              "maxLength": 100,
               "type": "string"
             }
           }
@@ -5874,6 +10148,46 @@
         "summary": "Clear a user's backup-login lockout (owner/admin, needs a recent sign-in)",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/users/{user}/revoke-sessions": {
+      "post": {
+        "operationId": "revoke-user-sessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "End every session of a user (owner or admin; needs a recent sign-in)",
+        "tags": [
+          "operations"
         ]
       }
     }

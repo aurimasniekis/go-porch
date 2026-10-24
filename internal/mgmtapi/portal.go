@@ -141,7 +141,7 @@ func registerPortal(api huma.API, d *Deps) {
 		Summary: "Your active browser sessions", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, _ *struct{}) (*struct{ Body []MySession }, error) {
 			p := Principal(ctx)
-			rows, err := d.Store.R().ListUserSessions(ctx, db.ListUserSessionsParams{UserID: p.UserID, AbsoluteExpiresAt: time.Now().UnixMicro()})
+			rows, err := d.Store.R().ListUserSessions(ctx, db.ListUserSessionsParams{UserID: p.UserID, AbsoluteExpiresAt: d.now().UnixMicro()})
 			if err != nil {
 				return nil, d.fail("my-sessions", err)
 			}
@@ -228,7 +228,7 @@ func registerPortal(api huma.API, d *Deps) {
 			TenantRef
 			Body AuthzCheckRequest
 		}) (*struct{ Body authz.Decision }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAuthzSimulate)
 			if err != nil {
 				return nil, err
 			}
@@ -244,7 +244,7 @@ func registerPortal(api huma.API, d *Deps) {
 			TenantRef
 			Body AuthzBatchRequest
 		}) (*struct{ Body []authz.Decision }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAuthzSimulate)
 			if err != nil {
 				return nil, err
 			}

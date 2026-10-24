@@ -91,7 +91,7 @@ erDiagram
 | `oauth_clients` | client_id, type (confidential/public), sealed secret hash, allowed grants, signing alg, audiences, token lifetimes |
 | `client_redirect_uris` | Exact redirect URIs and post-logout URIs |
 | `app_shares` | (app, target tenant, granted_by) |
-| `service_accounts` | Tenant service accounts (client credentials) |
+| `service_accounts` | Tenant service accounts (migration 0006, ADR-0037): slug, name, enabled, secret MAC + hint, audiences, access-token TTL, last_used_at; ID doubles as `client_id` |
 | `automation_tokens` | `porch_at_` tokens: MAC, tenant, permissions, expiry |
 | `auth_requests` | Pending authorize requests |
 | `auth_codes` | Single-use codes (MAC), bound to request, tenant, session |

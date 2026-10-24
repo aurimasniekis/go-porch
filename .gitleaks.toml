@@ -10,6 +10,7 @@ paths = [
   '''deploy/(demo/)?\.(state|dev)/''',
   '''(^|/)node_modules/''',
   '''^bin/''',
+  '''(^|/)\.claude/''',
 ]
 regexes = [
   '''porch_at_EXAMPLE[A-Za-z0-9_]*''',

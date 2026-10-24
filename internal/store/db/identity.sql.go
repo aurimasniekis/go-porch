@@ -65,6 +65,17 @@ func (q *Queries) CountOwners(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countUsers = `-- name: CountUsers :one
+SELECT count(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteOperatorRole = `-- name: DeleteOperatorRole :execrows
 DELETE FROM installation_role_assignments WHERE user_id = ? AND role = ?
 `
@@ -380,13 +391,15 @@ SELECT id, public_id, display_name, primary_email, status, backup_handle, securi
 WHERE id > ?1
   AND (?2 IS NULL OR primary_email = ?2)
   AND (?3 IS NULL OR status = ?3)
-ORDER BY id LIMIT ?4
+  AND (?4 IS NULL OR instr(lower(display_name), ?4) > 0 OR instr(lower(coalesce(primary_email, '')), ?4) > 0)
+ORDER BY id LIMIT ?5
 `
 
 type ListUsersParams struct {
 	After  string
 	Email  interface{}
 	Status interface{}
+	Q      interface{}
 	Lim    int64
 }
 
@@ -395,6 +408,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		arg.After,
 		arg.Email,
 		arg.Status,
+		arg.Q,
 		arg.Lim,
 	)
 	if err != nil {

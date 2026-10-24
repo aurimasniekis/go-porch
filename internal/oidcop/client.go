@@ -13,6 +13,7 @@ import (
 // client adapts an oauth_clients row to zitadel's op.Client.
 type client struct {
 	row            db.OauthClient
+	sa             *db.ServiceAccount // set for service accounts (client credentials only)
 	redirects      []string
 	postLogout     []string
 	grants         []oidc.GrantType
@@ -29,6 +30,16 @@ func newClient(r db.OauthClient) *client {
 	for _, g := range jsonList(r.GrantTypes) {
 		c.grants = append(c.grants, oidc.GrantType(g))
 	}
+	return c
+}
+
+// newServiceAccountClient presents a service account as a confidential client limited to the client credentials grant.
+func newServiceAccountClient(sa db.ServiceAccount) *client {
+	r := db.OauthClient{ID: sa.ID, TenantID: sa.TenantID, ClientType: "confidential", ApplicationType: "web", SecretMac: sa.SecretMac,
+		GrantTypes: `["client_credentials"]`, AllowedScopes: "[]", Audiences: sa.Audiences, RedirectUris: "[]", PostLogoutUris: "[]",
+		SigningAlg: "ES256", AccessTokenTtlSecs: sa.AccessTokenTtlSecs, IDTokenTtlSecs: 600}
+	c := newClient(r)
+	c.sa = &sa
 	return c
 }
 

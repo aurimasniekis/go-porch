@@ -64,6 +64,6 @@ func registerSigningKeys(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, d.fail("rotate-key", err)
 			}
-			return &struct{ Body SigningKey }{Body: SigningKey{KID: kid, Alg: in.Body.Alg, State: "active", CreatedAt: time.Now().UTC()}}, nil
+			return &struct{ Body SigningKey }{Body: SigningKey{KID: kid, Alg: in.Body.Alg, State: "active", CreatedAt: d.now().UTC()}}, nil
 		})
 }

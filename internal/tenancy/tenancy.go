@@ -32,6 +32,7 @@ type Via string
 const (
 	ViaMembership Via = "membership" // the principal is an active member of the tenant
 	ViaOperator   Via = "operator"   // an installation owner/admin acting on the tenant (audited)
+	ViaDelegated  Via = "delegated"  // an active member holding the tenant permission the operation needs (ADR-0038)
 	ViaSystem     Via = "system"     // Porch itself (jobs, enrollment)
 )
 
@@ -127,6 +128,20 @@ func (svc *Service) ResolveForMember(ctx context.Context, userID, ref string) (S
 		return Scope{}, ErrNoAccess
 	}
 	return Scope{tenantID: t.ID, slug: t.Slug, via: ViaMembership}, nil
+}
+
+// ResolveDelegated returns a scope for tenant administration by a member: userID must be an active member of the
+// active tenant ref and allow (the caller's permission check, run with the resolved tenant ID) must succeed.
+func (svc *Service) ResolveDelegated(ctx context.Context, userID, ref string, allow func(tenantID string) error) (Scope, error) {
+	sc, err := svc.ResolveForMember(ctx, userID, ref)
+	if err != nil {
+		return Scope{}, err
+	}
+	if err := allow(sc.tenantID); err != nil {
+		return Scope{}, err
+	}
+	sc.via = ViaDelegated
+	return sc, nil
 }
 
 // ResolveForOperator returns a scope when userID holds installation role owner or admin. Operators can manage any
@@ -313,7 +328,7 @@ func secs(d time.Duration, field string, v *apperr.Validation) sql.NullInt64 {
 
 // Delete removes the scoped tenant and everything it owns.
 func (svc *Service) Delete(ctx context.Context, ch domain.Change, sc Scope, ifVersion int64) error {
-	if !sc.Valid() || sc.via == ViaMembership {
+	if !sc.Valid() || sc.via == ViaMembership || sc.via == ViaDelegated {
 		return apperr.New(apperr.CodeForbidden, "only installation operators can delete tenants")
 	}
 	return svc.s.W().TxNamed(ctx, "tenancy.delete", func(tx *store.Tx) error {

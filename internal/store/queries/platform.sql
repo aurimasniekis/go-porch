@@ -102,3 +102,22 @@ DELETE FROM jobs WHERE state IN ('done', 'dead') AND updated_at < ?;
 
 -- name: ListSettings :many
 SELECT key, value, updated_at, updated_by FROM settings ORDER BY key;
+
+-- name: SearchAuditEvents :many
+SELECT id, seq, at, request_id, actor_type, actor_id, tenant_id, action, target_type, target_id, outcome, reason_code,
+  source_ip, auth_method, details_json, details_enc, prev_hash, hash
+FROM audit_events
+WHERE seq < sqlc.arg(before_seq)
+  AND (sqlc.narg(tenant_id) IS NULL OR tenant_id = sqlc.narg(tenant_id))
+  AND (sqlc.narg(actor_id) IS NULL OR actor_id = sqlc.narg(actor_id))
+  AND (sqlc.narg(target_id) IS NULL OR target_id = sqlc.narg(target_id))
+  AND (sqlc.narg(action_prefix) IS NULL OR substr(action, 1, length(sqlc.narg(action_prefix))) = sqlc.narg(action_prefix))
+  AND (sqlc.narg(outcome) IS NULL OR outcome = sqlc.narg(outcome))
+  AND at >= sqlc.arg(since) AND at < sqlc.arg(until)
+ORDER BY seq DESC
+LIMIT sqlc.arg(lim);
+
+-- name: GetAuditEvent :one
+SELECT id, seq, at, request_id, actor_type, actor_id, tenant_id, action, target_type, target_id, outcome, reason_code,
+  source_ip, auth_method, details_json, details_enc, prev_hash, hash
+FROM audit_events WHERE id = ?;

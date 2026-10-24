@@ -298,6 +298,45 @@ func (q *Queries) InsertTenant(ctx context.Context, arg InsertTenantParams) erro
 	return err
 }
 
+const listAllTenants = `-- name: ListAllTenants :many
+SELECT id, slug, name, status FROM tenants ORDER BY slug
+`
+
+type ListAllTenantsRow struct {
+	ID     string
+	Slug   string
+	Name   string
+	Status string
+}
+
+func (q *Queries) ListAllTenants(ctx context.Context) ([]ListAllTenantsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllTenants)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllTenantsRow{}
+	for rows.Next() {
+		var i ListAllTenantsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroupMembers = `-- name: ListGroupMembers :many
 SELECT tenant_id, group_id, user_id, source, created_at FROM group_members WHERE tenant_id = ? AND group_id = ? ORDER BY user_id
 `

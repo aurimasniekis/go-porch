@@ -241,6 +241,38 @@ func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) error {
 	return err
 }
 
+const getAuditEvent = `-- name: GetAuditEvent :one
+SELECT id, seq, at, request_id, actor_type, actor_id, tenant_id, action, target_type, target_id, outcome, reason_code,
+  source_ip, auth_method, details_json, details_enc, prev_hash, hash
+FROM audit_events WHERE id = ?
+`
+
+func (q *Queries) GetAuditEvent(ctx context.Context, id string) (AuditEvent, error) {
+	row := q.db.QueryRowContext(ctx, getAuditEvent, id)
+	var i AuditEvent
+	err := row.Scan(
+		&i.ID,
+		&i.Seq,
+		&i.At,
+		&i.RequestID,
+		&i.ActorType,
+		&i.ActorID,
+		&i.TenantID,
+		&i.Action,
+		&i.TargetType,
+		&i.TargetID,
+		&i.Outcome,
+		&i.ReasonCode,
+		&i.SourceIp,
+		&i.AuthMethod,
+		&i.DetailsJson,
+		&i.DetailsEnc,
+		&i.PrevHash,
+		&i.Hash,
+	)
+	return i, err
+}
+
 const getInstallation = `-- name: GetInstallation :one
 SELECT id, installation_id, security_epoch, setup_completed_at, created_at, updated_at FROM installation WHERE id = 1
 `
@@ -636,6 +668,85 @@ func (q *Queries) PurgePublishedOutbox(ctx context.Context, publishedAt sql.Null
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const searchAuditEvents = `-- name: SearchAuditEvents :many
+SELECT id, seq, at, request_id, actor_type, actor_id, tenant_id, action, target_type, target_id, outcome, reason_code,
+  source_ip, auth_method, details_json, details_enc, prev_hash, hash
+FROM audit_events
+WHERE seq < ?1
+  AND (?2 IS NULL OR tenant_id = ?2)
+  AND (?3 IS NULL OR actor_id = ?3)
+  AND (?4 IS NULL OR target_id = ?4)
+  AND (?5 IS NULL OR substr(action, 1, length(?5)) = ?5)
+  AND (?6 IS NULL OR outcome = ?6)
+  AND at >= ?7 AND at < ?8
+ORDER BY seq DESC
+LIMIT ?9
+`
+
+type SearchAuditEventsParams struct {
+	BeforeSeq    int64
+	TenantID     interface{}
+	ActorID      interface{}
+	TargetID     interface{}
+	ActionPrefix interface{}
+	Outcome      interface{}
+	Since        int64
+	Until        int64
+	Lim          int64
+}
+
+func (q *Queries) SearchAuditEvents(ctx context.Context, arg SearchAuditEventsParams) ([]AuditEvent, error) {
+	rows, err := q.db.QueryContext(ctx, searchAuditEvents,
+		arg.BeforeSeq,
+		arg.TenantID,
+		arg.ActorID,
+		arg.TargetID,
+		arg.ActionPrefix,
+		arg.Outcome,
+		arg.Since,
+		arg.Until,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AuditEvent{}
+	for rows.Next() {
+		var i AuditEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.Seq,
+			&i.At,
+			&i.RequestID,
+			&i.ActorType,
+			&i.ActorID,
+			&i.TenantID,
+			&i.Action,
+			&i.TargetType,
+			&i.TargetID,
+			&i.Outcome,
+			&i.ReasonCode,
+			&i.SourceIp,
+			&i.AuthMethod,
+			&i.DetailsJson,
+			&i.DetailsEnc,
+			&i.PrevHash,
+			&i.Hash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateKeyringKeyState = `-- name: UpdateKeyringKeyState :execrows

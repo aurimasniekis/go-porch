@@ -23,6 +23,15 @@ type User struct {
 	LastChangedBy string     `json:"last_changed_by,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
+	// BackupLogin is set on single-user reads only.
+	BackupLogin *BackupLoginStatus `json:"backup_login,omitempty"`
+}
+
+// BackupLoginStatus describes a user's backup login (never the credential itself).
+type BackupLoginStatus struct {
+	Enrolled    bool       `json:"enrolled"`
+	Failures    int64      `json:"failures"`
+	LockedUntil *time.Time `json:"locked_until,omitempty" doc:"Set while the backup login is locked out."`
 }
 
 func userDTO(u identity.User) User {
@@ -63,8 +72,9 @@ func registerUsers(api huma.API, d *Deps) {
 	tags := []string{"users"}
 	type listInput struct {
 		Pagination
-		Email  string `query:"email" maxLength:"254"`
+		Email  string `query:"email" maxLength:"254" doc:"Exact primary email."`
 		Status string `query:"status" enum:"active,disabled," required:"false"`
+		Query  string `query:"q" maxLength:"100" doc:"Case-insensitive substring of the name or primary email."`
 	}
 	huma.Register(api, huma.Operation{OperationID: "list-users", Method: http.MethodGet, Path: "/users", Summary: "List users",
 		Tags: tags, Security: sessionSecurity},
@@ -76,7 +86,7 @@ func registerUsers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
-			us, next, err := d.Users.List(ctx, page, identity.ListFilter{Email: in.Email, Status: in.Status})
+			us, next, err := d.Users.List(ctx, page, identity.ListFilter{Email: in.Email, Status: in.Status, Query: in.Query})
 			if err != nil {
 				return nil, d.fail("list-users", err)
 			}
@@ -115,7 +125,20 @@ func registerUsers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, d.fail("get-user", err)
 			}
-			return &userOutput{ETag: etag(u.Version), Body: userDTO(u)}, nil
+			out := userDTO(u)
+			bl := &BackupLoginStatus{}
+			if _, err := d.Store.R().GetBackupCredential(ctx, u.ID); err == nil {
+				bl.Enrolled = true
+			}
+			if lo, err := d.Store.R().GetBackupLockout(ctx, u.ID); err == nil {
+				bl.Failures = lo.Failures
+				if until := time.UnixMicro(lo.LockedUntil); lo.LockedUntil > 0 && until.After(d.now()) {
+					until = until.UTC()
+					bl.LockedUntil = &until
+				}
+			}
+			out.BackupLogin = bl
+			return &userOutput{ETag: etag(u.Version), Body: out}, nil
 		})
 
 	type updateInput struct {

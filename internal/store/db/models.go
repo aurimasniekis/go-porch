@@ -481,6 +481,25 @@ type RolePermission struct {
 	Permission string
 }
 
+type ServiceAccount struct {
+	ID                 string
+	TenantID           string
+	Slug               string
+	Name               string
+	Description        string
+	Enabled            int64
+	SecretMac          []byte
+	SecretHint         string
+	Audiences          string
+	AccessTokenTtlSecs int64
+	LastUsedAt         sql.NullInt64
+	Version            int64
+	ManagedBy          string
+	LastChangedBy      sql.NullString
+	CreatedAt          int64
+	UpdatedAt          int64
+}
+
 type Session struct {
 	ID                string
 	Mac               []byte

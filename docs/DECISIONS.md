@@ -234,7 +234,7 @@ setup session capped at 1 h whose purpose is to enroll a real login method.
 **Consequences.** One short stop of the service on first install (or `docker compose run porch admin setup-token` before
 `up`). No setup URL is ever printed to server logs.
 
-## ADR-0026 — Until M5, tenants are managed by installation operators only
+## ADR-0026 — Until M5, tenants are managed by installation operators only (superseded by ADR-0038)
 
 **Context.** Tenant-level admin roles need the authorization engine (M5).
 **Decision.** In M1–M4 the management API resolves tenant scopes only for installation owners/admins
@@ -340,3 +340,72 @@ model changes are made by installation operators through services and tests (ADR
   values are single-line. Proxies must strip client-supplied `X-Porch-*`/`Remote-*`; Porch overwrites the headers it
   sends, but headers it does not send are the proxy's responsibility.
 - Backends reachable without the proxy bypass all of this (documented).
+
+## ADR-0037 — Service accounts
+
+**Context.** Backups jobs, scripts and APIs need a tenant identity that is not a person, can hold roles and can obtain
+access tokens without a browser.
+**Decision.** A service account is a tenant-scoped row (`service_accounts`, ID prefix `sva_`) with a Porch-generated
+secret (`porch_sa_…`, shown once, stored as an HMAC under the keyring token key with its own MAC domain, so it can never
+be confused with an application client secret). It authenticates at `/oauth2/token` with the client credentials grant
+using its ID as `client_id` (`client_secret_basic` or `_post`); access tokens are RFC 9068 JWTs with `sub` = `client_id` =
+the service account ID, audiences from its registered list (RFC 8707 `resource` must be one of them), lifetime 60–3600 s.
+No ID tokens, refresh tokens, authorization-code or user-info access. Service accounts are authz subjects
+(`subject_type: service_account`): they pass the tenant gate of their own tenant only, never receive the implicit
+`all_members` grant, and fail every check while disabled. Deleting one removes its assignments in the same transaction
+and bumps the authz epoch. Rotation needs a recent sign-in and invalidates the old secret immediately.
+**Consequences.** Machine access is auditable (`actor_type: service_account`, `last_used_at`) and revocable without
+touching applications. Automation tokens for the management API (M6) are a separate mechanism.
+
+## ADR-0038 — Delegated tenant administration and escalation checks
+
+**Context.** Families and friend groups want one of their own to manage members, apps and roles without being an
+installation operator (ADR-0026 was a stop-gap).
+**Decision.**
+- Every tenant-scoped management endpoint names one permission (`member:manage`, `app:manage`, `invite:manage`,
+  `role:manage`, `group:manage`, `resource:manage`, `policy:manage`, `service_account:manage`, `audit:read`,
+  `authz:simulate`, `tenant:manage`). Installation owners/admins act as operators (`tenancy.ViaOperator`); anyone else
+  must be an active member for whom the engine allows that permission on the tenant (`tenancy.ViaDelegated`, built only
+  by `ResolveDelegated` after the check). Callers without access get 404, indistinguishable from a missing tenant.
+- **Escalation rule.** A delegated administrator may only grant, define, confer or remove what they hold
+  *unconditionally at tenant scope* (`Engine.Missing`; conditional, expiring-later or resource-scoped grants do not
+  count): role definitions (permissions plus everything bundled roles grant), assignments (create and delete), group
+  membership and nesting (everything the group and its ancestors are assigned), deleting roles, groups and service
+  accounts that hold permissions, deny policies (their actions; `*` means `*:*`) and changes to condition policies (every
+  role whose assignments reference it). Violations return 403 `privilege_escalation` listing the missing permissions.
+  The built-in `admin` role holds `*:*`, so only tenant admins and operators can hand it out.
+- Installation-wide matters stay with operators: tenant status and deletion, cross-tenant shares, domain rules (domains
+  are unique installation-wide), identity providers, users, sessions of other users, signing keys.
+- Policy writes and secret rotations still need a recent sign-in (ADR-0010).
+**Consequences.** `Missing` and the engine agree by construction (property test `TestEscalationCheckProperty`). A tenant
+admin can remove other members' non-admin grants they hold themselves; they can lock themselves out, which an operator
+can repair. Delegation is enforced only in the API; the UI hides what `/me/admin` says is unavailable.
+
+## ADR-0039 — Operations views: audit explorer, sessions, system health
+
+**Decision.**
+- `GET /audit` (owner, admin, auditor) and `GET /tenants/{t}/audit` (`audit:read`, that tenant's rows only) filter by
+  actor, target, action prefix (`[a-z_.]`), outcome and time, newest first with an opaque `seq` cursor. The API returns
+  plain details only; sealed details (`details_enc`) are never decrypted by the API and are flagged `sealed_details`.
+  Each row carries a chain-hash prefix for cross-checking exports.
+- `GET /sessions`, `DELETE /sessions/{id}` and `POST /users/{u}/revoke-sessions` (step-up) are installation-operator
+  only: sessions are installation-wide, so a tenant admin ending a session would affect the user's other tenants.
+  Tenant admins remove access by suspending or removing the membership instead. Revocations are audited.
+- `GET /installation/health` (owner, admin, auditor) reports readiness, storage state and sizes, keyring versions,
+  outbox backlog, open alerts, counts and named checks (`ok` / `warning` / `critical`); backups report "not configured"
+  until M6.
+
+## ADR-0040 — Admin UI accessibility and CSP adjustments to Mantine defaults
+
+**Context.** axe (WCAG 2.1 AA) runs on every admin page and dialog in the e2e suite and the CSP forbids un-nonced
+`<style>` elements. Several Mantine 8 defaults fail.
+**Decision.**
+- The light-scheme text colour of the `light` variant (badges, alerts, light buttons) is set per palette colour to a
+  value with at least 4.6:1 contrast on the variant's tint over white and over striped table rows (computed; shade 6,
+  Mantine's default, fails for most colours and even shade 9 fails for green, lime, orange, red, teal, yellow).
+  `--mantine-color-error` uses red-9 (5.5:1 on white).
+- Modal, Drawer and Notification close buttons get accessible names through theme defaults.
+- Modal and Drawer scroll locking is disabled: `react-remove-scroll` injects a `<style>` element without the CSP nonce.
+  Background scrolling while a dialog is open is the accepted cost; relaxing `style-src-elem` is not.
+**Consequences.** New colours or components must keep axe clean in the e2e suite; the suite fails otherwise.
+

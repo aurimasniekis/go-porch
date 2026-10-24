@@ -58,6 +58,7 @@ SELECT * FROM users
 WHERE id > sqlc.arg(after)
   AND (sqlc.narg(email) IS NULL OR primary_email = sqlc.narg(email))
   AND (sqlc.narg(status) IS NULL OR status = sqlc.narg(status))
+  AND (sqlc.narg(q) IS NULL OR instr(lower(display_name), sqlc.narg(q)) > 0 OR instr(lower(coalesce(primary_email, '')), sqlc.narg(q)) > 0)
 ORDER BY id LIMIT sqlc.arg(lim);
 
 -- name: ListOperators :many
@@ -66,3 +67,6 @@ FROM installation_role_assignments a JOIN users u ON u.id = a.user_id ORDER BY a
 
 -- name: HasOperatorRole :one
 SELECT count(*) FROM installation_role_assignments WHERE user_id = ? AND role IN (sqlc.slice(roles));
+
+-- name: CountUsers :one
+SELECT count(*) FROM users;

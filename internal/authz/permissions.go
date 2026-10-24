@@ -18,11 +18,12 @@ const (
 	PermInviteManage   = "invite:manage"
 	PermAuditRead      = "audit:read"
 	PermAuthzSimulate  = "authz:simulate"
+	PermServiceAccount = "service_account:manage"
 )
 
 // SystemPermissions lists the built-in catalogue.
 var SystemPermissions = []string{PermAppAccess, PermAppManage, PermTenantManage, PermMemberManage, PermGroupManage, PermRoleManage,
-	PermPolicyManage, PermResourceManage, PermInviteManage, PermAuditRead, PermAuthzSimulate}
+	PermPolicyManage, PermResourceManage, PermInviteManage, PermAuditRead, PermAuthzSimulate, PermServiceAccount}
 
 // Built-in role slugs created in every tenant.
 const (

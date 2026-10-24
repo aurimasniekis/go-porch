@@ -51,7 +51,7 @@ type ContextV1 struct {
 	IP         string `expr:"ip" json:"ip,omitempty"`
 	Network    string `expr:"network" json:"network,omitempty"` // "trusted" when the client IP is in authz.trusted_networks, else "external"
 	TenantSlug string `expr:"tenant" json:"tenant,omitempty"`
-	Hour       int    `expr:"hour" json:"hour,omitempty"`       // UTC
+	Hour       int    `expr:"hour" json:"hour"`                 // UTC, 0–23
 	Weekday    string `expr:"weekday" json:"weekday,omitempty"` // UTC, e.g. "Mon"
 }
 

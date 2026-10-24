@@ -98,6 +98,18 @@ flowchart LR
 | T-B6-3 | T | Backup tampering/rollback | Manifest SHA-256, object lock option, restore bumps security epoch and rotates signing keys | drill test |
 | T-B6-4 | D | Pulse outage blocks logins | Outbox decoupled; relay retries out of band | fault test |
 
+## B6b — Delegated tenant administration (ADR-0038)
+
+| ID | STRIDE | Threat | Mitigation | Coverage |
+|---|---|---|---|---|
+| T-B6b-1 | E | A tenant admin with `role:manage` grants themselves or a friend `*:*` (assign `admin`, define a role with more permissions, bundle `admin` into a role) | Escalation rule: may only grant what they hold unconditionally at tenant scope; 403 `privilege_escalation` | `TestDelegatedTenantAdministration`, `TestEscalationCheckProperty` |
+| T-B6b-2 | E | Indirect escalation through groups (join or nest into a group that is assigned `admin`) | Group membership and nesting checked against everything the group and its ancestors confer | `TestDelegatedTenantAdministration` |
+| T-B6b-3 | E | Loosening a condition policy (or deleting a deny policy) to widen existing grants | Policy changes require holding every permission of the roles referencing the condition / the deny's actions; step-up | `TestDelegatedTenantAdministration` (conditional grants not counted) |
+| T-B6b-4 | D | A lesser admin demotes or locks out a greater one (remove assignment, delete group, add deny policy) | Removals and deny policies follow the same rule | `TestDelegatedTenantAdministration` |
+| T-B6b-5 | I | Tenant enumeration by non-members | Delegated scope errors are 404, same as a missing tenant | `TestNonOperatorForbidden` |
+| T-B6b-6 | E | Tenant admin acts installation-wide (shares, domain rules, tenant status, other users' sessions) | Operator-only endpoints | `TestDelegatedTenantSettings` |
+| T-B6b-7 | S | Leaked service-account secret | Prefix `porch_sa_` for secret scanners; HMAC at rest; rotation needs step-up and is immediate; tokens short-lived and audience-bound; `last_used_at` and audit | `TestServiceAccounts` |
+
 ## B7 — Automation (Terraform)
 
 | ID | STRIDE | Threat | Mitigation | Coverage |

@@ -226,7 +226,7 @@ func TestCSRFAndOrigin(t *testing.T) {
 	expect(t, anon.do(http.MethodGet, "/api/v1/tenants", nil, nil), http.StatusUnauthorized)
 }
 
-// Non-operators cannot use installation endpoints, and cannot reach tenants they are not members of.
+// Non-operators cannot use installation endpoints, and cannot reach tenants they do not administer.
 func TestNonOperatorForbidden(t *testing.T) {
 	a := newApp(t)
 	owner := setupOwner(t, a)
@@ -247,8 +247,12 @@ func TestNonOperatorForbidden(t *testing.T) {
 	}
 	m := &client{t: t, h: owner.h, cookie: sc.Token, csrf: p.CSRFToken, remote: "203.0.113.5:1"}
 	expect(t, m.do(http.MethodGet, "/api/v1/me", nil, nil), http.StatusOK)
-	for _, path := range []string{"/api/v1/tenants", "/api/v1/users", "/api/v1/installation", "/api/v1/tenants/smith", "/api/v1/tenants/smith/members"} {
+	for _, path := range []string{"/api/v1/tenants", "/api/v1/users", "/api/v1/installation", "/api/v1/sessions", "/api/v1/audit", "/api/v1/installation/health"} {
 		expect(t, m.do(http.MethodGet, path, nil, nil), http.StatusForbidden)
+	}
+	// Tenant administration is delegated (ADR-0038): a non-member cannot tell a forbidden tenant from a missing one.
+	for _, path := range []string{"/api/v1/tenants/smith", "/api/v1/tenants/smith/members", "/api/v1/tenants/smith/roles", "/api/v1/tenants/nope/roles"} {
+		expect(t, m.do(http.MethodGet, path, nil, nil), http.StatusNotFound)
 	}
 	expect(t, m.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": "evil", "name": "x"}, nil), http.StatusForbidden)
 }

@@ -1,12 +1,14 @@
 import { ActionIcon, AppShell, Anchor, Group, Text, Tooltip, useMantineColorScheme } from '@mantine/core'
 import { IconLogout, IconMoon, IconSun } from '@tabler/icons-react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { adminQuery } from '@/api/admin'
 import { api, check, type Me } from '@/api/client'
 
 export function AppLayout({ me, children }: { me: Me; children: ReactNode }) {
   const qc = useQueryClient()
+  const admin = useQuery(adminQuery)
   const { colorScheme, toggleColorScheme } = useMantineColorScheme()
   const logout = async () => {
     check(await api.POST('/logout'))
@@ -24,6 +26,11 @@ export function AppLayout({ me, children }: { me: Me; children: ReactNode }) {
             <Anchor component={Link} to="/account" size="sm">
               Account
             </Anchor>
+            {admin.data && (admin.data.auditor || admin.data.tenants.length > 0) ? (
+              <Anchor component={Link} to="/admin" size="sm">
+                Administration
+              </Anchor>
+            ) : null}
           </Group>
           <Group gap="xs">
             <Text size="sm" c="dimmed">

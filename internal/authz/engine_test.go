@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -321,4 +322,112 @@ func TestNestingPropertyRandom(t *testing.T) {
 			t.Fatalf("depth %d from %s", d, g)
 		}
 	}
+}
+
+// TestEscalationCheckProperty: over random role bundles, nested groups and wildcard permissions, Missing (the
+// delegated-administration escalation check) reports a permission as held exactly when the engine would allow it, so
+// an administrator can never grant a role conferring an action they could not perform themselves.
+func TestEscalationCheckProperty(t *testing.T) {
+	ctx := context.Background()
+	types, actions := []string{"doc", "photo", "group"}, []string{"read", "write", "manage"}
+	var concrete []string
+	for _, ty := range types {
+		for _, ac := range actions {
+			concrete = append(concrete, ty+":"+ac)
+		}
+	}
+	pool := append(slices.Clone(concrete), "doc:*", "photo:*", "*:*")
+	held, notHeld, passingRoles := 0, 0, 0
+	for seed := range uint64(8) {
+		f := setup(t)
+		rng := rand.New(rand.NewPCG(seed, 99)) //nolint:gosec // deterministic test data
+		var roles []string
+		for i := range 10 {
+			var perms []string
+			for range rng.IntN(3) {
+				p := pool[rng.IntN(len(pool))]
+				if p == "*:*" && rng.IntN(4) != 0 {
+					continue // keep full admin rare so most cases are partial
+				}
+				if !slices.Contains(perms, p) {
+					perms = append(perms, p)
+				}
+			}
+			var inc []string
+			for _, r := range roles {
+				if rng.IntN(5) == 0 && len(inc) < 2 {
+					inc = append(inc, r)
+				}
+			}
+			r, err := f.e.Authz.CreateRole(ctx, domain.SystemChange, f.sc, authz.RoleParams{Slug: fmt.Sprintf("r%d", i), Name: "r",
+				Permissions: perms, Includes: inc})
+			if err != nil {
+				continue // depth limit: skip this role
+			}
+			roles = append(roles, r.ID)
+		}
+		var groups []string
+		for i := range 5 {
+			g := f.group(t, fmt.Sprintf("g%d", i))
+			if len(groups) > 0 && rng.IntN(2) == 0 {
+				_ = f.e.Authz.NestGroup(ctx, domain.SystemChange, f.sc, groups[rng.IntN(len(groups))], g)
+			}
+			groups = append(groups, g)
+		}
+		_ = f.e.Authz.AddGroupMember(ctx, domain.SystemChange, f.sc, groups[rng.IntN(len(groups))], f.alice, "")
+		for range 4 {
+			subj, typ := f.alice, "user"
+			if rng.IntN(2) == 0 {
+				subj, typ = groups[rng.IntN(len(groups))], "group"
+			}
+			_, _ = f.e.Authz.Assign(ctx, domain.SystemChange, f.sc, authz.AssignmentParams{SubjectType: typ, SubjectID: subj,
+				RoleID: roles[rng.IntN(len(roles))], ScopeType: "tenant"})
+		}
+		for _, p := range concrete {
+			missing, err := f.e.Engine.Missing(ctx, f.tn.ID, f.alice, []string{p})
+			if err != nil {
+				t.Fatal(err)
+			}
+			d, err := f.e.Engine.Check(ctx, authz.Request{TenantID: f.tn.ID, Subject: authz.Subject{Type: "user", ID: f.alice}, Action: p,
+				Resource: authz.Resource{Type: "tenant"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d.Allowed {
+				held++
+			} else {
+				notHeld++
+			}
+			if (len(missing) == 0) != d.Allowed {
+				t.Fatalf("seed %d %s: missing=%v allowed=%v", seed, p, missing, d.Allowed)
+			}
+		}
+		// Any role whose permissions pass the check only confers actions alice can already perform.
+		for _, r := range roles {
+			perms, err := f.e.Engine.RolePermissions(ctx, f.tn.ID, r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			missing, err := f.e.Engine.Missing(ctx, f.tn.ID, f.alice, perms)
+			if err != nil || len(missing) > 0 {
+				continue
+			}
+			passingRoles++
+			for _, p := range concrete {
+				conferred := slices.ContainsFunc(perms, func(g string) bool { return authz.Grants(g, p) })
+				if !conferred {
+					continue
+				}
+				d, _ := f.e.Engine.Check(ctx, authz.Request{TenantID: f.tn.ID, Subject: authz.Subject{Type: "user", ID: f.alice}, Action: p,
+					Resource: authz.Resource{Type: "tenant"}})
+				if !d.Allowed {
+					t.Fatalf("seed %d: role %s passes the escalation check but confers %s alice cannot perform", seed, r, p)
+				}
+			}
+		}
+	}
+	if held == 0 || notHeld == 0 || passingRoles == 0 {
+		t.Fatalf("degenerate cases: held=%d notHeld=%d passingRoles=%d", held, notHeld, passingRoles)
+	}
+	t.Logf("held=%d notHeld=%d passingRoles=%d", held, notHeld, passingRoles)
 }

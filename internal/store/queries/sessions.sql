@@ -32,3 +32,15 @@ SELECT * FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND absolute_exp
 
 -- name: PurgeSessions :execrows
 DELETE FROM sessions WHERE absolute_expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?);
+
+-- name: ListActiveSessions :many
+SELECT s.id, s.user_id, s.tenant_id, s.method, s.auth_time, s.created_at, s.last_seen_at, s.absolute_expires_at, s.ip, s.user_agent,
+  u.display_name, u.primary_email
+FROM sessions s JOIN users u ON u.id = s.user_id
+WHERE s.revoked_at IS NULL AND s.absolute_expires_at > sqlc.arg(now)
+  AND (sqlc.narg(user_id) IS NULL OR s.user_id = sqlc.narg(user_id))
+ORDER BY s.last_seen_at DESC
+LIMIT sqlc.arg(lim);
+
+-- name: CountActiveSessions :one
+SELECT count(*) FROM sessions WHERE revoked_at IS NULL AND absolute_expires_at > ?;

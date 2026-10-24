@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the installation audit log (owner, admin or auditor) */
+        get: operations["search-audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/backup/finish": {
         parameters: {
             query?: never;
@@ -179,6 +196,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System health (owner, admin or auditor) */
+        get: operations["get-system-health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/installation/operators": {
         parameters: {
             query?: never;
@@ -189,8 +223,26 @@ export interface paths {
         /** Users with installation roles */
         get: operations["list-operators"];
         put?: never;
-        post?: never;
+        /** Give a user an installation role (owner only; needs a recent sign-in) */
+        post: operations["grant-operator-role"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation/operators/{user}/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an installation role (owner only; needs a recent sign-in; the last owner stays) */
+        delete: operations["revoke-operator-role"];
         options?: never;
         head?: never;
         patch?: never;
@@ -256,6 +308,23 @@ export interface paths {
         };
         /** The authenticated caller */
         get: operations["get-me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the caller can administer */
+        get: operations["get-my-admin"];
         put?: never;
         post?: never;
         delete?: never;
@@ -413,6 +482,40 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active browser sessions across the installation (owner or admin) */
+        get: operations["list-sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** End a browser session (owner or admin) */
+        delete: operations["revoke-session"];
         options?: never;
         head?: never;
         patch?: never;
@@ -581,6 +684,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenant}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Role assignments of a tenant */
+        get: operations["list-assignments"];
+        put?: never;
+        /** Assign a role (delegated administrators may only grant roles whose permissions they hold) */
+        post: operations["create-assignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/assignments/{assignment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a role assignment */
+        delete: operations["delete-assignment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search a tenant's audit events (audit:read) */
+        get: operations["search-tenant-audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenant}/authz/check": {
         parameters: {
             query?: never;
@@ -609,6 +764,23 @@ export interface paths {
         put?: never;
         /** Several authorization decisions at once */
         post: operations["authz-check-batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/authz/effective": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every grant reaching a subject and how (conditions are reported, not evaluated) */
+        get: operations["effective-permissions"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -645,6 +817,79 @@ export interface paths {
         post?: never;
         /** Delete a rule and the memberships derived from it (needs a recent sign-in) */
         delete: operations["delete-domain-rule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Groups of a tenant (direct members and parents) */
+        get: operations["list-groups"];
+        put?: never;
+        /** Create a group */
+        post: operations["create-group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/groups/{group}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a group */
+        get: operations["get-group"];
+        put?: never;
+        post?: never;
+        /** Delete a group (memberships, nesting and its assignments) */
+        delete: operations["delete-group"];
+        options?: never;
+        head?: never;
+        /** Rename or describe a group */
+        patch: operations["update-group"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/groups/{group}/members/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add a tenant member to a group (delegated administrators may only confer what they hold) */
+        put: operations["add-group-member"];
+        post?: never;
+        /** Remove a user from a group */
+        delete: operations["remove-group-member"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/groups/{group}/parents/{parent}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Make a group a member of a parent group (DAG, depth ≤ 5) */
+        put: operations["nest-group"];
+        post?: never;
+        /** Remove a group from a parent group */
+        delete: operations["unnest-group"];
         options?: never;
         head?: never;
         patch?: never;
@@ -692,7 +937,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List tenant members */
+        /** List tenant members (member, group or role managers) */
         get: operations["list-members"];
         put?: never;
         /** Add a user to a tenant */
@@ -719,6 +964,205 @@ export interface paths {
         head?: never;
         /** Suspend or reactivate a membership */
         patch: operations["update-member"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Known permissions (system catalogue and custom ones in use) */
+        get: operations["list-permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Policies of a tenant */
+        get: operations["list-policies"];
+        put?: never;
+        /** Create a policy (needs a recent sign-in) */
+        post: operations["create-policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/policies/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compile an expression against the policy environment without saving it */
+        post: operations["validate-policy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/policies/{policy}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a policy */
+        get: operations["get-policy"];
+        /** Replace a policy (needs a recent sign-in) */
+        put: operations["update-policy"];
+        post?: never;
+        /** Delete a policy and the conditional assignments using it (needs a recent sign-in) */
+        delete: operations["delete-policy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resources of a tenant (assignment scopes; parents form a hierarchy) */
+        get: operations["list-resources"];
+        put?: never;
+        /** Create a resource */
+        post: operations["create-resource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/resources/{resource}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a resource */
+        get: operations["get-resource"];
+        put?: never;
+        post?: never;
+        /** Delete a resource, its children and assignments scoped to it */
+        delete: operations["delete-resource"];
+        options?: never;
+        head?: never;
+        /** Rename a resource or replace its attributes */
+        patch: operations["update-resource"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Roles of a tenant */
+        get: operations["list-roles"];
+        put?: never;
+        /** Create a role (delegated administrators may only include permissions they hold) */
+        post: operations["create-role"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/roles/{role}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a role */
+        get: operations["get-role"];
+        /** Replace a role's definition */
+        put: operations["update-role"];
+        post?: never;
+        /** Delete a custom role and its assignments */
+        delete: operations["delete-role"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/service-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Service accounts of a tenant */
+        get: operations["list-service-accounts"];
+        put?: never;
+        /** Create a service account (grant it roles with assignments) */
+        post: operations["create-service-account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/service-accounts/{sa}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a service account */
+        get: operations["get-service-account"];
+        put?: never;
+        post?: never;
+        /** Delete a service account and its role assignments */
+        delete: operations["delete-service-account"];
+        options?: never;
+        head?: never;
+        /** Update a service account */
+        patch: operations["update-service-account"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/service-accounts/{sa}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue a new secret (needs a recent sign-in; the old secret stops working) */
+        post: operations["rotate-service-account-secret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/users": {
@@ -781,12 +1225,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user}/revoke-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End every session of a user (owner or admin; needs a recent sign-in) */
+        post: operations["revoke-user-sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         AddMemberRequest: {
             user_id: string;
+        };
+        AdminCapabilities: {
+            /** @description Installation-wide audit and health (owner, admin or auditor). */
+            auditor: boolean;
+            /** @description Installation administration (owner or admin). */
+            installation: boolean;
+            operator_roles: string[];
+            tenants: components["schemas"]["AdminTenant"][];
+        };
+        AdminSession: {
+            /** Format: date-time */
+            auth_time: string;
+            /** Format: date-time */
+            created_at: string;
+            current: boolean;
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            ip?: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            method: string;
+            tenant_id?: string;
+            user_agent?: string;
+            user_email?: string;
+            user_id: string;
+            user_name: string;
+        };
+        AdminTenant: {
+            id: string;
+            name: string;
+            /** @description Management permissions held at tenant scope (system catalogue subset). */
+            permissions: string[];
+            slug: string;
+            /** @enum {string} */
+            via: "operator" | "delegated";
         };
         Alert: {
             /** Format: date-time */
@@ -846,6 +1343,65 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        Assignment: {
+            condition_policy_id?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at?: string;
+            id: string;
+            role_id: string;
+            scope_resource_id?: string;
+            scope_resource_type?: string;
+            scope_type: string;
+            source: string;
+            subject_id: string;
+            subject_type: string;
+        };
+        AssignmentRequest: {
+            condition_policy_id?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            role_id: string;
+            scope_resource_id?: string;
+            scope_resource_type?: string;
+            /** @enum {string} */
+            scope_type: "tenant" | "resource_type" | "resource";
+            subject_id: string;
+            /** @enum {string} */
+            subject_type: "user" | "group" | "service_account";
+        };
+        AuditEvent: {
+            action: string;
+            actor_id?: string;
+            actor_name?: string;
+            actor_type: string;
+            /** Format: date-time */
+            at: string;
+            auth_method?: string;
+            /** @description First bytes of the event's chain hash (hex), for cross-checking exports. */
+            chain_hash_prefix: string;
+            details?: {
+                [key: string]: unknown;
+            };
+            id: string;
+            /** @enum {string} */
+            outcome: "success" | "failure" | "denied";
+            reason_code?: string;
+            request_id?: string;
+            /** @description The event has encrypted details (readable only with host access). */
+            sealed_details: boolean;
+            /** Format: int64 */
+            seq: number;
+            source_ip?: string;
+            target_id?: string;
+            target_type?: string;
+            tenant_id?: string;
+        };
+        AuditPage: {
+            items: components["schemas"]["AuditEvent"][];
+            next_cursor?: string;
+        };
         AuditVerification: {
             /** Format: int64 */
             broken_at?: number;
@@ -894,6 +1450,22 @@ export interface components {
         BackupFinishRequest: {
             answers: string[];
         };
+        BackupHealth: {
+            configured: boolean;
+            /** Format: date-time */
+            last_at?: string;
+            last_ok: boolean;
+        };
+        BackupLoginStatus: {
+            enrolled: boolean;
+            /** Format: int64 */
+            failures: number;
+            /**
+             * Format: date-time
+             * @description Set while the backup login is locked out.
+             */
+            locked_until?: string;
+        };
         BackupStartRequest: {
             /** @description Backup handle, or email when no handle is set. */
             identifier: string;
@@ -936,7 +1508,7 @@ export interface components {
         };
         ContextV1: {
             /** Format: int64 */
-            hour?: number;
+            hour: number;
             ip?: string;
             network?: string;
             tenant?: string;
@@ -1030,6 +1602,31 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        CreatedServiceAccount: {
+            /** Format: int64 */
+            access_token_ttl_seconds: number;
+            audiences: string[];
+            /** @description Shown only in this response. Store it now. */
+            client_secret: string;
+            /** Format: date-time */
+            created_at: string;
+            description: string;
+            enabled: boolean;
+            id: string;
+            last_changed_by?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            managed_by: string;
+            name: string;
+            secret_hint: string;
+            slug: string;
+            tenant_id: string;
+            token_endpoint: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
         Decision: {
             allowed: boolean;
             reason: string;
@@ -1062,6 +1659,14 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        EffectiveGrant: {
+            conditional: boolean;
+            expires: boolean;
+            permission: string;
+            role: string;
+            scope: string;
+            via: string;
+        };
         EnrollBackupRequest: {
             /** @description Every answer typed again, in order. */
             confirm: string[];
@@ -1093,9 +1698,37 @@ export interface components {
             scope: string;
             via: string;
         };
+        Group: {
+            description: string;
+            id: string;
+            managed_by: string;
+            members: string[];
+            name: string;
+            parents: string[];
+            slug: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        GroupRequest: {
+            description?: string;
+            name: string;
+            slug: string;
+        };
+        GroupUpdate: {
+            description: string;
+            name: string;
+        };
         HandleRequest: {
             /** @description Empty removes the handle (email works again). */
             handle: string;
+        };
+        HealthStatus: {
+            reason?: string;
+            /** Format: date-time */
+            since: string;
+            state: string;
         };
         IdentityProvider: {
             /** @description Google Workspace domains this provider accepts (empty = any account). */
@@ -1269,11 +1902,57 @@ export interface components {
             source: string;
             user_id: string;
         };
+        OperatorGrant: {
+            /** @enum {string} */
+            role: "owner" | "admin" | "auditor";
+            user_id: string;
+        };
+        PermissionCatalogue: {
+            /** @description Permissions used by this tenant's roles that are not system permissions. */
+            custom: string[];
+            system: string[];
+        };
+        PolicyDef: {
+            actions: string[];
+            effect: string;
+            /** Format: int64 */
+            env_version: number;
+            expression: string;
+            id: string;
+            managed_by: string;
+            name: string;
+            slug: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        PolicyRequest: {
+            /** @description Deny policies only: permissions it applies to (* for all). */
+            actions?: string[];
+            /**
+             * @description condition: referenced by assignments, must be true for them to apply; deny: overrides grants for its actions.
+             * @enum {string}
+             */
+            effect: "condition" | "deny";
+            /** @description expr-lang boolean expression over principal, resource, action, context, now (environment v1). */
+            expression: string;
+            name: string;
+            /** @description Create only. */
+            slug?: string;
+        };
         PolicyTrace: {
             error?: string;
             policy_id: string;
             result: boolean;
             slug: string;
+        };
+        PolicyValidateRequest: {
+            expression: string;
+        };
+        PolicyValidation: {
+            error?: string;
+            valid: boolean;
         };
         Problem: {
             /** @description Same-origin URL the client should navigate to (re-authentication). */
@@ -1297,6 +1976,12 @@ export interface components {
             /** @description URI reference identifying the problem type. */
             type?: string;
         };
+        PurposeStatus: {
+            /** Format: int32 */
+            active_version: number;
+            purpose: string;
+            versions: number[];
+        };
         RecoveryPair: {
             answer: string;
             /** @description Your own hint, like a security question. */
@@ -1304,6 +1989,62 @@ export interface components {
         };
         RecoveryRequest: {
             token: string;
+        };
+        ResourceDef: {
+            attributes: {
+                [key: string]: string;
+            };
+            id: string;
+            managed_by: string;
+            name: string;
+            parent_id?: string;
+            slug: string;
+            type: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ResourceRequest: {
+            /** @description Visible to policies as resource.attributes. */
+            attributes?: {
+                [key: string]: string;
+            };
+            name: string;
+            parent_id?: string;
+            slug: string;
+            /** @description Lowercase identifier; app and tenant are reserved. */
+            type: string;
+        };
+        ResourceUpdate: {
+            attributes: {
+                [key: string]: string;
+            };
+            name: string;
+        };
+        Role: {
+            built_in: boolean;
+            description: string;
+            id: string;
+            includes: string[];
+            managed_by: string;
+            name: string;
+            permissions: string[];
+            slug: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        RoleRequest: {
+            description?: string;
+            /** @description IDs of roles bundled into this one (DAG, depth ≤ 5). */
+            includes?: string[];
+            name: string;
+            /** @description <resource_type>:<action>; either side may be *. Built-in roles keep their permissions. */
+            permissions: string[];
+            /** @description Create only. */
+            slug?: string;
         };
         RotateKeyRequest: {
             /** @enum {string} */
@@ -1313,6 +2054,49 @@ export interface components {
              * @description How long the old key stays published (default 24h).
              */
             overlap_seconds?: number;
+        };
+        ServiceAccount: {
+            /** Format: int64 */
+            access_token_ttl_seconds: number;
+            audiences: string[];
+            /** Format: date-time */
+            created_at: string;
+            description: string;
+            enabled: boolean;
+            id: string;
+            last_changed_by?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            managed_by: string;
+            name: string;
+            secret_hint: string;
+            slug: string;
+            tenant_id: string;
+            token_endpoint: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        ServiceAccountRequest: {
+            /**
+             * Format: int64
+             * @description 0 = default (600).
+             */
+            access_token_ttl_seconds?: number;
+            /** @description API audiences its access tokens may target (RFC 8707 resource values). */
+            audiences?: string[];
+            description?: string;
+            name: string;
+            slug: string;
+        };
+        ServiceAccountUpdate: {
+            /** Format: int64 */
+            access_token_ttl_seconds?: number;
+            audiences?: string[];
+            description?: string;
+            enabled?: boolean;
+            name?: string;
         };
         SessionInfo: {
             /** Format: date-time */
@@ -1352,6 +2136,43 @@ export interface components {
             note: string;
             /** Format: int64 */
             password_score: number;
+        };
+        SystemCheck: {
+            detail?: string;
+            name: string;
+            /** @enum {string} */
+            status: "ok" | "warning" | "critical";
+        };
+        SystemHealth: {
+            /** Format: int64 */
+            active_sessions: number;
+            /** Format: int64 */
+            audit_events: number;
+            backups: components["schemas"]["BackupHealth"];
+            checks: components["schemas"]["SystemCheck"][];
+            /** Format: int64 */
+            db_bytes: number;
+            keyring: components["schemas"]["PurposeStatus"][];
+            /** Format: int64 */
+            open_alerts: number;
+            /** Format: int64 */
+            outbox_dead: number;
+            /** Format: date-time */
+            outbox_oldest_pending_at?: string;
+            /** Format: int64 */
+            outbox_pending: number;
+            ready: boolean;
+            ready_error?: string;
+            /** Format: date-time */
+            started_at: string;
+            storage: components["schemas"]["HealthStatus"];
+            /** Format: int64 */
+            tenants: number;
+            /** Format: int64 */
+            users: number;
+            version: string;
+            /** Format: int64 */
+            wal_bytes: number;
         };
         Tenant: {
             /** Format: date-time */
@@ -1436,6 +2257,7 @@ export interface components {
             status?: "active" | "disabled";
         };
         User: {
+            backup_login?: components["schemas"]["BackupLoginStatus"];
             /** Format: date-time */
             created_at: string;
             display_name: string;
@@ -1467,6 +2289,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "search-audit": {
+        parameters: {
+            query?: {
+                /** @description Actor ID. */
+                actor?: string;
+                /** @description Target ID. */
+                target?: string;
+                /** @description Action prefix, e.g. role. or oidc.token_issued. */
+                action?: string;
+                outcome?: "success" | "failure" | "denied";
+                since?: string;
+                until?: string;
+                limit?: number;
+                /** @description Opaque cursor from next_cursor. */
+                cursor?: string;
+                /** @description Tenant ID. */
+                tenant?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "backup-login-finish": {
         parameters: {
             query?: never;
@@ -1874,6 +2740,35 @@ export interface operations {
             };
         };
     };
+    "get-system-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemHealth"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "list-operators": {
         parameters: {
             query?: never;
@@ -1891,6 +2786,67 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Operator"][];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "grant-operator-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorGrant"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-operator-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: string;
+                role: "owner" | "admin" | "auditor";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -2009,6 +2965,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-my-admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCapabilities"];
                 };
             };
             /** @description Error */
@@ -2308,6 +3293,68 @@ export interface operations {
                 content: {
                     "application/json": string[];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-sessions": {
+        parameters: {
+            query?: {
+                /** @description Only this user's sessions. */
+                user?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSession"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -2884,6 +3931,157 @@ export interface operations {
             };
         };
     };
+    "list-assignments": {
+        parameters: {
+            query?: {
+                subject_type?: "user" | "group" | "service_account";
+                subject_id?: string;
+                role_id?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assignment"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-assignment": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assignment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "search-tenant-audit": {
+        parameters: {
+            query?: {
+                /** @description Actor ID. */
+                actor?: string;
+                /** @description Target ID. */
+                target?: string;
+                /** @description Action prefix, e.g. role. or oidc.token_issued. */
+                action?: string;
+                outcome?: "success" | "failure" | "denied";
+                since?: string;
+                until?: string;
+                limit?: number;
+                /** @description Opaque cursor from next_cursor. */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "authz-check": {
         parameters: {
             query?: never;
@@ -2943,6 +4141,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Decision"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "effective-permissions": {
+        parameters: {
+            query: {
+                subject_type: "user" | "service_account";
+                subject_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectiveGrant"][];
                 };
             };
             /** @description Error */
@@ -3041,6 +4274,325 @@ export interface operations {
                 /** @description Tenant ID or slug. */
                 tenant: string;
                 rule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-group": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-group": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Group"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "add-group-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+                /** @description User ID. */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "remove-group-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+                /** @description User ID. */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "nest-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+                /** @description Parent group ID or slug. */
+                parent: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "unnest-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Group ID or slug. */
+                group: string;
+                /** @description Parent group ID or slug. */
+                parent: string;
             };
             cookie?: never;
         };
@@ -3324,6 +4876,842 @@ export interface operations {
             };
         };
     };
+    "list-permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionCatalogue"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDef"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-policy": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "validate-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyValidation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Policy ID or slug. */
+                policy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-policy": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Policy ID or slug. */
+                policy: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Policy ID or slug. */
+                policy: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDef"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-resource": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                resource: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                resource: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-resource": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                resource: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDef"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-role": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Role ID or slug. */
+                role: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-role": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Role ID or slug. */
+                role: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Role ID or slug. */
+                role: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-service-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccount"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-service-account": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedServiceAccount"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-service-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Service account ID or slug. */
+                sa: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccount"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-service-account": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Service account ID or slug. */
+                sa: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-service-account": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Service account ID or slug. */
+                sa: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceAccountUpdate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccount"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "rotate-service-account-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Service account ID or slug. */
+                sa: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSecret"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "list-users": {
         parameters: {
             query?: {
@@ -3331,8 +5719,11 @@ export interface operations {
                 limit?: number;
                 /** @description Opaque cursor from next_cursor. */
                 cursor?: string;
+                /** @description Exact primary email. */
                 email?: string;
                 status?: "active" | "disabled" | "";
+                /** @description Case-insensitive substring of the name or primary email. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -3513,6 +5904,35 @@ export interface operations {
             header?: never;
             path: {
                 /** @description User ID. */
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-user-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
                 user: string;
             };
             cookie?: never;

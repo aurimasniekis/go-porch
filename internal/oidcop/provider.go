@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -27,6 +28,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/ids"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
+	"github.com/aurimasniekis/go-porch/internal/serviceacct"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/store"
 	"github.com/aurimasniekis/go-porch/internal/store/db"
@@ -57,18 +59,20 @@ const (
 type Provider struct {
 	op.UnimplementedServer
 
-	Issuer   string
-	Store    *store.Store
-	Keyring  *keyring.Keyring
-	Audit    *audit.Writer
-	Signing  *Keys
-	Apps     *apps.Service
-	Sessions *session.Manager
-	Tenants  *tenancy.Service
-	Engine   *authz.Engine
-	Clock    clock.Clock
-	Metrics  *metrics.Metrics
-	Log      *slog.Logger
+	Issuer  string
+	Store   *store.Store
+	Keyring *keyring.Keyring
+	Audit   *audit.Writer
+	Signing *Keys
+	Apps    *apps.Service
+	// ServiceAccounts authenticates service accounts at the token endpoint (client_id = service account ID).
+	ServiceAccounts *serviceacct.Service
+	Sessions        *session.Manager
+	Tenants         *tenancy.Service
+	Engine          *authz.Engine
+	Clock           clock.Clock
+	Metrics         *metrics.Metrics
+	Log             *slog.Logger
 }
 
 func (p *Provider) now() time.Time { return p.Clock.Now() }
@@ -176,6 +180,13 @@ func (p *Provider) loadClient(ctx context.Context, id string) (*client, error) {
 	if id == "" || len(id) > 64 {
 		return nil, oidc.ErrInvalidClient().WithDescription("unknown client")
 	}
+	if strings.HasPrefix(id, ids.ServiceAccount+"_") {
+		sa, err := p.Store.R().GetServiceAccountByID(ctx, id)
+		if err != nil || sa.Enabled != 1 {
+			return nil, oidc.ErrInvalidClient().WithDescription("unknown client")
+		}
+		return newServiceAccountClient(sa), nil
+	}
 	r, err := p.Store.R().GetClient(ctx, id)
 	if err != nil {
 		return nil, oidc.ErrInvalidClient().WithDescription("unknown client")
@@ -195,9 +206,16 @@ func (p *Provider) VerifyClient(ctx context.Context, r *op.Request[op.ClientCred
 	}
 	c, err := p.loadClient(ctx, cc.ClientID)
 	if err != nil {
-		return nil, err
+		// RFC 6749 5.2: failed client authentication is 401 invalid_client (unknown, disabled or deleted clients).
+		return nil, op.NewStatusError(oidc.ErrInvalidClient().WithDescription("client authentication failed"), http.StatusUnauthorized)
 	}
-	if c.confidential() {
+	if c.sa != nil {
+		if p.ServiceAccounts == nil || !p.ServiceAccounts.VerifySecret(*c.sa, cc.ClientSecret) {
+			p.auditTx(ctx, audit.Event{Actor: audit.Actor{Type: audit.ActorServiceAccount, ID: c.sa.ID}, TenantID: c.sa.TenantID,
+				Action: "oidc.client_auth", Outcome: audit.OutcomeFailure, ReasonCode: "bad_secret"})
+			return nil, op.NewStatusError(oidc.ErrInvalidClient().WithDescription("client authentication failed"), http.StatusUnauthorized)
+		}
+	} else if c.confidential() {
 		if !p.Apps.VerifySecret(c.row, cc.ClientSecret) {
 			p.auditTx(ctx, audit.Event{Actor: audit.Actor{Type: audit.ActorClient, ID: c.row.ID}, TenantID: c.row.TenantID, Action: "oidc.client_auth",
 				Outcome: audit.OutcomeFailure, ReasonCode: "bad_secret"})
@@ -497,8 +515,20 @@ func (p *Provider) ClientCredentialsExchange(ctx context.Context, r *op.ClientRe
 		return nil, err
 	}
 	p.Metrics.TokenIssued("access_token")
-	p.auditTx(ctx, audit.Event{Actor: audit.Actor{Type: audit.ActorClient, ID: c.row.ID}, TenantID: c.row.TenantID, Action: "oidc.token_issued",
-		Details: map[string]any{"grant": "client_credentials", "jti": jti}})
+	actor := audit.Actor{Type: audit.ActorClient, ID: c.row.ID}
+	if c.sa != nil {
+		actor.Type = audit.ActorServiceAccount
+	}
+	_ = p.Store.W().TxNamed(ctx, "oidc.client_credentials", func(tx *store.Tx) error {
+		if c.sa != nil {
+			if err := tx.Q.TouchServiceAccount(ctx, db.TouchServiceAccountParams{LastUsedAt: domain.NullMicros(&tx.Now), ID: c.sa.ID}); err != nil {
+				return err
+			}
+		}
+		_, err := p.Audit.Append(ctx, tx, audit.Event{Actor: actor, TenantID: c.row.TenantID, Action: "oidc.token_issued",
+			Details: map[string]any{"grant": "client_credentials", "jti": jti}})
+		return err
+	})
 	return op.NewResponse(&oidc.AccessTokenResponse{AccessToken: at, TokenType: oidc.BearerToken, ExpiresIn: uint64(time.Until(exp).Seconds()), //nolint:gosec // positive
 		Scope: r.Data.Scope}), nil
 }

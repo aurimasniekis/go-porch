@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -18,13 +19,16 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
+	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/idp"
+	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/localauth"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
 	"github.com/aurimasniekis/go-porch/internal/oidcop"
+	"github.com/aurimasniekis/go-porch/internal/serviceacct"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -54,12 +58,24 @@ type Deps struct {
 	IDP       *idp.Service
 	Local     *localauth.Service
 	Apps      *apps.Service
+	SAs       *serviceacct.Service
 	OP        *oidcop.Provider
 	Engine    *authz.Engine
 	Authz     *authz.Admin
 	Metrics   *metrics.Metrics
+	Keyring   *keyring.Keyring
+	Ready     func(context.Context) error
+	StartedAt time.Time
+	Clock     clock.Clock
 	SetupRate *httpx.Limiter
 	LoginRate *httpx.Limiter
+}
+
+func (d *Deps) now() time.Time {
+	if d.Clock == nil {
+		return time.Now()
+	}
+	return d.Clock.Now()
 }
 
 func (d *Deps) log() *slog.Logger {
@@ -108,6 +124,10 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerApplications(api, d)
 	registerSigningKeys(api, d)
 	registerPortal(api, d)
+	registerAuthzAdmin(api, d)
+	registerServiceAccounts(api, d)
+	registerAdminCapabilities(api, d)
+	registerOps(api, d)
 	return api
 }
 

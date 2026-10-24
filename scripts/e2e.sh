@@ -48,7 +48,7 @@ fwd_pid=$!
 for _ in $(seq 1 50); do bin/porch healthcheck --url "http://127.0.0.1:$MGMT/readyz" >/dev/null 2>&1 && break; sleep 0.2; done
 
 export PORCH_E2E_URL="http://localhost:$PUB" PORCH_E2E_SETUP_TOKEN="$token" PORCH_E2E_IDP="http://127.0.0.1:$IDP"
-export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json" PORCH_E2E_FWD="http://whoami.localhost:$FWD"
+export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json" PORCH_E2E_OWNER_STATE="$work/owner-state.json" PORCH_E2E_FWD="http://whoami.localhost:$FWD"
 status=0
 (cd web && pnpm exec playwright test "$@") || status=$?
 if [[ $status -ne 0 ]]; then echo "--- porch log"; tail -50 "$work/porch.log"; echo "--- idp log"; tail -20 "$work/idp.log"; fi

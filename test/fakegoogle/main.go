@@ -72,6 +72,7 @@ func loadUsers(idp *fakeidp.IdP, path string) error {
 	if path == "" {
 		idp.AddUser(fakeidp.User{Subject: "ada", Email: "ada@smith.example", EmailVerified: true, Name: "Ada Smith", HD: "smith.example"})
 		idp.AddUser(fakeidp.User{Subject: "bob", Email: "bob@smith.example", EmailVerified: true, Name: "Bob Smith", HD: "smith.example"})
+		idp.AddUser(fakeidp.User{Subject: "dave", Email: "dave@smith.example", EmailVerified: true, Name: "Dave Smith", HD: "smith.example"})
 		idp.AddUser(fakeidp.User{Subject: "carol", Email: "carol@gmail.example", EmailVerified: true, Name: "Carol (consumer)"})
 		return nil
 	}

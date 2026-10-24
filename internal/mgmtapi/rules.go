@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/idp"
 )
 
@@ -131,7 +132,7 @@ func registerDomainRules(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-invites", Method: http.MethodGet, Path: "/tenants/{tenant}/invites",
 		Summary: "Invitations of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []Invite }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermInviteManage)
 			if err != nil {
 				return nil, err
 			}
@@ -154,7 +155,7 @@ func registerDomainRules(api huma.API, d *Deps) {
 			ManagedBy
 			Body CreateInviteRequest
 		}) (*struct{ Body Invite }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermInviteManage)
 			if err != nil {
 				return nil, err
 			}
@@ -171,7 +172,7 @@ func registerDomainRules(api huma.API, d *Deps) {
 			TenantRef
 			Invite string `path:"invite" maxLength:"64"`
 		}) (*struct{}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermInviteManage)
 			if err != nil {
 				return nil, err
 			}

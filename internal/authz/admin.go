@@ -319,6 +319,38 @@ func (a *Admin) CreateGroup(ctx context.Context, ch domain.Change, sc tenancy.Sc
 	return a.GetGroup(ctx, sc, id)
 }
 
+// UpdateGroup changes a group's name and description.
+func (a *Admin) UpdateGroup(ctx context.Context, ch domain.Change, sc tenancy.Scope, id, name, description string, ifVersion int64) (Group, error) {
+	var v apperr.Validation
+	name = domain.CleanName("name", name, &v)
+	if len(description) > 2000 {
+		v.Add("description", "at most 2000 characters")
+	}
+	if err := v.Err(); err != nil {
+		return Group{}, err
+	}
+	g, err := a.GetGroup(ctx, sc, id)
+	if err != nil {
+		return Group{}, err
+	}
+	err = a.change(ctx, "authz.update_group", ch, sc, audit.Event{Action: "group.updated", Target: audit.Target{Type: "group", ID: g.ID}},
+		func(tx *store.Tx) error {
+			if err := domain.IfMatch(ifVersion, g.Version); err != nil {
+				return err
+			}
+			n, err := tx.Q.UpdateGroup(ctx, db.UpdateGroupParams{Name: name, Description: description, ManagedBy: ch.Managed(),
+				LastChangedBy: domain.NullStr(ch.ChangedBy()), UpdatedAt: tx.NowMicros(), TenantID: sc.TenantID(), ID: g.ID, Version: g.Version})
+			if err == nil && n != 1 {
+				return apperr.New(apperr.CodePrecondition, "group changed concurrently")
+			}
+			return err
+		})
+	if err != nil {
+		return Group{}, err
+	}
+	return a.GetGroup(ctx, sc, g.ID)
+}
+
 // DeleteGroup removes a group (memberships, nesting edges and its assignments).
 func (a *Admin) DeleteGroup(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string) error {
 	return a.change(ctx, "authz.delete_group", ch, sc, audit.Event{Action: "group.deleted", Target: audit.Target{Type: "group", ID: id}},
@@ -660,8 +692,12 @@ func (a *Admin) Assign(ctx context.Context, ch domain.Change, sc tenancy.Scope, 
 			if _, err := tx.Q.GetGroup(ctx, db.GetGroupParams{TenantID: sc.TenantID(), ID: p.SubjectID}); err != nil {
 				return apperr.New(apperr.CodeInvalid, "subject_id: unknown group in this tenant")
 			}
+		case "service_account":
+			if sa, err := tx.Q.GetServiceAccountByID(ctx, p.SubjectID); err != nil || sa.TenantID != sc.TenantID() {
+				return apperr.New(apperr.CodeInvalid, "subject_id: unknown service account in this tenant")
+			}
 		default:
-			return apperr.New(apperr.CodeInvalid, "subject_type must be user or group")
+			return apperr.New(apperr.CodeInvalid, "subject_type must be user, group or service_account")
 		}
 		if p.ScopeType == "resource" {
 			if p.ScopeResourceType == "app" {
