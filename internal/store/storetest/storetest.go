@@ -1,6 +1,6 @@
 // Adapted from HallPass internal/store/storetest/storetest.go (Apache-2.0).
 
-// Package storetest opens throwaway stores for tests and enforces the short-transaction rule (HP-DB-004).
+// Package storetest opens throwaway stores for tests and enforces the short-transaction rule (ADR-0002).
 package storetest
 
 import (
@@ -15,7 +15,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/store"
 )
 
-// MaxTxDuration is the longest a write transaction may take in tests (HP-DB-004).
+// MaxTxDuration is the longest a write transaction may take in tests (ADR-0002).
 // PORCH_TEST_TX_MAX overrides it for slow CI runners; the default matches the requirement.
 var MaxTxDuration = func() time.Duration {
 	if v, err := time.ParseDuration(os.Getenv("PORCH_TEST_TX_MAX")); err == nil && v > 0 {
@@ -44,7 +44,7 @@ func Open(t testing.TB, opts ...Option) *store.Store {
 			if err == nil && d > MaxTxDuration {
 				mu.Lock()
 				defer mu.Unlock()
-				t.Errorf("write transaction %q took %s (> %s, HP-DB-004)", name, d, MaxTxDuration)
+				t.Errorf("write transaction %q took %s (> %s, ADR-0002)", name, d, MaxTxDuration)
 			}
 		},
 	}

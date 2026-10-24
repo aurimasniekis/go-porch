@@ -21,12 +21,15 @@ Status legend:
 | Platform | Public + private management listeners, `/healthz` `/readyz` `/metrics`, all server timeouts, optional TLS + client-cert CA | tested (client-cert path implemented, not tested) | API | `internal/app` tests: listener separation, timeouts, serve/shutdown; binary smoke (M1) |
 | Bootstrap | CLI setup token → first owner + 1 h setup session | tested | API `POST /api/v1/setup`, CLI | 32 concurrent consumers → exactly 1 owner; expiry; binary smoke (M1) |
 | Tenancy | Tenants, users, memberships (operator-managed), typed `tenancy.Scope`, composite FKs | tested | API `/api/v1/{tenants,users,tenants/{t}/members}` | cross-tenant composite-FK tests, scope tests, API flow with ETag/If-Match, CSRF/Origin, non-operator 403 (M1) |
-| Login | Google federation (fake IdP) | planned | — | M2 |
-| Login | Google federation (real Google) | not verified | — | — |
-| Login | Domain rules / JIT / invites | planned | — | M2 |
-| Login | Backup login (password + titled answers) | planned | — | M2 |
+| Login | Google/OIDC federation: PKCE S256, nonce, state bound to `__Host-porch_oidc`, RS256 allowlist, SSRF-guarded discovery | tested | UI `/login`, portal `/login/{provider}` | `internal/app/login_test.go` (fake IdP: forged aud/nonce/iss, expired, login CSRF, replay); Playwright `m2-login.spec.ts` (M2) |
+| Login | Google federation (real Google) | not verified | — | Fake provider only; see site/operators/identity-providers |
+| Recovery | `porch admin recover` one-time 15-min link + persistent critical alert; `porch admin unlock-backup`; owner unlock via API (step-up) | tested | CLI, UI `/recovery`, API | `TestRecoveryLink`, `TestEscalationAndUnlock` (M2) |
+| UI | Login, setup, recovery, home, account (backup enrollment, linked identities) — Mantine, CSP nonce, light/dark | tested | `/login` `/setup` `/recovery` `/` `/account` | Playwright + axe (WCAG 2.1 AA) + zero CSP violations (M2) |
+| Edge | SSRF guard for outbound HTTP (deny loopback/private/link-local/CGNAT/NAT64 unless allowlisted) | tested | — | `internal/netguard` (M2) |
+| Login | Domain rules (validated `hd` / verified email), JIT + invite-only, invites, provenance re-evaluation, email-link-attack resistance | tested | API `/tenants/{t}/domain-rules`, `/invites` | hd missing/mismatch/hint-only/allowlist tests, email-link attack, invite-only, evidence loss on recheck (M2) |
+| Login | Backup login: password → titles → answers; shared reserve-before-hash lockout (1 → 6 h, ×2 to 48 h), per-source + circuit throttles, enumeration resistance, strength gate, random-word suggestion | tested | UI `/login`, `/account`; API `/auth/backup/*`, `/me/backup-credential` | `internal/localauth` (24 parallel → exactly threshold, no extra answer guesses, escalation, throttles), DoS isolation + restart persistence (`internal/app`), Playwright (M2) |
 | Sessions | Server-side sessions: idle/absolute (+ tenant override), user + installation epochs, CSRF, step-up window, rotation | tested (core) | API cookie auth | `internal/session` tests (M1); login methods arrive in M2 |
-| Sessions | Federated hourly `prompt=none` recheck flow | planned | — | M2 |
+| Sessions | Federated hourly `prompt=none` recheck (API 401 `upstream_recheck_required`, page redirect), Workspace removal ends session; step-up via Google `prompt=login max_age=0` or backup credential; identity linking | tested | portal + API | `TestUpstreamRecheck`, `TestGoogleStepUp`, `TestStepUpRotatesSession` (M2) |
 | OIDC OP | Code + PKCE, tokens, refresh families | planned | — | M3 |
 | OIDC OP | OpenID conformance suite | planned | — | M3 |
 | Apps | Applications, shares, launcher | planned | — | M4 |

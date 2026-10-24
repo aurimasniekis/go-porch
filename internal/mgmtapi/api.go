@@ -19,6 +19,8 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/identity"
+	"github.com/aurimasniekis/go-porch/internal/idp"
+	"github.com/aurimasniekis/go-porch/internal/localauth"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
@@ -46,8 +48,11 @@ type Deps struct {
 	Tenants   *tenancy.Service
 	Sessions  *session.Manager
 	Setup     *setup.Service
+	IDP       *idp.Service
+	Local     *localauth.Service
 	Metrics   *metrics.Metrics
 	SetupRate *httpx.Limiter
+	LoginRate *httpx.Limiter
 }
 
 func (d *Deps) log() *slog.Logger {
@@ -88,6 +93,11 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerTenants(api, d)
 	registerUsers(api, d)
 	registerMembers(api, d)
+	registerAuth(api, d)
+	registerAccount(api, d)
+	registerProviders(api, d)
+	registerDomainRules(api, d)
+	registerAlerts(api, d)
 	return api
 }
 
@@ -125,10 +135,48 @@ func (d *Deps) authenticate(api huma.API) func(huma.Context, func(huma.Context))
 			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "missing or invalid CSRF token")
 			return
 		}
+		if !recheckExempt[op.OperationID] && d.Sessions.NeedsUpstreamRecheck(p) {
+			// Federated sessions must re-confirm the upstream account at least hourly (ADR-0007). The UI follows the action URL.
+			pr := problem(http.StatusUnauthorized, "upstream_recheck_required", "the session must be re-confirmed with the identity provider", nil)
+			pr.Action = d.providerAction(r.Context(), p, idp.IntentRecheck)
+			_ = writeProblem(api, ctx, pr)
+			return
+		}
 		meta.AuthMethod = p.Method
 		c := context.WithValue(audit.WithMeta(ctx.Context(), meta), principalKey{}, p)
 		next(huma.WithContext(ctx, c))
 	}
+}
+
+// recheckExempt operations work even while an upstream recheck is due (so the UI can show who is signed in).
+var recheckExempt = map[string]bool{"get-me": true, "logout": true}
+
+// providerAction returns the portal URL that runs an upstream round trip (recheck or step-up) for the session's provider.
+func (d *Deps) providerAction(ctx context.Context, p *session.Principal, intent string) string {
+	if d.IDP == nil || p.ProviderID == "" {
+		return ""
+	}
+	prov, err := d.IDP.Provider(ctx, p.ProviderID)
+	if err != nil {
+		return ""
+	}
+	return "/login/" + prov.Slug + "?intent=" + intent
+}
+
+// stepUp enforces a recent authentication (ADR-0010). The problem's action tells the UI how to re-authenticate.
+func (d *Deps) stepUp(ctx context.Context) error {
+	p := Principal(ctx)
+	if err := d.Sessions.RequireStepUp(p); err == nil {
+		return nil
+	}
+	pr := problem(http.StatusForbidden, apperr.CodeReauth, "this action needs a recent sign-in", nil)
+	switch p.Method {
+	case session.MethodGoogle, session.MethodOIDC:
+		pr.Action = d.providerAction(ctx, p, idp.IntentStepUp)
+	default:
+		pr.Action = "/login?stepup=backup"
+	}
+	return pr
 }
 
 // change derives provenance for a mutation.

@@ -16,8 +16,12 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/config"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/identity"
+	"github.com/aurimasniekis/go-porch/internal/idp"
+	"github.com/aurimasniekis/go-porch/internal/idp/upstream"
 	"github.com/aurimasniekis/go-porch/internal/installation"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
+	"github.com/aurimasniekis/go-porch/internal/localauth"
+	"github.com/aurimasniekis/go-porch/internal/netguard"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
@@ -38,6 +42,8 @@ type App struct {
 	Tenants  *tenancy.Service
 	Sessions *session.Manager
 	Setup    *setup.Service
+	IDP      *idp.Service
+	Local    *localauth.Service
 	ClientIP *httpx.ClientIPResolver
 
 	auditFile io.Closer
@@ -47,6 +53,8 @@ type App struct {
 type Options struct {
 	Clock   clock.Clock
 	Environ []string
+	// HashParams overrides Argon2id parameters (tests only).
+	HashParams *localauth.Params
 }
 
 // Open opens the data directory (taking its lock), loads the keyring and builds every service.
@@ -96,6 +104,24 @@ func (a *App) init(ctx context.Context, opts Options) error {
 		StepUpWindow: cfg.Session.StepUpWindow.D(), UpstreamRecheck: cfg.Session.UpstreamRecheck.D(), SetupAbsolute: cfg.Session.SetupAbsolute.D(),
 		Clock: a.Clock})
 	a.Setup = setup.New(a.Store, a.Keyring, a.Audit, a.Users, a.Sessions)
+	guard, err := netguard.New(cfg.Outbound.AllowCIDRs)
+	if err != nil {
+		return err
+	}
+	a.IDP = idp.New(a.Store, a.Keyring, a.Audit, a.Users, a.Tenants, a.Sessions, upstream.New(guard.Client(30*time.Second)), idp.Options{
+		PublicURL: cfg.PublicOrigin(), AllowInsecureIssuers: !cfg.IsProduction(), Clock: a.Clock, Metrics: a.Metrics})
+	b := cfg.Backup
+	pol := localauth.DefaultPolicy()
+	pol.Disabled, pol.Threshold, pol.Duration, pol.MaxDuration = b.Disabled, b.Threshold, b.LockDuration.D(), b.MaxLockDuration.D()
+	pol.SourceLimit, pol.SourceWindow, pol.CircuitLimit, pol.CircuitWindow = b.SourceLimit, b.SourceWindow.D(), b.CircuitLimit, b.CircuitWindow.D()
+	pol.Strength.MinPairs, pol.Strength.MaxPairs = b.MinPairs, b.MaxPairs
+	if opts.HashParams != nil {
+		pol.Params = *opts.HashParams
+	}
+	a.Local = localauth.New(a.Store, a.Keyring, a.Audit, a.Sessions, a.Clock, a.Metrics, pol)
+	if b.Disabled {
+		a.Log.Warn("backup_login.disabled is set: the local backup login is OFF for every user; if Google is unavailable nobody can sign in except via `porch admin recover`")
+	}
 	var cf []string
 	if cfg.Proxy.Cloudflare {
 		cf = cfg.Proxy.CloudflareRanges

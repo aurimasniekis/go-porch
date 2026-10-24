@@ -284,12 +284,13 @@ func TestHeadersAndListenerSeparation(t *testing.T) {
 	if rec.Header().Get("Cache-Control") != "no-store" {
 		t.Error("API response cacheable")
 	}
-	// /metrics and health are not on the public listener.
+	// /metrics, health and pprof are not on the public listener (unknown paths get the SPA shell at most).
 	for _, p := range []string{"/metrics", "/healthz", "/readyz", "/debug/pprof/"} {
 		rec := httptest.NewRecorder()
 		pub.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("public %s → %d", p, rec.Code)
+		b := rec.Body.String()
+		if strings.Contains(b, "porch_") || strings.Contains(b, "ready") || strings.Contains(b, "goroutine") || rec.Header().Get("Content-Type") == "text/plain; version=0.0.4" {
+			t.Errorf("public %s exposes management content: %d %q", p, rec.Code, b[:min(len(b), 80)])
 		}
 	}
 	mg := a.ManagementHandler()

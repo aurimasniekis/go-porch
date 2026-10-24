@@ -84,6 +84,22 @@ func (c *Config) Validate() error {
 	v.durationRange("session.upstream_recheck", s.UpstreamRecheck, time.Minute, 24*time.Hour)
 	v.durationRange("session.setup_absolute", s.SetupAbsolute, time.Minute, 24*time.Hour)
 	v.durationRange("setup.token_ttl", c.Setup.TokenTTL, time.Minute, 7*24*time.Hour)
+	b := c.Backup
+	if b.Threshold < 1 || b.Threshold > 10 {
+		v.add("backup_login.threshold must be within 1..10")
+	}
+	v.durationRange("backup_login.lock_duration", b.LockDuration, time.Minute, 30*24*time.Hour)
+	v.durationRange("backup_login.max_lock_duration", b.MaxLockDuration, b.LockDuration.D(), 90*24*time.Hour)
+	v.positive("backup_login.source_limit", b.SourceLimit)
+	v.positive("backup_login.circuit_limit", b.CircuitLimit)
+	v.durationRange("backup_login.source_window", b.SourceWindow, time.Second, 24*time.Hour)
+	v.durationRange("backup_login.circuit_window", b.CircuitWindow, time.Second, 24*time.Hour)
+	if b.MinPairs < 3 || b.MaxPairs > 12 || b.MinPairs > b.MaxPairs {
+		v.add("backup_login.min_pairs/max_pairs must satisfy 3 <= min <= max <= 12")
+	}
+	for _, p := range c.Outbound.AllowCIDRs {
+		v.prefix("outbound.allow_cidrs", p)
+	}
 	return v.err()
 }
 

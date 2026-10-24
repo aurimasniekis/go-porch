@@ -6,4 +6,9 @@ package keyring
 // registry test in internal/store.
 var Columns = []Column{
 	FieldColumn("audit_events", "id", "details_enc", PurposeField),
+	FieldColumn("identity_providers", "id", "secret_enc", PurposeField),
+	FieldColumn("oidc_login_states", "id", "secrets_enc", PurposeField),
+	FieldColumn("backup_credentials", "user_id", "password_enc", PurposeField),
+	FieldColumn("backup_credentials", "user_id", "answers_enc", PurposeField),
+	FieldColumn("recovery_pairs", "id", "title_enc", PurposeField),
 }

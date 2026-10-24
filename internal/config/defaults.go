@@ -38,5 +38,7 @@ func Default() *Config {
 			SetupAbsolute:   Duration(time.Hour),
 		},
 		Setup: SetupConfig{TokenTTL: Duration(time.Hour)},
+		Backup: BackupLoginConfig{Threshold: 1, LockDuration: Duration(6 * time.Hour), MaxLockDuration: Duration(48 * time.Hour),
+			SourceLimit: 10, SourceWindow: Duration(15 * time.Minute), CircuitLimit: 100, CircuitWindow: Duration(time.Minute), MinPairs: 3, MaxPairs: 12},
 	}
 }

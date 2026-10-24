@@ -22,8 +22,8 @@ build: web build-go ## Build the web UI and the porch binary
 build-go: ## Build bin/porch without rebuilding the UI
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN)/porch ./cmd/porch
 
-web: ## Build the web UI into internal/webui/dist
-	@if [ -f web/package.json ]; then cd web && pnpm install --frozen-lockfile && pnpm build; else echo "web/: not yet scaffolded"; fi
+web: ## Build the web UI into internal/webui/dist (embedded into the binary)
+	cd web && pnpm install --frozen-lockfile && pnpm build
 
 site: ## Build the VitePress docs site and check every Mermaid diagram parses
 	cd site && pnpm install --frozen-lockfile && pnpm check:mermaid && pnpm build
@@ -69,7 +69,7 @@ secrets: ## gitleaks over the git history and working tree
 	GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 $(GITLEAKS) dir --redact --config .gitleaks.toml .
 
 web-check: ## Web lint, typecheck, unit tests, build, check-dist
-	@if [ -f web/package.json ]; then cd web && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build; else echo "web/: not yet scaffolded"; fi
+	cd web && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 check: fmt-check vet custom-vet lint tools-test race sqlc-check api-check web-check site vuln secrets ## Everything CI runs (except e2e)
 
@@ -86,14 +86,19 @@ sqlc-check: $(BIN)/sqlc ## Fail if generated queries drift from SQL
 
 api: ## Regenerate api/openapi.json and web types
 	@if [ -d internal/mgmtapi ]; then $(GO) run ./cmd/porch openapi > api/openapi.json; fi
-	@if [ -f web/package.json ]; then cd web && pnpm gen:api; fi
+	cd web && pnpm install --frozen-lockfile --silent && pnpm gen:api
 
-api-check: api ## Fail if the OpenAPI document or web types drift
-	git diff --exit-code -- api web/src/api 2>/dev/null || (echo "api drift: run make api and commit"; exit 1)
+api-check: ## Fail if api/openapi.json or the web types are not what the code generates
+	@tmp=$$(mktemp -d); trap 'rm -rf $$tmp' EXIT; \
+	  $(GO) run ./cmd/porch openapi > $$tmp/openapi.json; \
+	  diff -q $$tmp/openapi.json api/openapi.json >/dev/null || { echo "api drift: api/openapi.json is stale; run make api"; exit 1; }; \
+	  (cd web && pnpm install --frozen-lockfile --silent && pnpm exec openapi-typescript $$tmp/openapi.json -o $$tmp/schema.gen.ts >/dev/null 2>&1); \
+	  diff -q $$tmp/schema.gen.ts web/src/api/schema.gen.ts >/dev/null || { echo "api drift: web/src/api/schema.gen.ts is stale; run make api"; exit 1; }; \
+	  echo "api: no drift"
 
 # ---- integration -------------------------------------------------------------
 
-e2e: ## Playwright against a fresh porch serve
+e2e: ## Playwright (Chromium + axe) against a fresh porch serve and the fake Google provider
 	scripts/e2e.sh
 
 test-oidc-interop: ## OIDC interop tests (Docker)

@@ -19,7 +19,7 @@ Self-hosted identity and single sign-on for families, friend groups and homelabs
 |---|---|---|
 | M0 | Foundations, design docs | done |
 | M1 | Store, keyring, tenancy, audit, bootstrap | done |
-| M2 | Google login, sessions, backup login | planned |
+| M2 | Google login, sessions, backup login | done (fake Google only) |
 | M3 | OIDC provider, demo app | planned |
 | M4 | Applications, portal, forward-auth | planned |
 | M5 | Admin UI, policy tooling | planned |

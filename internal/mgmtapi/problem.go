@@ -18,6 +18,13 @@ type Problem struct {
 	Fields   []apperr.FieldError `json:"fields,omitempty" doc:"Per-field validation problems."`
 	Errors   []*huma.ErrorDetail `json:"errors,omitempty" doc:"Request-schema validation details."`
 	Instance string              `json:"instance,omitempty"`
+	Action   string              `json:"action,omitempty" doc:"Same-origin URL the client should navigate to (re-authentication)."`
+}
+
+func writeProblem(api huma.API, ctx huma.Context, p *Problem) error {
+	ctx.SetHeader("Content-Type", "application/problem+json")
+	ctx.SetStatus(p.Status)
+	return api.Marshal(ctx.BodyWriter(), "application/json", p)
 }
 
 func (p *Problem) Error() string  { return p.Detail }
@@ -63,6 +70,8 @@ func defaultCode(status int) apperr.Code {
 }
 
 func init() {
+	// Porch never returns nil slices, so arrays are not nullable in the schema (cleaner generated client types).
+	huma.DefaultArrayNullable = false
 	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
 		p := problem(status, defaultCode(status), msg, nil)
 		for _, e := range errs {

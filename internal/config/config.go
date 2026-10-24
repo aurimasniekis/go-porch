@@ -49,17 +49,40 @@ func (d Duration) MarshalYAML() (any, error) { return time.Duration(d).String(),
 
 // Config is the complete Porch configuration.
 type Config struct {
-	Mode       Mode             `yaml:"mode"`
-	DataDir    string           `yaml:"data_dir"`
-	PublicURL  string           `yaml:"public_url"`
-	KEK        KEKConfig        `yaml:"kek"`
-	HTTP       HTTPConfig       `yaml:"http"`
-	Management ManagementConfig `yaml:"management"`
-	Proxy      ProxyConfig      `yaml:"proxy"`
-	Log        LogConfig        `yaml:"log"`
-	Storage    StorageConfig    `yaml:"storage"`
-	Session    SessionConfig    `yaml:"session"`
-	Setup      SetupConfig      `yaml:"setup"`
+	Mode       Mode              `yaml:"mode"`
+	DataDir    string            `yaml:"data_dir"`
+	PublicURL  string            `yaml:"public_url"`
+	KEK        KEKConfig         `yaml:"kek"`
+	HTTP       HTTPConfig        `yaml:"http"`
+	Management ManagementConfig  `yaml:"management"`
+	Proxy      ProxyConfig       `yaml:"proxy"`
+	Log        LogConfig         `yaml:"log"`
+	Storage    StorageConfig     `yaml:"storage"`
+	Session    SessionConfig     `yaml:"session"`
+	Setup      SetupConfig       `yaml:"setup"`
+	Backup     BackupLoginConfig `yaml:"backup_login"`
+	Outbound   OutboundConfig    `yaml:"outbound"`
+}
+
+// BackupLoginConfig configures the local backup login (ADR-0008).
+type BackupLoginConfig struct {
+	// Disabled turns backup login off for everyone. Porch logs a warning at startup when set.
+	Disabled        bool     `yaml:"disabled"`
+	Threshold       int      `yaml:"threshold"`
+	LockDuration    Duration `yaml:"lock_duration"`
+	MaxLockDuration Duration `yaml:"max_lock_duration"`
+	SourceLimit     int      `yaml:"source_limit"`
+	SourceWindow    Duration `yaml:"source_window"`
+	CircuitLimit    int      `yaml:"circuit_limit"`
+	CircuitWindow   Duration `yaml:"circuit_window"`
+	MinPairs        int      `yaml:"min_pairs"`
+	MaxPairs        int      `yaml:"max_pairs"`
+}
+
+// OutboundConfig controls outbound connections (SSRF guard).
+type OutboundConfig struct {
+	// AllowCIDRs are internal destinations Porch may connect to (e.g. a LAN identity provider or MinIO).
+	AllowCIDRs []string `yaml:"allow_cidrs"`
 }
 
 // KEKConfig locates the master key-encryption key (ADR-0003).

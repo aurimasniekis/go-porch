@@ -59,6 +59,7 @@ export default withMermaid(
           items: [
             { text: 'What is Porch?', link: '/guide/what-is-porch' },
             { text: 'Concepts', link: '/guide/concepts' },
+            { text: 'Signing in', link: '/guide/signing-in' },
             { text: 'Project status', link: '/guide/status' },
           ],
         },
@@ -67,6 +68,8 @@ export default withMermaid(
           items: [
             { text: 'Overview', link: '/operators/' },
             { text: 'Quickstart', link: '/operators/quickstart' },
+            { text: 'Identity providers & domains', link: '/operators/identity-providers' },
+            { text: 'Backup login & recovery', link: '/operators/recovery' },
           ],
         },
         {

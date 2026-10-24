@@ -8,6 +8,17 @@ import (
 	"database/sql"
 )
 
+type Alert struct {
+	ID             string
+	Kind           string
+	Severity       string
+	Message        string
+	TargetID       sql.NullString
+	CreatedAt      int64
+	AcknowledgedAt sql.NullInt64
+	AcknowledgedBy sql.NullString
+}
+
 type AuditEvent struct {
 	ID          string
 	Seq         int64
@@ -27,6 +38,61 @@ type AuditEvent struct {
 	DetailsEnc  []byte
 	PrevHash    []byte
 	Hash        []byte
+}
+
+type BackupChallenge struct {
+	ID         string
+	Mac        []byte
+	UserID     string
+	SourceKey  string
+	SessionID  sql.NullString
+	CreatedAt  int64
+	ExpiresAt  int64
+	ConsumedAt sql.NullInt64
+}
+
+type BackupCredential struct {
+	UserID      string
+	PasswordEnc []byte
+	AnswersEnc  []byte
+	PairCount   int64
+	EnrolledAt  int64
+	RotatedAt   int64
+}
+
+type BackupLockout struct {
+	UserID      string
+	Failures    int64
+	LockedUntil int64
+	Level       int64
+	UpdatedAt   int64
+}
+
+type DomainRule struct {
+	ID              string
+	Domain          string
+	TenantID        string
+	ProviderID      string
+	EvidenceKind    string
+	Mode            string
+	BaselineRoleIds string
+	Version         int64
+	ManagedBy       string
+	LastChangedBy   sql.NullString
+	CreatedAt       int64
+	UpdatedAt       int64
+}
+
+type ExternalIdentity struct {
+	ID          string
+	ProviderID  string
+	Issuer      string
+	Subject     string
+	UserID      string
+	Email       sql.NullString
+	Hd          sql.NullString
+	LinkedAt    int64
+	LastLoginAt sql.NullInt64
 }
 
 type Group struct {
@@ -50,6 +116,24 @@ type GroupMember struct {
 	CreatedAt int64
 }
 
+type IdentityProvider struct {
+	ID            string
+	Slug          string
+	Kind          string
+	Name          string
+	Issuer        string
+	ClientID      string
+	SecretEnc     []byte
+	AllowedHds    string
+	Scopes        string
+	Enabled       int64
+	Version       int64
+	ManagedBy     string
+	LastChangedBy sql.NullString
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
 type Installation struct {
 	ID               int64
 	InstallationID   string
@@ -66,6 +150,17 @@ type InstallationRoleAssignment struct {
 	Source    string
 	CreatedAt int64
 	CreatedBy sql.NullString
+}
+
+type Invite struct {
+	ID         string
+	TenantID   string
+	Email      string
+	CreatedBy  sql.NullString
+	CreatedAt  int64
+	ExpiresAt  int64
+	ConsumedAt sql.NullInt64
+	ConsumedBy sql.NullString
 }
 
 type Job struct {
@@ -107,6 +202,18 @@ type Membership struct {
 	UpdatedAt     int64
 }
 
+type OidcLoginState struct {
+	ID         string
+	StateMac   []byte
+	ProviderID string
+	Intent     string
+	SessionID  sql.NullString
+	SecretsEnc []byte
+	ReturnTo   string
+	CreatedAt  int64
+	ExpiresAt  int64
+}
+
 type Outbox struct {
 	ID            string
 	Type          string
@@ -119,6 +226,22 @@ type Outbox struct {
 	LastError     sql.NullString
 	PublishedAt   sql.NullInt64
 	DeadAt        sql.NullInt64
+}
+
+type RecoveryLink struct {
+	ID         string
+	Mac        []byte
+	UserID     string
+	CreatedAt  int64
+	ExpiresAt  int64
+	ConsumedAt sql.NullInt64
+}
+
+type RecoveryPair struct {
+	ID       string
+	UserID   string
+	Position int64
+	TitleEnc []byte
 }
 
 type Session struct {
@@ -176,6 +299,12 @@ type Tenant struct {
 	LastChangedBy       sql.NullString
 	CreatedAt           int64
 	UpdatedAt           int64
+}
+
+type ThrottleBucket struct {
+	Key         string
+	WindowStart int64
+	Count       int64
 }
 
 type User struct {

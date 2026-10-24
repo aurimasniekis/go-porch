@@ -43,6 +43,8 @@ func rootCommands() []*command {
 		}},
 		{name: "admin", summary: "host-side administration (needs the data-directory lock and the KEK)", sub: []*command{
 			{name: "setup-token", summary: "issue a single-use setup token for the first owner", run: runSetupToken},
+			{name: "recover", summary: "issue a one-time 15-minute login link for a user (offline recovery)", run: runRecover},
+			{name: "unlock-backup", summary: "clear a user's backup-login lockout", run: runUnlockBackup},
 		}},
 		{name: "audit", summary: "audit log tools", sub: []*command{
 			{name: "verify", summary: "verify the audit hash chain", run: runAuditVerify},

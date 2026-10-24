@@ -241,3 +241,30 @@ setup session capped at 1 h whose purpose is to enroll a real login method.
 (`tenancy.ResolveForOperator`, recorded as `via: operator` in audit details). Tenant members get a `ViaMembership` scope
 for their own data (portal, OIDC) but no management rights.
 **Consequences.** Temporary; replaced by `authz` checks (`tenant:manage`, `member:manage`, …) in M5 without API changes.
+
+## ADR-0027 — How the hourly upstream recheck is enforced
+
+**Decision.** A federated session whose last upstream confirmation is older than `session.upstream_recheck` (1 h) cannot
+use the management API (`401 upstream_recheck_required` with an `action` URL) and page navigations are redirected through
+`/login/{provider}?intent=recheck` (`prompt=none`, `login_hint`). Success updates `upstream_checked_at` and re-evaluates
+rule-derived memberships with the fresh token; `login_required`, a different account, an invalid token or a disallowed
+`hd` revoke the session. `/me` and `/logout` are exempt so the UI can render. Evidence re-evaluation therefore happens
+at every login and every recheck; deleting a domain rule removes its derived memberships in the same transaction. A
+separate periodic job is unnecessary because nothing can change the evidence without a fresh token.
+**Consequences.** An idle browser tab keeps an unconfirmed session until its next request; it cannot act with it.
+
+## ADR-0028 — Recovery-answer strength is estimated per answer
+
+**Context.** zxcvbn scores space-joined common words ("red dog cat") as brute force (~10^10.8 guesses).
+**Decision.** Each canonical answer is estimated separately (titles, name, email and handle as known context) and the
+log10 guesses are summed; enrollment requires ≥ 10^8 for the answers alone and ≥ 10^14 for password + answers, plus a
+zxcvbn password score ≥ 3 and length ≥ 12.
+**Consequences.** Still an estimate (documented as such in the UI and ADR-0009); random-word suggestions comfortably pass.
+
+## ADR-0029 — Invites and `verified_email` evidence
+
+**Decision.** An invite is consumed only by an upstream login whose `email_verified` is true and whose email matches.
+Under an `invite_only` domain rule, the resulting membership carries the rule's source (so losing the domain evidence
+removes it); a plain invite yields source `invite:<id>` (manual-like, never removed automatically). `verified_email`
+rules accept the email domain of a verified email from the rule's provider only and are labelled weaker than
+`workspace_hd` in the API and UI.

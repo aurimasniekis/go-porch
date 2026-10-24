@@ -1,8 +1,8 @@
 # Quickstart (development build)
 
 ::: warning
-Pre-alpha. These steps describe what works today (milestone M1): bootstrap, tenants, users and memberships through the
-API. Login methods arrive in M2.
+Pre-alpha. These steps describe what works today: bootstrap, tenants, users, memberships, Google login and the backup login through the
+UI and API.
 :::
 
 ```sh
@@ -25,7 +25,7 @@ porch admin setup-token -config /etc/porch/porch.yaml
 porch serve -config /etc/porch/porch.yaml
 ```
 
-Then `POST /api/v1/setup` with the token (the web setup page arrives in M2). The public listener defaults to
+Then open `https://auth.example.com/setup` and paste the token. The public listener defaults to
 `127.0.0.1:8080`; metrics and health live on the private management listener `127.0.0.1:9464`
 (`/metrics`, `/healthz`, `/readyz`).
 

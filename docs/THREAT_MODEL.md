@@ -64,7 +64,7 @@ flowchart LR
 | T-B3-3 | E | Domain takeover via email suffix or `hd=` request hint | Enrollment uses the validated `hd` **claim** only; `verified_email` mode is opt-in and labelled weaker | hd tests (missing/mismatch/hint-only) |
 | T-B3-4 | E | Account takeover by matching email of an existing local user | Identity keyed by `(issuer, subject)`; no auto-link on email; linking needs step-up + fresh upstream auth | email-link-attack test |
 | T-B3-5 | E | Workspace user removed upstream keeps access | Hourly `prompt=none` recheck; derived grants removed on evidence loss; optional Directory API sync | recheck tests (fake), real Google **not verified** |
-| T-B3-6 | I | SSRF through provider discovery URL | Outbound guard denies private/loopback/link-local unless allowlisted | ssrf tests |
+| T-B3-6 | I | SSRF through provider discovery URL | Outbound guard denies private/loopback/link-local/CGNAT/NAT64 at dial time unless allowlisted (`outbound.allow_cidrs`) | `internal/netguard` tests |
 
 ## B4 — Downstream apps (RPs) ↔ Porch OP
 

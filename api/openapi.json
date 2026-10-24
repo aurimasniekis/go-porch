@@ -15,6 +15,43 @@
         ],
         "type": "object"
       },
+      "Alert": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "message",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "AuditVerification": {
         "additionalProperties": false,
         "properties": {
@@ -36,6 +73,230 @@
         "required": [
           "events",
           "ok"
+        ],
+        "type": "object"
+      },
+      "BackupChallenge": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "titles": {
+            "description": "The user's own recovery titles, in order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "titles",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "BackupCredentialStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "enrolled": {
+            "type": "boolean"
+          },
+          "enrolled_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "handle": {
+            "type": "string"
+          },
+          "locked_until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "max_pairs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "min_pairs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pairs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rotated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "titles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "enrolled",
+          "pairs",
+          "titles",
+          "min_pairs",
+          "max_pairs"
+        ],
+        "type": "object"
+      },
+      "BackupFinishRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "type": "object"
+      },
+      "BackupStartRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "identifier": {
+            "description": "Backup handle, or email when no handle is set.",
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier",
+          "password"
+        ],
+        "type": "object"
+      },
+      "CreateDomainRuleRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "maxLength": 253,
+            "minLength": 3,
+            "type": "string"
+          },
+          "evidence_kind": {
+            "enum": [
+              "workspace_hd",
+              "verified_email"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "invite_only",
+              "jit"
+            ],
+            "type": "string"
+          },
+          "provider_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain",
+          "provider_id",
+          "evidence_kind",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "CreateInviteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 3,
+            "type": "string"
+          },
+          "valid_seconds": {
+            "description": "Default 7 days.",
+            "format": "int64",
+            "maximum": 2592000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
+      "CreateProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_hds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "client_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "client_secret": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "issuer": {
+            "description": "Defaults to https://accounts.google.com for google.",
+            "maxLength": 512,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "google",
+              "oidc"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scopes": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 63,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "kind",
+          "name",
+          "client_id",
+          "client_secret"
         ],
         "type": "object"
       },
@@ -79,6 +340,102 @@
         ],
         "type": "object"
       },
+      "DomainRule": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "evidence_kind": {
+            "description": "workspace_hd = validated Google hd claim; verified_email is weaker.",
+            "enum": [
+              "workspace_hd",
+              "verified_email"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_changed_by": {
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "invite_only",
+              "jit"
+            ],
+            "type": "string"
+          },
+          "provider_id": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "domain",
+          "tenant_id",
+          "provider_id",
+          "evidence_kind",
+          "mode",
+          "version",
+          "managed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "EnrollBackupRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "description": "Every answer typed again, in order.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "minItems": 3,
+            "type": "array"
+          },
+          "pairs": {
+            "items": {
+              "$ref": "#/components/schemas/RecoveryPair"
+            },
+            "maxItems": 12,
+            "minItems": 3,
+            "type": "array"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "pairs",
+          "confirm"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -112,6 +469,99 @@
         ],
         "type": "object"
       },
+      "HandleRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "Empty removes the handle (email works again).",
+            "maxLength": 63,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle"
+        ],
+        "type": "object"
+      },
+      "IdentityProvider": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_hds": {
+            "description": "Google Workspace domains this provider accepts (empty = any account).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "callback_url": {
+            "description": "Register this redirect URI at the provider.",
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "google",
+              "oidc"
+            ],
+            "type": "string"
+          },
+          "last_changed_by": {
+            "type": "string"
+          },
+          "managed_by": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "kind",
+          "name",
+          "issuer",
+          "client_id",
+          "allowed_hds",
+          "scopes",
+          "enabled",
+          "callback_url",
+          "version",
+          "managed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "InstallationInfo": {
         "additionalProperties": false,
         "properties": {
@@ -142,6 +592,122 @@
         ],
         "type": "object"
       },
+      "Invite": {
+        "additionalProperties": false,
+        "properties": {
+          "consumed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "email",
+          "created_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "LinkedIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "hd": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_login_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "linked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider_name": {
+            "type": "string"
+          },
+          "provider_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider_slug",
+          "provider_name",
+          "linked_at"
+        ],
+        "type": "object"
+      },
+      "LoginOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "backup_enabled": {
+            "type": "boolean"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/LoginProvider"
+            },
+            "type": "array"
+          },
+          "setup_complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "providers",
+          "backup_enabled",
+          "setup_complete"
+        ],
+        "type": "object"
+      },
+      "LoginProvider": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "login_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "login_url"
+        ],
+        "type": "object"
+      },
       "Me": {
         "additionalProperties": false,
         "properties": {
@@ -159,19 +725,13 @@
             "items": {
               "$ref": "#/components/schemas/MeMembership"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "operator_roles": {
             "items": {
               "type": "string"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "public_id": {
             "type": "string"
@@ -286,10 +846,7 @@
             "items": {
               "$ref": "#/components/schemas/Member"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next_cursor": {
             "type": "string"
@@ -335,6 +892,10 @@
       "Problem": {
         "additionalProperties": false,
         "properties": {
+          "action": {
+            "description": "Same-origin URL the client should navigate to (re-authentication).",
+            "type": "string"
+          },
           "code": {
             "description": "Stable error code, e.g. validation_failed, not_found, precondition_failed, reauth_required.",
             "type": "string"
@@ -348,20 +909,14 @@
             "items": {
               "$ref": "#/components/schemas/ErrorDetail"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "fields": {
             "description": "Per-field validation problems.",
             "items": {
               "$ref": "#/components/schemas/FieldError"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "instance": {
             "type": "string"
@@ -382,6 +937,41 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "RecoveryPair": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": {
+            "description": "Your own hint, like a security question.",
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "answer"
+        ],
+        "type": "object"
+      },
+      "RecoveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
         ],
         "type": "object"
       },
@@ -448,6 +1038,28 @@
         },
         "required": [
           "completed"
+        ],
+        "type": "object"
+      },
+      "StrengthEstimate": {
+        "additionalProperties": false,
+        "properties": {
+          "combined_bits_estimate": {
+            "format": "double",
+            "type": "number"
+          },
+          "note": {
+            "type": "string"
+          },
+          "password_score": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "password_score",
+          "combined_bits_estimate",
+          "note"
         ],
         "type": "object"
       },
@@ -518,10 +1130,7 @@
             "items": {
               "$ref": "#/components/schemas/Tenant"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next_cursor": {
             "type": "string"
@@ -546,6 +1155,43 @@
         "required": [
           "status"
         ],
+        "type": "object"
+      },
+      "UpdateProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_hds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "client_id": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "client_secret": {
+            "description": "Rotates the stored secret.",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "issuer": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "scopes": {
+            "maxLength": 512,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UpdateTenantRequest": {
@@ -663,10 +1309,7 @@
             "items": {
               "$ref": "#/components/schemas/User"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "next_cursor": {
             "type": "string"
@@ -693,6 +1336,533 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/auth/backup/finish": {
+      "post": {
+        "operationId": "backup-login-finish",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Sec-Fetch-Site",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-porch_session",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-porch_bchal",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupFinishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Backup login step 2: recovery answers",
+        "tags": [
+          "login"
+        ]
+      }
+    },
+    "/auth/backup/start": {
+      "post": {
+        "description": "On a correct password returns the user's recovery titles and sets a short-lived challenge cookie. Every failure — unknown identifier, wrong password, locked account — returns the same 401. With a valid session cookie this performs a step-up.",
+        "operationId": "backup-login-start",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Sec-Fetch-Site",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-porch_session",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupChallenge"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Backup login step 1: identifier and password",
+        "tags": [
+          "login"
+        ]
+      }
+    },
+    "/auth/options": {
+      "get": {
+        "operationId": "get-login-options",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginOptions"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Sign-in methods available on this installation",
+        "tags": [
+          "login"
+        ]
+      }
+    },
+    "/auth/recovery": {
+      "post": {
+        "operationId": "use-recovery-link",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Origin",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Sec-Fetch-Site",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "__Host-porch_session",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Sign in with a one-time offline recovery link",
+        "tags": [
+          "login"
+        ]
+      }
+    },
+    "/identity-providers": {
+      "get": {
+        "operationId": "list-identity-providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IdentityProvider"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "List upstream identity providers",
+        "tags": [
+          "identity-providers"
+        ]
+      },
+      "post": {
+        "operationId": "create-identity-provider",
+        "parameters": [
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Add an upstream identity provider (needs a recent sign-in)",
+        "tags": [
+          "identity-providers"
+        ]
+      }
+    },
+    "/identity-providers/{provider}": {
+      "delete": {
+        "operationId": "delete-identity-provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete an identity provider and its linked identities (needs a recent sign-in)",
+        "tags": [
+          "identity-providers"
+        ]
+      },
+      "patch": {
+        "operationId": "update-identity-provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Update an identity provider (needs a recent sign-in)",
+        "tags": [
+          "identity-providers"
+        ]
+      }
+    },
     "/installation": {
       "get": {
         "operationId": "get-installation",
@@ -724,6 +1894,85 @@
           }
         ],
         "summary": "Installation status",
+        "tags": [
+          "installation"
+        ]
+      }
+    },
+    "/installation/alerts": {
+      "get": {
+        "operationId": "list-alerts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Alert"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Open operator alerts",
+        "tags": [
+          "installation"
+        ]
+      }
+    },
+    "/installation/alerts/{alert}/ack": {
+      "post": {
+        "operationId": "acknowledge-alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Acknowledge an alert",
         "tags": [
           "installation"
         ]
@@ -776,10 +2025,7 @@
                   "items": {
                     "$ref": "#/components/schemas/Operator"
                   },
-                  "type": [
-                    "array",
-                    "null"
-                  ]
+                  "type": "array"
                 }
               }
             },
@@ -876,6 +2122,217 @@
         "summary": "The authenticated caller",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/me/backup-credential": {
+      "get": {
+        "operationId": "get-backup-credential",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCredentialStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Your backup login status and recovery titles",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "operationId": "put-backup-credential",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollBackupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrengthEstimate"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Enroll or rotate your backup login (needs a recent sign-in)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/backup-handle": {
+      "put": {
+        "operationId": "put-backup-handle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Set an optional backup login handle (needs a recent sign-in)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/identities": {
+      "get": {
+        "operationId": "list-my-identities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LinkedIdentity"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Upstream accounts linked to you",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/suggest-words": {
+      "get": {
+        "operationId": "suggest-words",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "count",
+            "schema": {
+              "default": 3,
+              "format": "int64",
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Random words from the EFF large wordlist (optional help for recovery answers)",
+        "tags": [
+          "account"
         ]
       }
     },
@@ -1301,6 +2758,384 @@
         "summary": "Update a tenant",
         "tags": [
           "tenants"
+        ]
+      }
+    },
+    "/tenants/{tenant}/domain-rules": {
+      "get": {
+        "operationId": "list-domain-rules",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DomainRule"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Domain enrollment rules of a tenant",
+        "tags": [
+          "enrollment"
+        ]
+      },
+      "post": {
+        "operationId": "create-domain-rule",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDomainRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainRule"
+                }
+              }
+            },
+            "description": "Created",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Enroll a domain into a tenant (needs a recent sign-in)",
+        "tags": [
+          "enrollment"
+        ]
+      }
+    },
+    "/tenants/{tenant}/domain-rules/{rule}": {
+      "delete": {
+        "operationId": "delete-domain-rule",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a rule and the memberships derived from it (needs a recent sign-in)",
+        "tags": [
+          "enrollment"
+        ]
+      }
+    },
+    "/tenants/{tenant}/invites": {
+      "get": {
+        "operationId": "list-invites",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Invite"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Invitations of a tenant",
+        "tags": [
+          "enrollment"
+        ]
+      },
+      "post": {
+        "operationId": "create-invite",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Invite an email address (accepted only with a matching verified upstream email)",
+        "tags": [
+          "enrollment"
+        ]
+      }
+    },
+    "/tenants/{tenant}/invites/{invite}": {
+      "delete": {
+        "operationId": "delete-invite",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Revoke an invitation",
+        "tags": [
+          "enrollment"
         ]
       }
     },
@@ -1984,6 +3819,49 @@
           }
         ],
         "summary": "Update a user",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{user}/backup-lockout/unlock": {
+      "post": {
+        "description": "There is deliberately no API to lock a user (ADR-0008).",
+        "operationId": "unlock-backup-login",
+        "parameters": [
+          {
+            "description": "User ID.",
+            "in": "path",
+            "name": "user",
+            "required": true,
+            "schema": {
+              "description": "User ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Clear a user's backup-login lockout (owner/admin, needs a recent sign-in)",
         "tags": [
           "users"
         ]

@@ -48,7 +48,7 @@ type Me struct {
 }
 
 type meOutput struct {
-	SetCookie http.Cookie `header:"Set-Cookie"`
+	SetCookie []http.Cookie `header:"Set-Cookie"`
 	Body      Me
 }
 
@@ -123,7 +123,7 @@ func registerSetup(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
-			return &meOutput{SetCookie: sessionCookie(res.Session), Body: me}, nil
+			return &meOutput{SetCookie: []http.Cookie{sessionCookie(res.Session)}, Body: me}, nil
 		})
 
 	huma.Register(api, huma.Operation{OperationID: "get-me", Method: http.MethodGet, Path: "/me", Summary: "The authenticated caller",

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,6 +20,9 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/buildinfo"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/mgmtapi"
+	"github.com/aurimasniekis/go-porch/internal/portal"
+	"github.com/aurimasniekis/go-porch/internal/session"
+	"github.com/aurimasniekis/go-porch/internal/webui"
 )
 
 // surface classifies a path for metrics (bounded label values).
@@ -67,14 +71,8 @@ func (a *App) accessLog(next http.Handler) http.Handler {
 func (a *App) PublicHandler() http.Handler {
 	mux := http.NewServeMux()
 	mgmtapi.New(mux, a.APIDeps())
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("Porch " + buildinfo.Get().Version + "\n"))
-	}))
+	(&portal.Handler{IDP: a.IDP, Sessions: a.Sessions, Log: a.Log, Limiter: httpx.NewLimiter(a.Clock, 30, 10)}).Register(mux)
+	mux.Handle("/", webui.Handler(webui.Dist(), a.recheckHook))
 	var h http.Handler = mux
 	h = httpx.LimitBody(a.Cfg.HTTP.MaxBodyBytes, h)
 	h = httpx.SecurityHeaders(strings.HasPrefix(a.Cfg.PublicURL, "https://"), h)
@@ -83,11 +81,30 @@ func (a *App) PublicHandler() http.Handler {
 	return httpx.RequestID(h)
 }
 
+// recheckHook sends page navigations of a federated session that is due for its hourly upstream recheck through the
+// silent prompt=none round trip first (ADR-0007). API calls get a 401 upstream_recheck_required instead.
+func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
+	switch r.URL.Path {
+	case "/login", "/setup", "/recovery":
+		return false
+	}
+	p, err := a.Sessions.Validate(r.Context(), session.TokenFromRequest(r))
+	if err != nil || !a.Sessions.NeedsUpstreamRecheck(p) || p.ProviderID == "" {
+		return false
+	}
+	prov, err := a.IDP.Provider(r.Context(), p.ProviderID)
+	if err != nil {
+		return false
+	}
+	http.Redirect(w, r, "/login/"+prov.Slug+"?intent=recheck&return_to="+url.QueryEscape(httpx.SafeReturnTo(r.URL.RequestURI(), "/")), http.StatusFound)
+	return true
+}
+
 // APIDeps returns the management API dependencies.
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
-		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, Metrics: a.Metrics,
-		SetupRate: httpx.NewLimiter(a.Clock, 10, 5)}
+		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Metrics: a.Metrics,
+		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 
 // ManagementHandler serves metrics, health and (opt-in) pprof on the private listener.

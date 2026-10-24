@@ -37,6 +37,8 @@ linters:
         no-legacy-log:
           files:
             - "!**/cmd/**"
+            - "!**/test/**"
+            - "!**/examples/**"
             - "!$test"
           deny:
             - pkg: log$
@@ -59,7 +61,7 @@ linters:
     presets:
       - std-error-handling
     rules:
-      - path: cmd/
+      - path: (cmd|test|examples)/
         linters: [forbidigo]
       - path: _test\.go
         linters: [gosec, noctx, bodyclose, contextcheck]

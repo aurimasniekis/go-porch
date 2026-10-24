@@ -44,6 +44,8 @@ const (
 	LoginState      = "ols"
 	BackupChallenge = "bch"
 	RecoveryLink    = "rcl"
+	RecoveryPair    = "rcp"
+	Alert           = "alr"
 	AuthRequest     = "arq"
 	AuthCode        = "acd"
 	RefreshToken    = "rtk"

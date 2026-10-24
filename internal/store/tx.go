@@ -67,10 +67,12 @@ func (w *Writer) TxNamed(ctx context.Context, name string, fn func(tx *Tx) error
 	var err error
 	for attempt := 1; ; attempt++ {
 		var hooks []func()
-		hooks, err = w.attempt(ctx, fn)
+		var held time.Duration
+		hooks, held, err = w.attempt(ctx, fn)
 		if err == nil {
 			w.health.Observe(nil)
-			w.observe(name, time.Since(start), nil)
+			// The short-transaction rule is about how long the write lock is held, not how long callers queued for it.
+			w.observe(name, held, nil)
 			for _, h := range hooks {
 				h()
 			}
@@ -124,15 +126,16 @@ func TxResult(err error) metrics.TxResult {
 	}
 }
 
-func (w *Writer) attempt(ctx context.Context, fn func(tx *Tx) error) (hooks []func(), err error) {
+func (w *Writer) attempt(ctx context.Context, fn func(tx *Tx) error) (hooks []func(), held time.Duration, err error) {
 	waitStart := time.Now()
 	w.metrics.StoreWriterQueue(1)
 	sqlTx, err := w.db.BeginTx(ctx, nil)
 	w.metrics.StoreWriterQueue(-1)
 	w.metrics.StoreWriterWait(time.Since(waitStart)) // pool wait + BEGIN IMMEDIATE lock acquisition (HP-DB-003)
 	if err != nil {
-		return nil, classify(fmt.Errorf("begin: %w", err))
+		return nil, 0, classify(fmt.Errorf("begin: %w", err))
 	}
+	locked := time.Now()
 	tx := &Tx{Q: db.New(sqlTx), SQL: sqlTx, Now: w.clock.Now().UTC()}
 	defer func() {
 		if p := recover(); p != nil {
@@ -142,13 +145,13 @@ func (w *Writer) attempt(ctx context.Context, fn func(tx *Tx) error) (hooks []fu
 	}()
 	if err := fn(tx); err != nil {
 		_ = sqlTx.Rollback()
-		return nil, classify(err)
+		return nil, time.Since(locked), classify(err)
 	}
 	if err := sqlTx.Commit(); err != nil {
 		_ = sqlTx.Rollback()
-		return nil, classify(fmt.Errorf("commit: %w", err))
+		return nil, time.Since(locked), classify(fmt.Errorf("commit: %w", err))
 	}
-	return tx.afterCommit, nil
+	return tx.afterCommit, time.Since(locked), nil
 }
 
 // spaceProbe commits a transaction that allocates 64 KiB of new pages and frees them again: it succeeds only when

@@ -35,7 +35,8 @@ func TestPathParamsBound(t *testing.T) {
 
 // Every operation except the explicitly public ones requires the session scheme.
 func TestOperationsRequireAuth(t *testing.T) {
-	public := map[string]bool{"get-setup-status": true, "complete-setup": true}
+	public := map[string]bool{"get-setup-status": true, "complete-setup": true, "get-login-options": true, "backup-login-start": true,
+		"backup-login-finish": true, "use-recovery-link": true}
 	api := New(http.NewServeMux(), &Deps{Version: "test"})
 	for path, item := range api.OpenAPI().Paths {
 		for _, op := range []*huma.Operation{item.Get, item.Post, item.Put, item.Patch, item.Delete} {
@@ -44,6 +45,24 @@ func TestOperationsRequireAuth(t *testing.T) {
 			}
 			if !public[op.OperationID] && len(op.Security) == 0 {
 				t.Errorf("%s %s has no security requirement", op.OperationID, path)
+			}
+		}
+	}
+}
+
+// Inputs that embed an unexported struct lose those fields silently in Huma. Login endpoints rely on header binding
+// (Origin, Sec-Fetch-Site, cookies), so assert they are declared parameters.
+func TestLoginHeadersBound(t *testing.T) {
+	api := New(http.NewServeMux(), &Deps{Version: "test"})
+	for _, path := range []string{"/auth/backup/start", "/auth/backup/finish", "/auth/recovery"} {
+		op := api.OpenAPI().Paths[path].Post
+		names := map[string]bool{}
+		for _, p := range op.Parameters {
+			names[p.In+":"+p.Name] = true
+		}
+		for _, want := range []string{"header:Origin", "header:Sec-Fetch-Site", "cookie:__Host-porch_session"} {
+			if !names[want] {
+				t.Errorf("%s: %s not bound (%v)", path, want, names)
 			}
 		}
 	}

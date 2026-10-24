@@ -166,3 +166,19 @@ func TestRequestIDIgnoresInbound(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// T-B2-6: open redirects through return_to are refused.
+func TestSafeReturnTo(t *testing.T) {
+	for _, bad := range []string{"https://evil.example.com", "//evil.example.com", "/\\evil.example.com", "\\\\evil", "javascript:alert(1)",
+		"/ok\r\nLocation: x", "http:/evil", "", "evil", "/%0d%0a", "///evil"} {
+		got := SafeReturnTo(bad, "/")
+		if got != "/" && bad != "/%0d%0a" {
+			t.Errorf("%q → %q", bad, got)
+		}
+	}
+	for _, ok := range []string{"/", "/apps", "/account?tab=security", "/a/b#frag"} {
+		if got := SafeReturnTo(ok, "/"); got != ok {
+			t.Errorf("%q → %q", ok, got)
+		}
+	}
+}
