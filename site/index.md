@@ -85,6 +85,7 @@ flowchart LR
 <Shot name="assignments" alt="Role assignments to groups with conditions" caption="Assignments with conditions" />
 <Shot name="simulator" alt="Access simulator explaining why a request is allowed" caption="Every decision explained" />
 <Shot name="audit" alt="Audit explorer with an expanded event" caption="Hash-chained audit log" />
+<Shot name="appearance" alt="Appearance settings: image providers and the current background images with credits" caption="Background providers and credits" />
 <Shot name="health" alt="System health: checks, keyring and storage" caption="System health" />
 </div>
 

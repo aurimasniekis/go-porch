@@ -1,0 +1,274 @@
+/* User-facing pages (sign-in, launcher, account): a full-bleed background with readable surfaces on top. */
+
+.porch-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(135deg, #142445 0%, #1f4fa8 48%, #1f7d72 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Darkens photos so white text and light cards stay readable. */
+.porch-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 24, 0.35) 0%, rgba(8, 12, 24, 0.55) 100%);
+}
+
+.porch-auth {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px 72px;
+}
+
+.porch-auth-card {
+  width: 420px;
+  max-width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.porch-logo {
+  display: block;
+  margin: 0 auto;
+}
+
+.porch-credit {
+  position: fixed;
+  z-index: 1;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(8, 12, 24, 0.72);
+  color: #f1f3f5;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.porch-credit a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* ---- launcher and account shell ---- */
+
+.porch-hero {
+  position: relative;
+  color: #fff;
+  background: linear-gradient(135deg, #142445 0%, #1f4fa8 48%, #1f7d72 100%);
+  background-size: cover;
+  background-position: center 35%;
+}
+
+.porch-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 24, 0.55) 0%, rgba(8, 12, 24, 0.7) 100%);
+}
+
+.porch-hero > * {
+  position: relative;
+}
+
+.porch-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.porch-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+}
+
+.porch-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.porch-hero a.porch-toplink {
+  color: #fff;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.porch-hero a.porch-toplink:hover,
+.porch-hero a.porch-toplink:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.porch-hero-body {
+  padding: 28px 0 36px;
+}
+
+.porch-hero-body h1 {
+  color: #fff;
+}
+
+.porch-hero .porch-hero-sub {
+  color: #e9ecef;
+}
+
+.porch-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+}
+
+.porch-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 16px;
+}
+
+.porch-tile {
+  position: relative;
+  height: 100%;
+}
+
+.porch-tile-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  height: 100%;
+  min-height: 168px;
+  padding: 22px 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  text-decoration: none;
+  text-align: center;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+}
+
+a.porch-tile-link:hover,
+a.porch-tile-link:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--mantine-color-porch-5);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+
+.porch-tile-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.porch-tile-letter {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.porch-tile-name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.porch-tile-tenant {
+  font-size: 12px;
+  color: var(--mantine-color-dimmed);
+}
+
+.porch-tile-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .porch-tile-link {
+    transition: none;
+  }
+}
+
+.porch-denied-icon {
+  color: var(--mantine-color-red-7);
+}
+
+.porch-footer-credit {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 24px;
+  font-size: 12px;
+  color: var(--mantine-color-dimmed);
+}
+
+.porch-brand img {
+  background: #fff;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.porch-footer-credit a {
+  text-decoration: underline;
+}
+
+/* Small groups sit side by side; a group with many applications takes the whole row. */
+.porch-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 32px 40px;
+  align-items: start;
+}
+
+.porch-section-wide {
+  grid-column: 1 / -1;
+}
+
+/* Logos are drawn for light backgrounds (some are black): in the dark scheme they sit on a white plate. */
+.porch-tile-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+}
+
+[data-mantine-color-scheme='dark'] .porch-tile-plate {
+  background: #f8f9fa;
+}
+
+.porch-tile-plate .porch-tile-icon {
+  width: 56px;
+  height: 56px;
+}

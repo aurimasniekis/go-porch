@@ -6,19 +6,24 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { actionUrl, api, ApiError, check, unwrap } from '@/api/client'
 import { backupStatusQuery, identitiesQuery, loginOptionsQuery, myGrantsQuery, mySessionsQuery } from '@/api/queries'
+import { UserShell } from '@/components/UserShell'
 
 export const Route = createFileRoute('/_app/account')({
   component: function Account() {
+    const { me } = Route.useRouteContext()
     return (
-      <Stack maw={880} mx="auto">
-        <Title order={1} size="h2">
-          Account
-        </Title>
-        <Identities />
-        <BackupCredential />
-        <Sessions />
-        <Grants />
-      </Stack>
+      <UserShell
+        me={me}
+        title="Account"
+        subtitle="How you sign in, where you are signed in, and which apps keep you signed in."
+      >
+        <Stack maw={880} mx="auto">
+          <Identities />
+          <BackupCredential />
+          <Sessions />
+          <Grants />
+        </Stack>
+      </UserShell>
     )
   },
 })

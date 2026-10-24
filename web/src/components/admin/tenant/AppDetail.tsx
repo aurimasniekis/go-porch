@@ -13,6 +13,7 @@ import {
   tenantKeys,
   unshareApplication,
   updateApplication,
+  uploadApplicationIcon,
   when,
   type Application,
   type UpdateApplicationRequest,
@@ -30,6 +31,14 @@ import {
   toGeneralForm,
 } from './appForms'
 import { CopyField, LoadingRows, MutationError, ProvenanceTag, Tag } from './common'
+import {
+  fileBase64,
+  LauncherFields,
+  launcherUpdate,
+  launcherValidate,
+  toLauncherForm,
+  type LauncherForm,
+} from './LauncherFields'
 import { SecretModal, type OneTimeSecret } from './SecretModal'
 
 /** Edits one application: connection details, settings, client, forward-auth, sharing and deletion. */
@@ -54,6 +63,7 @@ export function AppDetail({ tenant, appId, onDeleted }: { tenant: string; appId:
       </Group>
       {a.client ? <Connection tenant={tenant} app={a} /> : null}
       <GeneralSection tenant={tenant} app={a} reload={reload} />
+      <LauncherSection tenant={tenant} app={a} reload={reload} />
       {a.kind === 'oidc' ? <ClientSection tenant={tenant} app={a} reload={reload} /> : null}
       {a.kind === 'forward_auth' ? <ForwardSection tenant={tenant} app={a} reload={reload} /> : null}
       {caps.data?.installation ? <Shares tenant={tenant} app={a} /> : null}
@@ -179,6 +189,57 @@ function GeneralSection({ tenant, app, reload }: { tenant: string; app: Applicat
           <Group justify="flex-end">
             <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
               Save settings
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </SectionCard>
+  )
+}
+
+function LauncherSection({ tenant, app, reload }: { tenant: string; app: Application; reload: Reload }) {
+  const qc = useQueryClient()
+  const form = useForm({
+    initialValues: toLauncherForm(app),
+    validate: (v) => launcherValidate(v, app.icon_source === 'upload'),
+  })
+  const reset = (a: Application | undefined) => {
+    if (!a) return
+    form.setInitialValues(toLauncherForm(a))
+    form.setValues(toLauncherForm(a))
+  }
+  const save = useAdminMutation({
+    mutationFn: async (v: LauncherForm) => {
+      let a = await updateApplication(tenant, app, launcherUpdate(v, app))
+      if (v.icon_source === 'upload' && v.file) a = await uploadApplicationIcon(tenant, a, await fileBase64(v.file))
+      return a
+    },
+    success: 'Launcher settings saved',
+    invalidate: [tenantKeys.apps(tenant), ['my-apps']],
+    onSuccess: (a) => {
+      qc.setQueryData(tenantKeys.app(tenant, a.id), a)
+      reset(a)
+    },
+  })
+  return (
+    <SectionCard title="Launcher">
+      <form
+        onSubmit={form.onSubmit((v) => {
+          save.mutate(v)
+        })}
+      >
+        <Stack>
+          <LauncherFields form={form} current={app} />
+          <MutationError
+            error={save.error}
+            onReload={async () => {
+              reset(await reload())
+              save.reset()
+            }}
+          />
+          <Group justify="flex-end">
+            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
+              Save launcher settings
             </Button>
           </Group>
         </Stack>

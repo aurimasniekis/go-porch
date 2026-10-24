@@ -2,7 +2,13 @@ import { Button, Divider, Group, Modal, SegmentedControl, Stack, Text, TextInput
 import { useForm } from '@mantine/form'
 import { useState } from 'react'
 import { useAdminMutation } from '@/api/admin'
-import { createApplication, lines, tenantKeys, type CreatedApplication } from '@/api/admin/tenant'
+import {
+  createApplication,
+  lines,
+  tenantKeys,
+  uploadApplicationIcon,
+  type CreatedApplication,
+} from '@/api/admin/tenant'
 import {
   ClientFields,
   GeneralFields,
@@ -15,6 +21,7 @@ import {
   toGeneralForm,
 } from './appForms'
 import { MutationError } from './common'
+import { fileBase64, LauncherFields, launcherUpdate, launcherValidate, toLauncherForm } from './LauncherFields'
 
 type Kind = 'oidc' | 'forward_auth'
 
@@ -42,6 +49,7 @@ export function AppCreateModal({
     validate: { name: (v) => (v.trim() ? null : 'Required') },
   })
   const client = useForm({ initialValues: toClientForm() })
+  const launcher = useForm({ initialValues: toLauncherForm(), validate: (v) => launcherValidate(v, false) })
   const forward = useForm({
     initialValues: toForwardForm(),
     validate: { hosts: (v) => (kind === 'forward_auth' && lines(v).length === 0 ? 'Add at least one host' : null) },
@@ -51,11 +59,13 @@ export function AppCreateModal({
     general.reset()
     client.reset()
     forward.reset()
+    launcher.reset()
   }
   const create = useAdminMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const g = general.values
-      return createApplication(tenant, {
+      const look = launcherUpdate(launcher.values)
+      const created = await createApplication(tenant, {
         slug: slug.values.slug,
         name: g.name.trim(),
         kind,
@@ -66,7 +76,16 @@ export function AppCreateModal({
         ...(kind === 'oidc'
           ? { client: toClientConfig(client.values, true) }
           : { hosts: lines(forward.values.hosts), forward_headers: headerMap(forward.values.headers) }),
+        group: look.group,
+        icon: look.icon,
       })
+      const file = launcher.values.file
+      if (launcher.values.icon_source === 'upload' && file) {
+        // The secret is only in the create response: keep it even if the upload fails.
+        const withIcon = await uploadApplicationIcon(tenant, created, await fileBase64(file)).catch(() => null)
+        if (withIcon) return { ...created, ...withIcon, client_secret: created.client_secret }
+      }
+      return created
     },
     success: (a) => `Application ${a.name} created`,
     invalidate: [tenantKeys.apps(tenant)],
@@ -76,7 +95,12 @@ export function AppCreateModal({
     },
   })
   const submit = () => {
-    const bad = [slug.validate().hasErrors, general.validate().hasErrors, forward.validate().hasErrors]
+    const bad = [
+      slug.validate().hasErrors,
+      general.validate().hasErrors,
+      forward.validate().hasErrors,
+      launcher.validate().hasErrors,
+    ]
     if (bad.some(Boolean)) return
     create.mutate()
   }
@@ -118,6 +142,8 @@ export function AppCreateModal({
             {...slug.getInputProps('slug')}
           />
           <GeneralFields form={general} />
+          <Divider label="Launcher" labelPosition="left" />
+          <LauncherFields form={launcher} />
           <Divider label={kind === 'oidc' ? 'OpenID Connect client' : 'Forward-auth'} labelPosition="left" />
           {kind === 'oidc' ? (
             <ClientFields form={client} />

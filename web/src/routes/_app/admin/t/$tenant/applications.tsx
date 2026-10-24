@@ -119,12 +119,20 @@ function AppRow({ a, onOpen }: { a: Application; onOpen: () => void }) {
   return (
     <Table.Tr>
       <Table.Td>
-        <Text size="sm" fw={500}>
-          {a.name}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {a.slug}
-        </Text>
+        <Group gap="sm" wrap="nowrap">
+          {a.icon_url ? (
+            <img src={a.icon_url} alt="" width={28} height={28} style={{ objectFit: 'contain', flexShrink: 0 }} />
+          ) : null}
+          <div>
+            <Text size="sm" fw={500}>
+              {a.name}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {a.slug}
+              {a.group ? ` · ${a.group}` : ''}
+            </Text>
+          </div>
+        </Group>
       </Table.Td>
       <Table.Td>
         <Tag variant="light" color={a.kind === 'oidc' ? 'blue' : 'grape'}>

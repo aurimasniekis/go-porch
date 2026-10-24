@@ -4,8 +4,8 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { apiCall, BASE, googleLogin, ownerContext, settle } from './helpers'
 
 // Documentation screenshots (scripts/screenshots.sh). Skipped unless SCREENSHOTS_OUT is set, so the normal e2e
-// suite and CI never run it. Runs after m2-login.spec.ts on the same throwaway server: everything shown is fictional
-// (tenant smith, the fake Google users Ada/Bob/Dave, invented users, apps and policies).
+// suite and CI never run it. Runs after m2-login.spec.ts on the same throwaway server (tenant smith, the fake Google
+// users Ada/Bob/Dave). Application icons and the background image are downloaded by Porch, so this needs the network.
 const OUT = process.env.SCREENSHOTS_OUT ?? ''
 const T = '/admin/t/smith'
 const VIEW = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }
@@ -46,7 +46,7 @@ async function signedIn(browser: Browser, who: string, colorScheme: 'light' | 'd
   const ctx = await browser.newContext({ ...VIEW, colorScheme })
   const page = await ctx.newPage()
   await googleLogin(page, who)
-  await expect(page.getByRole('heading', { name: 'Your applications' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My applications' })).toBeVisible()
   return { ctx, page }
 }
 
@@ -173,27 +173,97 @@ test.describe.serial('Documentation screenshots', () => {
       condition_policy_id: daytime?.id,
     })
 
-    // Two more applications next to the demo app and whoami from m2-login.spec.ts.
-    await apiCall(r, 'POST', '/tenants/smith/applications', {
-      slug: 'family-photos',
-      name: 'Family photos',
-      kind: 'forward_auth',
-      description: 'Albums from every phone in the house',
-      hosts: ['photos.smith.example'],
-      launch_url: 'https://photos.smith.example/',
-    })
-    const wiki = await apiCall(r, 'POST', '/tenants/smith/applications', {
-      slug: 'recipe-wiki',
-      name: 'Recipe wiki',
+    // Self-hosted applications people actually run, with their logos (theSVG brand logos where it has them,
+    // dashboard-icons otherwise), grouped as the launcher shows them.
+    const oidc = (host: string, path: string) => ({
       kind: 'oidc',
-      description: "Grandmother's recipes, finally written down",
-      launch_url: 'https://wiki.smith.example/',
-      client: {
-        redirect_uris: ['https://wiki.smith.example/oauth/callback'],
-        grant_types: ['authorization_code', 'refresh_token'],
+      launch_url: `https://${host}/`,
+      client: { redirect_uris: [`https://${host}${path}`], grant_types: ['authorization_code', 'refresh_token'] },
+    })
+    const fwd = (host: string) => ({ kind: 'forward_auth', hosts: [host], launch_url: `https://${host}/` })
+    const apps: Obj[] = [
+      {
+        slug: 'jellyfin',
+        name: 'Jellyfin',
+        group: 'Media',
+        description: 'Films and series for movie night',
+        icon: { source: 'dashboard_icons', ref: 'jellyfin' },
+        ...fwd('tv.smith.example'),
+      },
+      {
+        slug: 'immich',
+        name: 'Immich',
+        group: 'Media',
+        description: 'Photos from every phone in the house',
+        icon: { source: 'dashboard_icons', ref: 'immich' },
+        ...oidc('photos.smith.example', '/auth/login'),
+      },
+      {
+        slug: 'nextcloud',
+        name: 'Nextcloud',
+        group: 'Documents',
+        description: 'Files and calendars',
+        icon: { source: 'thesvg', ref: 'nextcloud' },
+        ...oidc('cloud.smith.example', '/apps/user_oidc/code'),
+      },
+      {
+        slug: 'paperless',
+        name: 'Paperless-ngx',
+        group: 'Documents',
+        description: 'Scanned letters and receipts',
+        icon: { source: 'dashboard_icons', ref: 'paperless-ngx' },
+        ...fwd('docs.smith.example'),
+      },
+      {
+        slug: 'home-assistant',
+        name: 'Home Assistant',
+        group: 'Home',
+        description: 'Lights, heating and the door',
+        icon: { source: 'thesvg', ref: 'home-assistant' },
+        ...fwd('home.smith.example'),
+      },
+      {
+        slug: 'grafana',
+        name: 'Grafana',
+        group: 'Infrastructure',
+        description: 'Dashboards for the home lab',
+        icon: { source: 'thesvg', ref: 'grafana' },
+        ...oidc('grafana.smith.example', '/login/generic_oauth'),
+      },
+      {
+        slug: 'vaultwarden',
+        name: 'Vaultwarden',
+        group: 'Infrastructure',
+        description: 'Shared passwords',
+        icon: { source: 'dashboard_icons', ref: 'vaultwarden' },
+        ...fwd('vault.smith.example'),
+      },
+      {
+        slug: 'gitea',
+        name: 'Gitea',
+        group: 'Infrastructure',
+        description: 'Code and configuration',
+        icon: { source: 'dashboard_icons', ref: 'gitea' },
+        ...oidc('git.smith.example', '/user/oauth2/porch/callback'),
+      },
+    ]
+    for (const a of apps) await apiCall(r, 'POST', '/tenants/smith/applications', a)
+    await apiCall(r, 'POST', '/tenants/smith/applications/jellyfin/shares', { tenant: 'jones' })
+    // The demo app and whoami from m2-login.spec.ts are the developer's test apps.
+    for (const slug of ['demo-app', 'whoami'])
+      await apiCall(r, 'PATCH', `/tenants/smith/applications/${slug}`, { group: 'Testing' })
+
+    // A landscape behind the sign-in page and the launcher. One named Wikimedia Commons file keeps the captures stable
+    // between runs (installations normally pick a category and get a random selection).
+    await apiCall(r, 'PUT', '/installation/appearance', {
+      title: 'Porch',
+      background: {
+        providers: [{ source: 'wikimedia', files: ['Lake Bled from the Mountain.jpg'] }],
+        rotation: 'daily',
+        count: 1,
+        refresh: 'never',
       },
     })
-    await apiCall(r, 'POST', `/tenants/smith/applications/${String(wiki?.id)}/shares`, { tenant: 'jones' })
   })
 
   test.afterAll(async () => {
@@ -201,7 +271,8 @@ test.describe.serial('Documentation screenshots', () => {
   })
 
   test('sign-in page', async ({ browser }) => {
-    const ctx = await browser.newContext({ ...VIEW, colorScheme: 'light' })
+    // 1× scale: the page is mostly photograph, which needs no retina pixels and would make a multi-megabyte PNG.
+    const ctx = await browser.newContext({ ...VIEW, deviceScaleFactor: 1, colorScheme: 'light' })
     const p = await ctx.newPage()
     await p.goto('/login')
     await expect(p.getByRole('link', { name: /Continue with Google/ })).toBeVisible()
@@ -211,8 +282,8 @@ test.describe.serial('Documentation screenshots', () => {
 
   test('launcher and the account page', async ({ browser }) => {
     const light = await signedIn(browser, 'Ada Smith')
-    await expect(light.page.getByRole('article', { name: 'Recipe wiki' })).toBeVisible()
-    await shot(light.page, 'launcher', { size: { width: 1440, height: 680 } })
+    await expect(light.page.getByRole('article', { name: 'Grafana' })).toBeVisible()
+    await shot(light.page, 'launcher', { size: VIEW.viewport, fullPage: true })
     await light.page.goto('/account')
     await expect(light.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
     await shot(light.page, 'account', { size: VIEW.viewport, fullPage: true })
@@ -225,7 +296,7 @@ test.describe.serial('Documentation screenshots', () => {
     await shot(page, 'members')
 
     await page.goto(`${T}/applications`)
-    await expect(page.getByRole('cell', { name: /Recipe wiki/ }).first()).toBeVisible()
+    await expect(page.getByRole('cell', { name: /Grafana/ }).first()).toBeVisible()
     await shot(page, 'applications')
 
     await page.goto(`${T}/assignments`)
@@ -299,6 +370,11 @@ test.describe.serial('Documentation screenshots', () => {
     await toggles.first().click()
     await expect(table.getByText('Chain hash (prefix)')).toBeVisible()
     await shot(page, 'audit', { size: VIEW.viewport })
+
+    await page.goto('/admin/i/appearance')
+    await expect(page.getByRole('heading', { name: 'Current images' })).toBeVisible()
+    await expect(page.locator('figure img').first()).toBeVisible()
+    await shot(page, 'appearance', { fullPage: true })
 
     await page.goto('/admin/i/health')
     await expect(page.getByRole('table', { name: 'Health checks' })).toBeVisible()

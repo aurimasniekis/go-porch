@@ -35,7 +35,10 @@ export function AppLayout({ me, children }: { me: Me; children: ReactNode }) {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="lg">
             <Anchor component={Link} to="/" fw={700} underline="never">
-              Porch
+              <Group gap={8} wrap="nowrap">
+                <img src="/logo.svg" alt="" width={22} height={22} />
+                Porch
+              </Group>
             </Anchor>
             <Anchor component={Link} to="/account" size="sm">
               Account

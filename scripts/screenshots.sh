@@ -9,15 +9,21 @@
 # Usage: scripts/screenshots.sh [OUT_DIR]   (default site/public/screenshots)
 #   E2E_SKIP_BUILD=1  reuse bin/ and the built web UI
 #
-# Needs Go, pnpm and the Playwright browsers (cd web && pnpm exec playwright install chromium); pngquant is used when
-# installed. Review every image before committing it.
+# Needs Go, pnpm and the Playwright browsers (cd web && pnpm exec playwright install chromium); pngquant (or ImageMagick)
+# shrinks the images when installed. Review every image before committing it.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=$(mkdir -p "${1:-$root/site/public/screenshots}" && cd "${1:-$root/site/public/screenshots}" && pwd)
 
 SCREENSHOTS_OUT="$out" "$root/scripts/e2e.sh" e2e/m2-login.spec.ts e2e/screenshots.spec.ts
+# 256-colour palettes keep the photo-backed pages (sign-in, launcher, account) small enough for a README.
 if command -v pngquant >/dev/null; then
   pngquant --force --skip-if-larger --quality 80-95 --strip --ext .png "$out"/*.png || true
+elif command -v magick >/dev/null; then
+  for f in "$out"/*.png; do
+    magick "$f" -strip +dither -colors 256 "PNG8:$f.tmp" &&
+      if [[ $(wc -c <"$f.tmp") -lt $(wc -c <"$f") ]]; then mv "$f.tmp" "$f"; else rm -f "$f.tmp"; fi
+  done
 fi
 echo "screenshots written to $out"

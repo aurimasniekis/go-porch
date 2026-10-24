@@ -1,8 +1,8 @@
 import { Alert, Anchor, Button, Divider, PasswordInput, Stack, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { IconBrandGoogle, IconKey } from '@tabler/icons-react'
+import { IconBrandGoogleFilled, IconCircleX, IconKey } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { api, ApiError, setCsrfToken, unwrap } from '@/api/client'
 import { loginOptionsQuery } from '@/api/queries'
@@ -26,12 +26,36 @@ export const Route = createFileRoute('/login')({
 
 function Login() {
   const search = Route.useSearch()
+  const navigate = useNavigate()
   const returnTo = safeReturnTo(search.return_to)
   const opts = useQuery(loginOptionsQuery)
   const stepUp = search.stepup === 'backup'
+  if (search.error) {
+    // Like a denied flow: say what happened and offer one way back.
+    return (
+      <AuthLayout title="Sign-in not completed">
+        <Stack align="center" gap="sm" role="alert">
+          <IconCircleX size={56} stroke={1.5} aria-hidden className="porch-denied-icon" />
+          <Text ta="center" fw={500}>
+            {loginErrorMessage(search.error)}
+          </Text>
+        </Stack>
+        <Button
+          variant="default"
+          onClick={() =>
+            void navigate({ to: '/login', search: { return_to: search.return_to, error: '', stepup: search.stepup } })
+          }
+        >
+          Back to sign in
+        </Button>
+      </AuthLayout>
+    )
+  }
   return (
-    <AuthLayout title={stepUp ? 'Confirm it is you' : 'Sign in'}>
-      {search.error ? <Alert color="red">{loginErrorMessage(search.error)}</Alert> : null}
+    <AuthLayout
+      title={stepUp ? 'Confirm it is you' : undefined}
+      subtitle={stepUp ? 'Sign in with your backup login to continue.' : 'Sign in to open your applications.'}
+    >
       {opts.data && !opts.data.setup_complete ? (
         <Alert color="blue">
           Porch is not set up yet.{' '}
@@ -47,9 +71,10 @@ function Login() {
             <Button
               key={p.slug}
               component="a"
+              size="md"
               href={`${p.login_url}?return_to=${encodeURIComponent(returnTo)}`}
               variant="default"
-              leftSection={p.kind === 'google' ? <IconBrandGoogle size={18} /> : <IconKey size={18} />}
+              leftSection={p.kind === 'google' ? <IconBrandGoogleFilled size={18} /> : <IconKey size={18} />}
             >
               Continue with {p.name}
             </Button>
@@ -58,7 +83,9 @@ function Login() {
       ) : null}
       {opts.data?.backup_enabled ? (
         <>
-          {!stepUp ? <Divider label="or use your backup login" labelPosition="center" /> : null}
+          {!stepUp && opts.data.providers.length > 0 ? (
+            <Divider label="or use your backup login" labelPosition="center" />
+          ) : null}
           <BackupLogin returnTo={returnTo} />
         </>
       ) : null}
@@ -118,7 +145,7 @@ function BackupLogin({ returnTo }: { returnTo: string }) {
             <Text size="xs" c="dimmed">
               Backup login locks after a failed attempt. Your Google sign-in is not affected by a lock.
             </Text>
-            <Button type="submit" loading={step1.submitting}>
+            <Button type="submit" size="md" loading={step1.submitting}>
               Continue
             </Button>
           </Stack>

@@ -2,6 +2,7 @@ import '@fontsource-variable/inter'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 import './theme/global.css'
+import './theme/user.css'
 
 import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'

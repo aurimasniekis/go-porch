@@ -168,6 +168,17 @@ export const updateApplication = (t: string, a: Application, body: UpdateApplica
     ),
   )
 
+/** Uploads an icon (base64 of a PNG, JPEG, GIF or WebP up to 512 KiB); Porch scales and re-encodes it. */
+export const uploadApplicationIcon = (t: string, a: Application, contentBase64: string) =>
+  guarded(async () =>
+    unwrap(
+      await api.PUT('/tenants/{tenant}/applications/{app}/icon', {
+        params: { path: { tenant: t, app: a.id }, header: ifMatch(a.version) },
+        body: { content_base64: contentBase64 },
+      }),
+    ),
+  )
+
 export const deleteApplication = (t: string, a: Application) =>
   guarded(async () => {
     check(

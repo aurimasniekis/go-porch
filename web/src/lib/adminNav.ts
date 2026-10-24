@@ -40,6 +40,7 @@ export const installationSections: InstallationSection[] = [
   { slug: 'sessions', label: 'Sessions', needs: 'installation' },
   { slug: 'audit', label: 'Audit log', needs: 'auditor' },
   { slug: 'alerts', label: 'Alerts', needs: 'auditor' },
+  { slug: 'appearance', label: 'Appearance', needs: 'auditor' },
   { slug: 'backups', label: 'Backups', needs: 'auditor' },
   { slug: 'keys', label: 'Keys', needs: 'auditor' },
   { slug: 'tokens', label: 'Automation tokens', needs: 'auditor' },

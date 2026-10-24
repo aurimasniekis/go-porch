@@ -15,7 +15,7 @@ test.describe.serial('M4: launcher → applications', () => {
 
   test('launcher → forward-auth app (whoami) carries Porch identity headers', async ({ page }) => {
     await googleLogin(page, 'Ada Smith')
-    await expect(page.getByRole('heading', { name: 'Your applications' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'My applications' })).toBeVisible()
     await expect(page.getByRole('article', { name: 'Demo app' })).toBeVisible()
     await expectAccessible(page)
     await page
