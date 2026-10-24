@@ -44,13 +44,14 @@ func main() {
 			return
 		}
 		req, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, pu.String()+"/outpost/auth", nil)
+		// Like Caddy's forward_auth: client headers are copied into the subrequest, then X-Forwarded-* are overwritten.
+		for k, v := range r.Header {
+			req.Header[k] = v
+		}
 		req.Header.Set("X-Forwarded-Method", r.Method)
 		req.Header.Set("X-Forwarded-Proto", "http")
 		req.Header.Set("X-Forwarded-Host", r.Host)
 		req.Header.Set("X-Forwarded-Uri", r.URL.RequestURI())
-		for _, c := range r.Cookies() {
-			req.AddCookie(c)
-		}
 		resp, err := client.Do(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)

@@ -287,6 +287,12 @@ func (svc *Service) newSecret() (secret string, mac []byte, hint string, err err
 	return secret, mac, secret[len(secret)-4:], err
 }
 
+// validLaunchURL accepts only absolute http(s) URLs (no javascript:, data: or relative links in the launcher).
+func validLaunchURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
+}
+
 // ValidAudience reports whether a is an absolute URI or a short identifier usable as an access-token audience.
 func ValidAudience(a string) bool {
 	u, err := url.Parse(a)
@@ -325,7 +331,7 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		v.Add("kind", "must be oidc or forward_auth")
 	}
 	if p.LaunchURL != "" {
-		if u, err := url.Parse(p.LaunchURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		if !validLaunchURL(p.LaunchURL) {
 			v.Add("launch_url", "must be an http(s) URL")
 		}
 	}
@@ -420,10 +426,17 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		}
 		r, err := tx.Q.GetApplication(ctx, db.GetApplicationParams{TenantID: sc.TenantID(), ID: id})
 		out.App = AppFromRow(r)
+		if err != nil {
+			return err
+		}
+		out.App.Hosts, err = tx.Q.ListAppHosts(ctx, id)
 		return err
 	})
 	if err != nil {
 		return Created{}, err
+	}
+	if out.App.Hosts == nil {
+		out.App.Hosts = []string{}
 	}
 	return out, nil
 }
@@ -518,6 +531,9 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Sco
 			a.Description = *p.Description
 		}
 		if p.LaunchURL != nil {
+			if *p.LaunchURL != "" && !validLaunchURL(*p.LaunchURL) {
+				v.Add("launch_url", "must be an http(s) URL")
+			}
 			a.LaunchURL = *p.LaunchURL
 		}
 		if p.Enabled != nil {

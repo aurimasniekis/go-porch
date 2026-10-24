@@ -1,4 +1,4 @@
-import { Alert, Badge, Code, Group, Loader, Text, Tooltip } from '@mantine/core'
+import { Alert, Badge, Code, Group, Loader, Text } from '@mantine/core'
 import { IconCheck, IconShieldX, IconX } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { isEscalation, missingPermissions } from '@/api/admin/authz'
@@ -83,19 +83,5 @@ export function Tag({ color, children }: { color: string; children: ReactNode })
   )
 }
 
-const managedColors: Record<string, string> = { terraform: 'violet', api: 'cyan', ui: 'gray', system: 'teal' }
-
-/**
- * Who manages an object (informational). Same meaning as the kit's Provenance, drawn with filled badges because the
- * light teal/cyan badges stay below WCAG AA contrast.
- */
-export function ManagedBy({ managedBy }: { managedBy?: string }) {
-  if (!managedBy) return null
-  const badge = <Tag color={managedColors[managedBy] ?? 'gray'}>{managedBy}</Tag>
-  if (managedBy !== 'terraform') return badge
-  return (
-    <Tooltip label="Managed by Terraform: manual changes are overwritten on the next apply.">
-      <span>{badge}</span>
-    </Tooltip>
-  )
-}
+/** Who manages an object (the kit's Provenance badge). */
+export { Provenance as ManagedBy } from '@/components/admin/kit'

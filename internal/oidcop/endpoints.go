@@ -177,14 +177,15 @@ func (p *Provider) auditStore(ctx context.Context, fn func(tx *store.Tx) error, 
 	})
 }
 
-// EndSession implements op.Server (RP-initiated logout): ends the Porch browser session and revokes this client's
-// refresh tokens for the user. There is no front- or back-channel logout in v1 (ADR-0013).
+// EndSession implements op.Server (RP-initiated logout): with an id_token_hint for the signed-in user, ends the Porch
+// browser session and revokes this client's refresh tokens for the user. There is no front- or back-channel logout in
+// v1 (ADR-0013).
 func (p *Provider) EndSession(ctx context.Context, r *op.Request[oidc.EndSessionRequest]) (*op.Redirect, error) {
 	req := r.Data
 	clientID, subject := req.ClientID, ""
 	if req.IdTokenHint != "" {
-		payload, _, err := p.Signing.Verify(req.IdTokenHint) // expired hints are fine; the signature must verify
-		if err != nil {
+		payload, typ, err := p.Signing.Verify(req.IdTokenHint) // expired hints are fine; the signature must verify
+		if err != nil || typ != "JWT" {                        // an access token (at+jwt) is not an ID token
 			return nil, oidc.ErrInvalidRequest().WithDescription("invalid id_token_hint")
 		}
 		var hint struct {
@@ -214,22 +215,21 @@ func (p *Provider) EndSession(ctx context.Context, r *op.Request[oidc.EndSession
 		}
 		target = u.String()
 	}
+	// Logout changes state only for the browser that holds the Porch session of the user the ID token names: an old ID
+	// token alone must not revoke someone's tokens, and a cross-site request without a hint must not sign anyone out
+	// (logout CSRF). Without a matching session the request only redirects (review L7).
 	sess, _ := p.Sessions.Validate(ctx, cookieValue(r.Header, session.CookieName))
 	userID := ""
-	if subject != "" {
-		if u, err := p.Store.R().GetUserByPublicID(ctx, subject); err == nil {
+	if subject != "" && sess != nil {
+		if u, err := p.Store.R().GetUserByPublicID(ctx, subject); err == nil && u.ID == sess.UserID {
 			userID = u.ID
 		}
-	} else if sess != nil {
-		userID = sess.UserID
 	}
 	if userID != "" {
 		ev := audit.Event{Actor: audit.Actor{Type: audit.ActorUser, ID: userID}, Action: "oidc.end_session", Target: audit.Target{Type: "oauth_client", ID: clientID}}
 		p.auditStore(ctx, func(tx *store.Tx) error {
-			if sess != nil && sess.UserID == userID {
-				if err := p.Sessions.RevokeTx(ctx, tx, sess.SessionID, "rp_logout"); err != nil {
-					return err
-				}
+			if err := p.Sessions.RevokeTx(ctx, tx, sess.SessionID, "rp_logout"); err != nil {
+				return err
 			}
 			if clientID != "" {
 				_, err := tx.Q.RevokeUserClientRefresh(ctx, db.RevokeUserClientRefreshParams{RevokedAt: sqlMicros(tx.Now), RevokeReason: domain.NullStr("rp_logout"),

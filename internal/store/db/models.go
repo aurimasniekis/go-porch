@@ -92,6 +92,7 @@ type AuthCode struct {
 	UsedAt        sql.NullInt64
 	FamilyID      sql.NullString
 	AccessJti     sql.NullString
+	AuthMethod    string
 }
 
 type AuthRequest struct {
@@ -268,6 +269,7 @@ type IdempotencyKey struct {
 	Location       string
 	CreatedAt      int64
 	ExpiresAt      int64
+	Etag           string
 }
 
 type IdentityProvider struct {
@@ -461,6 +463,7 @@ type RefreshToken struct {
 	RotatedAt       sql.NullInt64
 	RevokedAt       sql.NullInt64
 	RevokeReason    sql.NullString
+	AuthMethod      string
 }
 
 type Resource struct {

@@ -338,6 +338,9 @@ type Remote struct {
 	Manifest *Manifest `json:"manifest,omitempty"`
 	KeyID    string    `json:"key_id,omitempty"`
 	Bytes    int64     `json:"bytes"`
+	// Verified is set by ListVerified when a supplied key verifies the manifest.
+	Verified bool `json:"verified"`
+	env      envelope
 }
 
 // List returns the backups in storage, newest first. Manifests are parsed but not verified.
@@ -367,13 +370,39 @@ func List(ctx context.Context, objs ObjectStore) ([]Remote, error) {
 	for _, r := range byID {
 		if r.Complete {
 			if env, m, err := readManifest(ctx, objs, r.ID); err == nil {
-				r.Manifest, r.Created, r.KeyID = &m, m.Created, env.KeyID
+				r.Manifest, r.Created, r.KeyID, r.env = &m, m.Created, env.KeyID, env
 			}
 		}
 		out = append(out, *r)
 	}
 	slices.SortFunc(out, func(a, b Remote) int { return strings.Compare(b.ID, a.ID) })
 	return out, nil
+}
+
+// ListVerified is List with Verified set for manifests that one of keys verifies. Unverified manifests may have been
+// planted by anyone with write access to the bucket.
+func ListVerified(ctx context.Context, objs ObjectStore, keys []ed25519.PublicKey) ([]Remote, error) {
+	rs, err := List(ctx, objs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rs {
+		rs[i].Verified = rs[i].Manifest != nil && verifyEnvelope(rs[i].env, keys)
+	}
+	return rs, nil
+}
+
+func verifyEnvelope(env envelope, keys []ed25519.PublicKey) bool {
+	sig, err := base64.RawURLEncoding.DecodeString(env.Signature)
+	if err != nil {
+		return false
+	}
+	for _, k := range keys {
+		if ed25519.Verify(k, env.Manifest, sig) {
+			return true
+		}
+	}
+	return false
 }
 
 func readManifest(ctx context.Context, objs ObjectStore, id string) (envelope, Manifest, error) {
@@ -395,9 +424,15 @@ func readManifest(ctx context.Context, objs ObjectStore, id string) (envelope, M
 	return env, m, nil
 }
 
-// prune deletes complete backups beyond the retention count (newest kept) and incomplete ones older than a day.
+// prune deletes verified backups beyond the retention count (newest kept) and incomplete ones older than a day.
+// Complete backups whose manifest this installation did not sign are neither counted nor deleted: a planted manifest
+// must not push real backups out of retention (security review M7).
 func (s *Service) prune(ctx context.Context) (int64, error) {
-	rs, err := List(ctx, s.o.Objects)
+	k, err := SigningKey(s.o.Keyring)
+	if err != nil {
+		return 0, err
+	}
+	rs, err := ListVerified(ctx, s.o.Objects, []ed25519.PublicKey{k.Public().(ed25519.PublicKey)})
 	if err != nil {
 		return 0, err
 	}
@@ -405,6 +440,10 @@ func (s *Service) prune(ctx context.Context) (int64, error) {
 	var n int64
 	for _, r := range rs { // newest first
 		del := false
+		if r.Complete && !r.Verified {
+			s.o.Log.Warn("backup storage holds a manifest this installation did not sign; ignoring it", "id", r.ID)
+			continue
+		}
 		if r.Complete {
 			kept++
 			del = kept > max(s.o.Retention, 1)

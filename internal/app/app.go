@@ -88,6 +88,9 @@ func Open(ctx context.Context, cfg *config.Config, log *slog.Logger, opts Option
 	a := &App{Cfg: cfg, Log: log, Clock: opts.Clock, Metrics: metrics.New()}
 	info := buildinfo.Get()
 	a.Metrics.SetBuildInfo(info.Version, info.GoVersion)
+	if err := backup.CheckPending(cfg.DataDir); err != nil {
+		return nil, err
+	}
 	s, err := store.Open(ctx, store.Options{DataDir: cfg.DataDir, AllowNetworkFS: cfg.Storage.AllowNetworkFS,
 		PreMigrationSnapshots: cfg.Storage.PreMigrationSnapshots, Logger: log, Clock: opts.Clock, Metrics: a.Metrics})
 	if err != nil {

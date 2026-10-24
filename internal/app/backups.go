@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -114,6 +115,14 @@ func (a *App) finishRestore(ctx context.Context, keys *oidcop.Keys) error {
 		if _, err := tx.Q.BumpSecurityEpoch(ctx, tx.NowMicros()); err != nil {
 			return err
 		}
+		// Automation tokens are not bound to the security epoch: revoke them all, including ones revoked after the backup
+		// was taken that would otherwise come back (review M8). Signing keys that were already retiring go now too.
+		if _, err := tx.SQL.ExecContext(ctx, "UPDATE automation_tokens SET revoked_at = ? WHERE revoked_at IS NULL", tx.NowMicros()); err != nil {
+			return err
+		}
+		if _, err := tx.Q.RetireSigningKeys(ctx, db.RetireSigningKeysParams{RetiredAt: sqlNull(tx.NowMicros()), RetireAfter: sqlNull(math.MaxInt64)}); err != nil {
+			return err
+		}
 		if p.InvalidateBackupCredentials {
 			for _, q := range []string{"DELETE FROM backup_challenges", "DELETE FROM recovery_pairs", "DELETE FROM backup_credentials"} {
 				if _, err := tx.SQL.ExecContext(ctx, q); err != nil {
@@ -121,7 +130,7 @@ func (a *App) finishRestore(ctx context.Context, keys *oidcop.Keys) error {
 				}
 			}
 		}
-		msg := fmt.Sprintf("Porch was restored from backup %s (taken %s). All sessions and refresh tokens from before the restore are invalid; signing keys were replaced.",
+		msg := fmt.Sprintf("Porch was restored from backup %s (taken %s). All sessions, refresh tokens and automation tokens from before the restore are invalid; signing keys were replaced. Rotate client and service-account secrets that changed after the backup.",
 			p.BackupID, p.BackupCreated.UTC().Format(time.RFC3339))
 		if !p.Verified {
 			msg += " The backup signature was NOT verified."

@@ -571,6 +571,7 @@ func (q *Queries) InsertForwardAuthSession(ctx context.Context, arg InsertForwar
 
 const insertGroupEdge = `-- name: InsertGroupEdge :exec
 INSERT INTO group_edges (tenant_id, parent_id, child_id) VALUES (?, ?, ?)
+ON CONFLICT DO NOTHING
 `
 
 type InsertGroupEdgeParams struct {

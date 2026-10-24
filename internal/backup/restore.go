@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -43,17 +42,23 @@ type FetchOptions struct {
 func Fetch(ctx context.Context, objs ObjectStore, o FetchOptions) (*Fetched, error) {
 	id := o.ID
 	if id == "" || id == "latest" {
-		rs, err := List(ctx, objs)
+		// The newest backup that verifies (newest complete one only when verification is skipped).
+		rs, err := ListVerified(ctx, objs, o.VerifyKeys)
 		if err != nil {
 			return nil, err
 		}
+		complete := false
 		for _, r := range rs {
-			if r.Complete {
+			complete = complete || r.Complete
+			if r.Complete && (r.Verified || o.SkipVerify) {
 				id = r.ID
 				break
 			}
 		}
 		if id == "" || id == "latest" {
+			if complete {
+				return nil, ErrUnverified
+			}
 			return nil, errors.New("backup: no complete backup found")
 		}
 	}
@@ -63,16 +68,7 @@ func Fetch(ctx context.Context, objs ObjectStore, o FetchOptions) (*Fetched, err
 	}
 	f := &Fetched{Manifest: m}
 	if !o.SkipVerify {
-		sig, err := base64.RawURLEncoding.DecodeString(env.Signature)
-		if err != nil {
-			return nil, ErrUnverified
-		}
-		for _, k := range o.VerifyKeys {
-			if ed25519.Verify(k, env.Manifest, sig) {
-				f.Verified = true
-			}
-		}
-		if !f.Verified {
+		if f.Verified = verifyEnvelope(env, o.VerifyKeys); !f.Verified {
 			return nil, ErrUnverified
 		}
 	}
@@ -150,7 +146,17 @@ func Restore(f *Fetched, o RestoreOptions) error {
 			return fmt.Errorf("restore: %s already exists", o.KEKFile)
 		}
 	}
-	if err := writeExclusive(filepath.Join(o.DataDir, store.DBFile), f.DB, 0o600); err != nil {
+	// The marker goes first: a restore interrupted later leaves a marker without a complete data directory, which Porch
+	// refuses to start from (CheckPending), instead of a database that skips the post-restore steps.
+	p, err := json.Marshal(Pending{BackupID: f.Manifest.ID, BackupCreated: f.Manifest.Created, RestoredAt: o.Now.UTC(), Verified: f.Verified,
+		InvalidateBackupCredentials: o.InvalidateBackupCredentials})
+	if err != nil {
+		return err
+	}
+	if err := writeExclusive(filepath.Join(o.DataDir, RestoreMarker), p, 0o600); err != nil {
+		return err
+	}
+	if err := writeExclusive(filepath.Join(o.DataDir, store.DBFile+".restoring"), f.DB, 0o600); err != nil {
 		return err
 	}
 	if o.KEKFile != "" {
@@ -161,12 +167,21 @@ func Restore(f *Fetched, o RestoreOptions) error {
 			return err
 		}
 	}
-	p, err := json.Marshal(Pending{BackupID: f.Manifest.ID, BackupCreated: f.Manifest.Created, RestoredAt: o.Now.UTC(), Verified: f.Verified,
-		InvalidateBackupCredentials: o.InvalidateBackupCredentials})
-	if err != nil {
+	// Last step: the database appears under its real name only once everything else is in place.
+	return os.Rename(filepath.Join(o.DataDir, store.DBFile+".restoring"), filepath.Join(o.DataDir, store.DBFile))
+}
+
+// CheckPending refuses to start from a data directory whose restore did not finish.
+func CheckPending(dataDir string) error {
+	p, err := ReadPending(dataDir)
+	if err != nil || p == nil {
 		return err
 	}
-	return writeExclusive(filepath.Join(o.DataDir, RestoreMarker), p, 0o600)
+	if _, err := os.Stat(filepath.Join(dataDir, store.DBFile)); err != nil {
+		return fmt.Errorf("restore of backup %s did not finish (no %s); empty the data directory and run `porch restore` again",
+			p.BackupID, store.DBFile)
+	}
+	return nil
 }
 
 func writeExclusive(path string, data []byte, mode os.FileMode) error {

@@ -233,7 +233,11 @@ func registerRoles(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, d.fail("update-role", err)
 			}
+			// Both the new definition and what it removes: stripping permissions demotes everyone holding the role.
 			if err := d.mayDefineRole(ctx, sc, in.Body.Permissions, in.Body.Includes); err != nil {
+				return nil, err
+			}
+			if err := d.mayGrantRole(ctx, sc, cur.ID); err != nil {
 				return nil, err
 			}
 			r, err := d.Authz.UpdateRole(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, cur.ID, authz.RoleParams{Name: in.Body.Name,
@@ -245,7 +249,15 @@ func registerRoles(api huma.API, d *Deps) {
 		})
 	huma.Register(api, huma.Operation{OperationID: "delete-role", Method: http.MethodDelete, Path: "/tenants/{tenant}/roles/{role}",
 		DefaultStatus: http.StatusNoContent, Summary: "Delete a custom role and its assignments", Tags: tags, Security: sessionSecurity},
-		func(ctx context.Context, in *RoleRef) (*struct{}, error) {
+		func(ctx context.Context, in *struct {
+			RoleRef
+			ManagedBy
+			IfMatch
+		}) (*struct{}, error) {
+			v, err := in.Version()
+			if err != nil {
+				return nil, err
+			}
 			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
@@ -257,7 +269,7 @@ func registerRoles(api huma.API, d *Deps) {
 			if err := d.mayGrantRole(ctx, sc, cur.ID); err != nil {
 				return nil, err
 			}
-			if err := d.Authz.DeleteRole(ctx, change(ctx, ""), sc, cur.ID); err != nil {
+			if err := d.Authz.DeleteRole(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, cur.ID, v); err != nil {
 				return nil, d.fail("delete-role", err)
 			}
 			return &struct{}{}, nil
@@ -266,15 +278,16 @@ func registerRoles(api huma.API, d *Deps) {
 
 // mayDefineRole checks a role definition (its permissions plus everything bundled roles grant) against the caller.
 func (d *Deps) mayDefineRole(ctx context.Context, sc tenancy.Scope, perms, includes []string) error {
+	if exempt(ctx, sc) {
+		return nil
+	}
 	all := slices.Clone(perms)
-	if sc.Via() != tenancy.ViaOperator {
-		for _, inc := range includes {
-			ps, err := d.Engine.RolePermissions(ctx, sc.TenantID(), inc)
-			if err != nil {
-				return d.fail("escalation", err)
-			}
-			all = append(all, ps...)
+	for _, inc := range includes {
+		ps, err := d.Engine.RolePermissions(ctx, sc.TenantID(), inc)
+		if err != nil {
+			return d.fail("escalation", err)
 		}
+		all = append(all, ps...)
 	}
 	return d.mayGrant(ctx, sc, all)
 }
@@ -348,7 +361,15 @@ func registerGroups(api huma.API, d *Deps) {
 		})
 	huma.Register(api, huma.Operation{OperationID: "delete-group", Method: http.MethodDelete, Path: "/tenants/{tenant}/groups/{group}",
 		DefaultStatus: http.StatusNoContent, Summary: "Delete a group (memberships, nesting and its assignments)", Tags: tags, Security: sessionSecurity},
-		func(ctx context.Context, in *GroupRef) (*struct{}, error) {
+		func(ctx context.Context, in *struct {
+			GroupRef
+			ManagedBy
+			IfMatch
+		}) (*struct{}, error) {
+			v, err := in.Version()
+			if err != nil {
+				return nil, err
+			}
 			sc, g, err := d.groupFor(ctx, in.Tenant, in.Group)
 			if err != nil {
 				return nil, err
@@ -356,7 +377,7 @@ func registerGroups(api huma.API, d *Deps) {
 			if err := d.mayGrantGroup(ctx, sc, g.ID); err != nil {
 				return nil, err
 			}
-			if err := d.Authz.DeleteGroup(ctx, change(ctx, ""), sc, g.ID); err != nil {
+			if err := d.Authz.DeleteGroup(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, g.ID, v); err != nil {
 				return nil, d.fail("delete-group", err)
 			}
 			return &struct{}{}, nil
@@ -516,16 +537,63 @@ func registerResources(api huma.API, d *Deps) {
 		})
 	huma.Register(api, huma.Operation{OperationID: "delete-resource", Method: http.MethodDelete, Path: "/tenants/{tenant}/resources/{resource}",
 		DefaultStatus: http.StatusNoContent, Summary: "Delete a resource, its children and assignments scoped to it", Tags: tags, Security: sessionSecurity},
-		func(ctx context.Context, in *ResourceRef) (*struct{}, error) {
+		func(ctx context.Context, in *struct {
+			ResourceRef
+			ManagedBy
+			IfMatch
+		}) (*struct{}, error) {
+			v, err := in.Version()
+			if err != nil {
+				return nil, err
+			}
 			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermResourceManage)
 			if err != nil {
 				return nil, err
 			}
-			if err := d.Authz.DeleteResource(ctx, change(ctx, ""), sc, in.Resource); err != nil {
+			// Deleting a resource removes the assignments scoped to it and its descendants.
+			if err := d.mayRemoveResource(ctx, sc, in.Resource); err != nil {
+				return nil, err
+			}
+			if err := d.Authz.DeleteResource(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, in.Resource, v); err != nil {
 				return nil, d.fail("delete-resource", err)
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// mayRemoveResource checks the permissions of every assignment scoped to a resource or one of its descendants.
+func (d *Deps) mayRemoveResource(ctx context.Context, sc tenancy.Scope, id string) error {
+	if exempt(ctx, sc) {
+		return nil
+	}
+	rs, err := d.Authz.Resources(ctx, sc)
+	if err != nil {
+		return d.fail("escalation", err)
+	}
+	doomed := map[string]bool{id: true}
+	for changed := true; changed; {
+		changed = false
+		for _, r := range rs {
+			if !doomed[r.ID] && doomed[r.ParentID] {
+				doomed[r.ID], changed = true, true
+			}
+		}
+	}
+	as, err := d.Authz.Assignments(ctx, sc)
+	if err != nil {
+		return d.fail("escalation", err)
+	}
+	var perms []string
+	for _, a := range as {
+		if a.ScopeType == "resource" && doomed[a.ScopeResourceID] {
+			ps, err := d.Engine.RolePermissions(ctx, sc.TenantID(), a.RoleID)
+			if err != nil {
+				return d.fail("escalation", err)
+			}
+			perms = append(perms, ps...)
+		}
+	}
+	return d.mayGrant(ctx, sc, perms)
 }
 
 func registerPolicies(api huma.API, d *Deps) {
@@ -626,12 +694,20 @@ func registerPolicies(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "delete-policy", Method: http.MethodDelete, Path: "/tenants/{tenant}/policies/{policy}",
 		DefaultStatus: http.StatusNoContent, Summary: "Delete a policy and the conditional assignments using it (needs a recent sign-in)",
 		Tags: tags, Security: sessionSecurity},
-		func(ctx context.Context, in *PolicyRef) (*struct{}, error) {
+		func(ctx context.Context, in *struct {
+			PolicyRef
+			ManagedBy
+			IfMatch
+		}) (*struct{}, error) {
+			v, err := in.Version()
+			if err != nil {
+				return nil, err
+			}
 			sc, cur, err := d.policyChange(ctx, in.Tenant, in.Policy)
 			if err != nil {
 				return nil, err
 			}
-			if err := d.Authz.DeletePolicy(ctx, change(ctx, ""), sc, cur.ID); err != nil {
+			if err := d.Authz.DeletePolicy(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, cur.ID, v); err != nil {
 				return nil, d.fail("delete-policy", err)
 			}
 			return &struct{}{}, nil
@@ -668,7 +744,7 @@ func (d *Deps) policyChange(ctx context.Context, tenant, ref string) (tenancy.Sc
 	if err != nil {
 		return sc, cur, d.fail("policy", err)
 	}
-	if sc.Via() == tenancy.ViaOperator {
+	if exempt(ctx, sc) {
 		return sc, cur, nil
 	}
 	perms := denyPerms(cur.Effect, cur.Actions)

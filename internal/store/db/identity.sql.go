@@ -43,6 +43,18 @@ func (q *Queries) ConsumeSetupToken(ctx context.Context, arg ConsumeSetupTokenPa
 	return result.RowsAffected()
 }
 
+const countActiveOwnersExcept = `-- name: CountActiveOwnersExcept :one
+SELECT count(*) FROM installation_role_assignments a JOIN users u ON u.id = a.user_id
+WHERE a.role = 'owner' AND u.status = 'active' AND u.id != ?
+`
+
+func (q *Queries) CountActiveOwnersExcept(ctx context.Context, id string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveOwnersExcept, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countOperators = `-- name: CountOperators :one
 SELECT count(*) FROM installation_role_assignments
 `

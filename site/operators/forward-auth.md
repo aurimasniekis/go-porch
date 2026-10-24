@@ -86,7 +86,9 @@ location = /_porch_auth {
     proxy_pass http://porch:8080/outpost/auth;
     proxy_pass_request_body off;
     proxy_set_header Content-Length "";
-    proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
+    proxy_set_header X-Forwarded-Proto $scheme;      # always set all three: they overwrite client values
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Uri $request_uri;
 }
 location /.porch/ { proxy_pass http://porch:8080; proxy_set_header Host $host; }
 location / {
@@ -100,6 +102,12 @@ location @porch_login { return 302 https://auth.example.com/outpost/start?rd=$sc
 ```
 
 nginx `auth_request` cannot relay a redirect, so it maps 401 to the sign-in URL.
+
+::: warning
+Porch reads the original request **only** from `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Uri`, which the
+proxy must set itself. It ignores `X-Original-URL` and similar headers, because Caddy and Traefik copy client headers
+into the auth request.
+:::
 
 ## Porch configuration
 

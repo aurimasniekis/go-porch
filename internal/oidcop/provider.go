@@ -25,6 +25,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
+	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/ids"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
@@ -177,6 +178,18 @@ func (p *Provider) Keys(context.Context, *op.Request[struct{}]) (*op.Response, e
 }
 
 func (p *Provider) loadClient(ctx context.Context, id string) (*client, error) {
+	c, err := p.loadClientRow(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// Clients of a disabled tenant stop working (review M9); its users are refused at the tenant gate as well.
+	if t, err := p.Store.R().GetTenant(ctx, c.row.TenantID); err != nil || t.Status != "active" {
+		return nil, oidc.ErrInvalidClient().WithDescription("tenant disabled")
+	}
+	return c, nil
+}
+
+func (p *Provider) loadClientRow(ctx context.Context, id string) (*client, error) {
 	if id == "" || len(id) > 64 {
 		return nil, oidc.ErrInvalidClient().WithDescription("unknown client")
 	}
@@ -370,7 +383,7 @@ func (p *Provider) CodeExchange(ctx context.Context, r *op.ClientRequest[oidc.Ac
 		return nil, oidc.ErrInvalidGrant().WithDescription("unexpected code_verifier")
 	}
 	g := grant{clientID: c.row.ID, tenantID: code.TenantID, userID: code.UserID, scopes: jsonList(code.Scopes), resources: jsonList(code.Resources),
-		authTime: domain.FromMicros(code.AuthTime), amr: jsonList(code.Amr), nonce: code.Nonce}
+		authTime: domain.FromMicros(code.AuthTime), amr: jsonList(code.Amr), authMethod: code.AuthMethod, nonce: code.Nonce}
 	if err := p.checkStillAllowed(ctx, c, g); err != nil {
 		return nil, err
 	}
@@ -392,8 +405,10 @@ func (p *Provider) checkStillAllowed(ctx context.Context, c *client, g grant) er
 	if err != nil || u.Status != "active" {
 		return oidc.ErrInvalidGrant().WithDescription("user is not active")
 	}
-	d, err := p.Engine.Check(ctx, authz.Request{TenantID: c.row.TenantID, Subject: authz.Subject{Type: "user", ID: g.userID, AuthTime: g.authTime},
-		Action: authz.PermAppAccess, Resource: authz.Resource{Type: "app", ID: c.row.AppID}})
+	// The sign-in method travels with codes and refresh tokens, so auth_method policies hold at refresh too (review M11).
+	// The client IP here is the relying party's server, so ip/network conditions are evaluated against it.
+	d, err := p.Engine.Check(ctx, authz.Request{TenantID: c.row.TenantID, Subject: authz.Subject{Type: "user", ID: g.userID, AuthTime: g.authTime,
+		AuthMethod: g.authMethod}, Action: authz.PermAppAccess, Resource: authz.Resource{Type: "app", ID: c.row.AppID}, ClientIP: httpx.ClientIP(ctx)})
 	if err != nil {
 		return oidc.ErrServerError().WithParent(err)
 	}
@@ -466,7 +481,7 @@ func (p *Provider) RefreshToken(ctx context.Context, r *op.ClientRequest[oidc.Re
 		scopes = r.Data.Scopes
 	}
 	g := grant{clientID: c.row.ID, tenantID: rt.TenantID, userID: rt.UserID, scopes: scopes, resources: jsonList(rt.Resources),
-		authTime: domain.FromMicros(rt.AuthTime), amr: jsonList(rt.Amr), familyID: rt.FamilyID, parentID: rt.ID,
+		authTime: domain.FromMicros(rt.AuthTime), amr: jsonList(rt.Amr), authMethod: rt.AuthMethod, familyID: rt.FamilyID, parentID: rt.ID,
 		familyExpires: domain.FromMicros(rt.FamilyExpiresAt)}
 	if res := r.Form["resource"]; len(res) > 0 {
 		for _, x := range res {
@@ -495,6 +510,10 @@ func (p *Provider) ClientCredentialsExchange(ctx context.Context, r *op.ClientRe
 	for _, s := range r.Data.Scope {
 		if s == oidc.ScopeOpenID || s == oidc.ScopeOfflineAccess {
 			return nil, oidc.ErrInvalidScope().WithDescription("%s is not available for client credentials", s)
+		}
+		// Only scopes the client is registered for are signed into its tokens (review M10).
+		if !slices.Contains(c.scopes, s) {
+			return nil, oidc.ErrInvalidScope().WithDescription("scope %s is not allowed for this client", s)
 		}
 	}
 	resources := r.Form["resource"]

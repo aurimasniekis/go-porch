@@ -70,3 +70,7 @@ SELECT count(*) FROM installation_role_assignments WHERE user_id = ? AND role IN
 
 -- name: CountUsers :one
 SELECT count(*) FROM users;
+
+-- name: CountActiveOwnersExcept :one
+SELECT count(*) FROM installation_role_assignments a JOIN users u ON u.id = a.user_id
+WHERE a.role = 'owner' AND u.status = 'active' AND u.id != ?;

@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/aurimasniekis/go-porch/internal/authz"
+	"github.com/aurimasniekis/go-porch/internal/store/db"
 	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
@@ -123,6 +124,10 @@ func registerMembers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
+			// Suspending or removing someone takes away what they hold: the caller must hold it too (review M3).
+			if err := d.mayControlMember(ctx, sc, in.Member); err != nil {
+				return nil, err
+			}
 			v, err := in.Version()
 			if err != nil {
 				return nil, err
@@ -146,6 +151,10 @@ func registerMembers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
+			// Suspending or removing someone takes away what they hold: the caller must hold it too (review M3).
+			if err := d.mayControlMember(ctx, sc, in.Member); err != nil {
+				return nil, err
+			}
 			v, err := in.Version()
 			if err != nil {
 				return nil, err
@@ -155,4 +164,24 @@ func registerMembers(api huma.API, d *Deps) {
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// mayControlMember requires the caller to hold every permission the member holds in the tenant.
+func (d *Deps) mayControlMember(ctx context.Context, sc tenancy.Scope, membershipID string) error {
+	if exempt(ctx, sc) {
+		return nil
+	}
+	m, err := d.Store.R().GetMembership(ctx, db.GetMembershipParams{TenantID: sc.TenantID(), ID: membershipID})
+	if err != nil {
+		return d.fail("member", tenancy.ErrMemberNotFound)
+	}
+	grants, err := d.Engine.Effective(ctx, sc.TenantID(), "user", m.UserID)
+	if err != nil {
+		return d.fail("escalation", err)
+	}
+	perms := make([]string, 0, len(grants))
+	for _, g := range grants {
+		perms = append(perms, g.Permission)
+	}
+	return d.mayGrant(ctx, sc, perms)
 }

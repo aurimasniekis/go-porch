@@ -216,9 +216,14 @@ func (a *Admin) UpdateRole(ctx context.Context, ch domain.Change, sc tenancy.Sco
 }
 
 // DeleteRole removes a custom role and its assignments.
-func (a *Admin) DeleteRole(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string) error {
+func (a *Admin) DeleteRole(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, ifVersion int64) error {
 	return a.change(ctx, "authz.delete_role", ch, sc, audit.Event{Action: "role.deleted", Target: audit.Target{Type: "role", ID: id}},
 		func(tx *store.Tx) error {
+			if r, err := tx.Q.GetRole(ctx, db.GetRoleParams{TenantID: sc.TenantID(), ID: id}); err == nil {
+				if err := domain.IfMatch(ifVersion, r.Version); err != nil {
+					return err
+				}
+			}
 			n, err := tx.Q.DeleteRole(ctx, db.DeleteRoleParams{TenantID: sc.TenantID(), ID: id})
 			if err != nil {
 				return err
@@ -352,9 +357,14 @@ func (a *Admin) UpdateGroup(ctx context.Context, ch domain.Change, sc tenancy.Sc
 }
 
 // DeleteGroup removes a group (memberships, nesting edges and its assignments).
-func (a *Admin) DeleteGroup(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string) error {
+func (a *Admin) DeleteGroup(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, ifVersion int64) error {
 	return a.change(ctx, "authz.delete_group", ch, sc, audit.Event{Action: "group.deleted", Target: audit.Target{Type: "group", ID: id}},
 		func(tx *store.Tx) error {
+			if g, err := tx.Q.GetGroup(ctx, db.GetGroupParams{TenantID: sc.TenantID(), ID: id}); err == nil {
+				if err := domain.IfMatch(ifVersion, g.Version); err != nil {
+					return err
+				}
+			}
 			n, err := tx.Q.DeleteGroup(ctx, db.DeleteGroupParams{TenantID: sc.TenantID(), ID: id})
 			if err != nil {
 				return err
@@ -569,9 +579,12 @@ func (a *Admin) UpdatePolicy(ctx context.Context, ch domain.Change, sc tenancy.S
 	acts, _ := json.Marshal(p.Actions)
 	err = a.change(ctx, "authz.update_policy", ch, sc, audit.Event{Action: "policy.updated", Target: audit.Target{Type: "policy", ID: id},
 		Details: map[string]any{"hash": prog.Hash}}, func(tx *store.Tx) error {
+		if err := domain.IfMatch(p.IfVersion, cur.Version); err != nil {
+			return err
+		}
 		n, err := tx.Q.UpdatePolicy(ctx, db.UpdatePolicyParams{Name: p.Name, Actions: string(acts), Expression: p.Expression, CompiledHash: prog.Hash,
 			ManagedBy: ch.Managed(), LastChangedBy: domain.NullStr(ch.ChangedBy()), UpdatedAt: tx.NowMicros(), TenantID: sc.TenantID(), ID: cur.ID,
-			Version: max(p.IfVersion, cur.Version)})
+			Version: cur.Version})
 		if err == nil && n == 0 {
 			return apperr.New(apperr.CodePrecondition, "policy was changed; reload and retry")
 		}
@@ -584,9 +597,14 @@ func (a *Admin) UpdatePolicy(ctx context.Context, ch domain.Change, sc tenancy.S
 }
 
 // DeletePolicy removes a policy (and assignments conditioned on it).
-func (a *Admin) DeletePolicy(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string) error {
+func (a *Admin) DeletePolicy(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, ifVersion int64) error {
 	return a.change(ctx, "authz.delete_policy", ch, sc, audit.Event{Action: "policy.deleted", Target: audit.Target{Type: "policy", ID: id}},
 		func(tx *store.Tx) error {
+			if pol, err := tx.Q.GetPolicy(ctx, db.GetPolicyParams{TenantID: sc.TenantID(), ID: id}); err == nil {
+				if err := domain.IfMatch(ifVersion, pol.Version); err != nil {
+					return err
+				}
+			}
 			n, err := tx.Q.DeletePolicy(ctx, db.DeletePolicyParams{TenantID: sc.TenantID(), ID: id})
 			if err == nil && n == 0 {
 				return ErrNotFound

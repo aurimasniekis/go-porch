@@ -217,6 +217,7 @@ func (q *Queries) InsertGroup(ctx context.Context, arg InsertGroupParams) error 
 
 const insertGroupMember = `-- name: InsertGroupMember :exec
 INSERT INTO group_members (tenant_id, group_id, user_id, source, created_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT DO NOTHING
 `
 
 type InsertGroupMemberParams struct {

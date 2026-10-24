@@ -239,7 +239,7 @@ func (d *Deps) tokenPrincipal(ctx context.Context, raw, ip string) (*session.Pri
 		return nil, automation.ErrInvalid
 	}
 	p := &session.Principal{SessionID: g.ID, UserID: u.ID, PublicID: u.PublicID, DisplayName: u.DisplayName, Email: u.PrimaryEmail.String,
-		Method: session.MethodAutomation, AuthTime: d.now(), CreatedAt: d.now(), OperatorRoles: []string{}, Token: g}
+		Method: session.MethodAutomation, AuthTime: g.CreatedAt, CreatedAt: g.CreatedAt, OperatorRoles: []string{}, Token: g}
 	roles, err := d.Store.R().ListOperatorRoles(ctx, u.ID)
 	if err != nil {
 		return nil, err

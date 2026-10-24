@@ -108,7 +108,8 @@ function SettingsForm({
             Session limits
           </Title>
           <Text size="sm" c="dimmed">
-            Override how long sessions in this tenant last. 0 uses the installation default.
+            Override how long sessions in this tenant last. 0 uses the installation default. Not enforced yet: sessions
+            currently always use the installation defaults.
           </Text>
           <Group grow align="flex-start" wrap="wrap">
             <NumberInput

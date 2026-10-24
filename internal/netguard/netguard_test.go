@@ -45,3 +45,20 @@ func TestClientRefusesLoopback(t *testing.T) {
 	}
 	resp.Body.Close()
 }
+
+// Security review L9: IPv6 forms that embed IPv4 addresses must not reach internal hosts.
+func TestEmbeddedIPv4Blocked(t *testing.T) {
+	g, err := New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{"::7f00:1", "::a00:1", "2002:7f00:1::1", "2001:0:4136:e378:8000:63bf:3fff:fdd2", "64:ff9b:1::a00:1",
+		"fec0::1", "::ffff:0:a00:1"} {
+		if g.Allowed(netip.MustParseAddr(s)) {
+			t.Errorf("%s allowed", s)
+		}
+	}
+	if !g.Allowed(netip.MustParseAddr("2606:4700:4700::1111")) {
+		t.Error("public IPv6 refused")
+	}
+}

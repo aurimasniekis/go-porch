@@ -11,7 +11,7 @@ import (
 )
 
 const completeIdempotencyKey = `-- name: CompleteIdempotencyKey :exec
-UPDATE idempotency_keys SET state = 'done', status = ?, content_type = ?, body = ?, secret_withheld = ?, location = ? WHERE key_mac = ?
+UPDATE idempotency_keys SET state = 'done', status = ?, content_type = ?, body = ?, secret_withheld = ?, location = ?, etag = ? WHERE key_mac = ?
 `
 
 type CompleteIdempotencyKeyParams struct {
@@ -20,6 +20,7 @@ type CompleteIdempotencyKeyParams struct {
 	Body           []byte
 	SecretWithheld int64
 	Location       string
+	Etag           string
 	KeyMac         []byte
 }
 
@@ -30,6 +31,7 @@ func (q *Queries) CompleteIdempotencyKey(ctx context.Context, arg CompleteIdempo
 		arg.Body,
 		arg.SecretWithheld,
 		arg.Location,
+		arg.Etag,
 		arg.KeyMac,
 	)
 	return err
@@ -97,7 +99,7 @@ func (q *Queries) GetAutomationTokenByMAC(ctx context.Context, mac []byte) (Auto
 }
 
 const getIdempotencyKey = `-- name: GetIdempotencyKey :one
-SELECT key_mac, request_hash, method, path, state, status, content_type, body, secret_withheld, location, created_at, expires_at FROM idempotency_keys WHERE key_mac = ? AND expires_at > ?
+SELECT key_mac, request_hash, method, path, state, status, content_type, body, secret_withheld, location, created_at, expires_at, etag FROM idempotency_keys WHERE key_mac = ? AND expires_at > ?
 `
 
 type GetIdempotencyKeyParams struct {
@@ -121,6 +123,7 @@ func (q *Queries) GetIdempotencyKey(ctx context.Context, arg GetIdempotencyKeyPa
 		&i.Location,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.Etag,
 	)
 	return i, err
 }
@@ -164,7 +167,7 @@ func (q *Queries) InsertAutomationToken(ctx context.Context, arg InsertAutomatio
 const insertIdempotencyKey = `-- name: InsertIdempotencyKey :execrows
 INSERT INTO idempotency_keys (key_mac, request_hash, method, path, state, created_at, expires_at) VALUES (?, ?, ?, ?, 'pending', ?, ?)
 ON CONFLICT (key_mac) DO UPDATE SET request_hash = excluded.request_hash, method = excluded.method, path = excluded.path, state = 'pending',
-  status = 0, content_type = '', body = NULL, secret_withheld = 0, location = '', created_at = excluded.created_at, expires_at = excluded.expires_at
+  status = 0, content_type = '', body = NULL, secret_withheld = 0, location = '', etag = '', created_at = excluded.created_at, expires_at = excluded.expires_at
 WHERE idempotency_keys.expires_at <= excluded.created_at
 `
 

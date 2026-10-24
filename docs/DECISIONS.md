@@ -475,3 +475,19 @@ requests never wait for pulse. Published rows are purged after 7 days.
 consumers must de-duplicate on the event ID beyond it. Verified against an embedded NATS JetStream through the SDK;
 not verified against a running pulsed (creds issuance).
 
+## ADR-0044 — Changes from the M7 security review (security-relevant change)
+
+**Decision.** See `docs/SECURITY_REVIEW-2026-10-24.md` for every finding. Behaviour changes worth knowing:
+- Forward-auth reads the original request only from `X-Forwarded-Proto/Host/Uri`; `X-Original-URL` is ignored.
+- The escalation rule (ADR-0038) now also: excludes expiring grants, evaluates deny policies for the caller, covers
+  policies keyed on group slugs, role stripping, resource deletion, member suspension/removal and service-account
+  rotate/update; automation tokens are never exempt, even when created by an operator.
+- Leaving a tenant deletes the user's assignments there (database trigger on every membership delete).
+- Audiences are owned by one tenant; client-credentials scopes must be registered; disabled tenants' clients get no
+  tokens; creating a service account or confidential client needs a recent sign-in.
+- RP-initiated logout changes state only when the `id_token_hint` names the user of the current Porch session
+  (otherwise it only redirects: an RP without hints no longer ends the Porch session).
+- Restore revokes every automation token and retires every non-active signing key.
+**Residual (deferred).** Automation tokens of federated users do not re-check the upstream account hourly (they stop
+when the user is disabled or loses membership); forward-auth login CSRF; see BACKLOG.
+

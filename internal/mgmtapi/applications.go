@@ -264,6 +264,17 @@ func registerApplications(api huma.API, d *Deps) {
 				return nil, err
 			}
 			b := in.Body
+			if b.Client != nil {
+				if err := d.audiencesFree(ctx, sc, b.Client.Audiences); err != nil {
+					return nil, err
+				}
+			}
+			// A confidential client secret is a persistent credential: issue it only after a recent sign-in (review L5).
+			if b.Kind == apps.KindOIDC && (b.Client == nil || b.Client.ClientType != "public") {
+				if err := d.stepUp(ctx); err != nil {
+					return nil, err
+				}
+			}
 			var disc *apps.Disclosure
 			if b.Disclosure != nil {
 				x := apps.Disclosure(*b.Disclosure)
@@ -321,6 +332,11 @@ func registerApplications(api huma.API, d *Deps) {
 				return nil, err
 			}
 			b := in.Body
+			if b.Client != nil {
+				if err := d.audiencesFree(ctx, sc, b.Client.Audiences); err != nil {
+					return nil, err
+				}
+			}
 			var disc *apps.Disclosure
 			if b.Disclosure != nil {
 				x := apps.Disclosure(*b.Disclosure)

@@ -61,8 +61,14 @@ var blocked = []netip.Prefix{
 	netip.MustParsePrefix("192.0.0.0/24"),
 	netip.MustParsePrefix("198.18.0.0/15"),
 	netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("64:ff9b::/96"), // NAT64 can reach IPv4 internals
+	netip.MustParsePrefix("64:ff9b::/96"),   // NAT64 can reach IPv4 internals
+	netip.MustParsePrefix("64:ff9b:1::/48"), // local-use NAT64
 	netip.MustParsePrefix("fc00::/7"),
+	netip.MustParsePrefix("fec0::/10"),       // deprecated site-local
+	netip.MustParsePrefix("::/96"),           // IPv4-compatible (::a.b.c.d)
+	netip.MustParsePrefix("::ffff:0:0:0/96"), // IPv4-translated
+	netip.MustParsePrefix("2002::/16"),       // 6to4 embeds an IPv4 address
+	netip.MustParsePrefix("2001::/32"),       // Teredo embeds an IPv4 address
 }
 
 func (g *Guard) control(_, address string, _ syscall.RawConn) error {

@@ -164,7 +164,7 @@ func (p *Provider) newCode(ctx context.Context, ar db.AuthRequest, sess *session
 	err = p.Store.W().TxNamed(ctx, "oidc.code", func(tx *store.Tx) error {
 		if err := tx.Q.InsertAuthCode(ctx, db.InsertAuthCodeParams{Mac: mac, ID: ids.New(ids.AuthCode), ClientID: ar.ClientID, TenantID: ar.TenantID,
 			UserID: sess.UserID, SessionID: sess.SessionID, RedirectUri: ar.RedirectUri, Scopes: ar.Scopes, Nonce: ar.Nonce, CodeChallenge: ar.CodeChallenge,
-			Resources: ar.Resources, AuthTime: sess.AuthTime.UnixMicro(), Amr: mustJSON(amrFor(sess.Method)), CreatedAt: tx.NowMicros(),
+			Resources: ar.Resources, AuthTime: sess.AuthTime.UnixMicro(), Amr: mustJSON(amrFor(sess.Method)), AuthMethod: sess.Method, CreatedAt: tx.NowMicros(),
 			ExpiresAt: tx.Now.Add(codeTTL).UnixMicro()}); err != nil {
 			return err
 		}

@@ -21,6 +21,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+// MaxObjectSize bounds every object read from storage.
+const MaxObjectSize = 4 << 30
+
 // ErrNotFound means the object does not exist.
 var ErrNotFound = errors.New("object not found")
 
@@ -136,7 +139,11 @@ func (s *S3) Get(ctx context.Context, key string) ([]byte, error) {
 		return nil, err
 	}
 	defer o.Close()
-	b, err := io.ReadAll(o)
+	// A malicious bucket must not exhaust memory: Porch's objects are a database snapshot and small manifests.
+	b, err := io.ReadAll(io.LimitReader(o, MaxObjectSize+1))
+	if err == nil && int64(len(b)) > MaxObjectSize {
+		return nil, fmt.Errorf("backup: object %s is larger than %d bytes", key, MaxObjectSize)
+	}
 	if err != nil {
 		if notFound(err) {
 			return nil, ErrNotFound

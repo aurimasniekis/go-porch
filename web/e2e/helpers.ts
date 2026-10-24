@@ -13,8 +13,26 @@ import {
 export const BASE = process.env.PORCH_E2E_URL ?? 'http://localhost:8080'
 export const IDP = process.env.PORCH_E2E_IDP ?? 'http://127.0.0.1:9999'
 
+/**
+ * Waits until dialogs, overlays and notifications have finished their open transitions and no animation is running, so
+ * axe never measures half-faded colours.
+ */
+async function settle(page: Page) {
+  await page.waitForFunction(() => {
+    const fading = [
+      ...document.querySelectorAll('[role="dialog"], .mantine-Modal-overlay, .mantine-Notification-root'),
+    ].some((el) => getComputedStyle(el).opacity !== '1')
+    const animating = document
+      .getAnimations()
+      .some((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity)
+    return !fading && !animating
+  })
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+}
+
 /** Fails on any WCAG 2.1 A/AA violation. */
 export async function expectAccessible(page: Page) {
+  await settle(page)
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
   expect(
     results.violations.map(

@@ -11,6 +11,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/serviceacct"
+	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
 // ServiceAccountRequest creates a service account.
@@ -84,7 +85,14 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
+			// Issuing a persistent machine credential needs a recent sign-in, like rotating one (security review L5).
+			if err := d.stepUp(ctx); err != nil {
+				return nil, err
+			}
 			b := in.Body
+			if err := d.audiencesFree(ctx, sc, b.Audiences); err != nil {
+				return nil, err
+			}
 			p := serviceacct.Params{Slug: b.Slug, Name: &b.Name, Description: &b.Description, Audiences: b.Audiences}
 			if b.AccessTokenTTL > 0 {
 				ttl := time.Duration(b.AccessTokenTTL) * time.Second
@@ -126,12 +134,23 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 				return nil, err
 			}
 			b := in.Body
+			cur, err := d.SAs.Get(ctx, sc, in.ServiceAccount)
+			if err != nil {
+				return nil, d.fail("update-sa", err)
+			}
+			// Re-enabling or retargeting a service account changes what its existing grants can reach.
+			if err := d.mayControlSA(ctx, sc, cur.ID); err != nil {
+				return nil, err
+			}
+			if err := d.audiencesFree(ctx, sc, b.Audiences); err != nil {
+				return nil, err
+			}
 			p := serviceacct.Params{Name: b.Name, Description: b.Description, Enabled: b.Enabled, Audiences: b.Audiences, IfVersion: v}
 			if b.AccessTokenTTL != nil {
 				ttl := time.Duration(*b.AccessTokenTTL) * time.Second
 				p.AccessTokenTTL = &ttl
 			}
-			a, err := d.SAs.Update(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, in.ServiceAccount, p)
+			a, err := d.SAs.Update(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, cur.ID, p)
 			if err != nil {
 				return nil, d.fail("update-sa", err)
 			}
@@ -151,6 +170,10 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 			a, err := d.SAs.Get(ctx, sc, in.ServiceAccount)
 			if err != nil {
 				return nil, d.fail("rotate-sa", err)
+			}
+			// A new secret is the service account's power in the caller's hands (security review H2).
+			if err := d.mayControlSA(ctx, sc, a.ID); err != nil {
+				return nil, err
 			}
 			secret, err := d.SAs.RotateSecret(ctx, change(ctx, ""), sc, a.ID)
 			if err != nil {
@@ -177,16 +200,8 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, d.fail("delete-sa", err)
 			}
-			// Deleting removes its assignments: a delegated administrator must hold what it holds.
-			grants, err := d.Engine.Effective(ctx, sc.TenantID(), "service_account", a.ID)
-			if err != nil {
-				return nil, d.fail("delete-sa", err)
-			}
-			var perms []string
-			for _, g := range grants {
-				perms = append(perms, g.Permission)
-			}
-			if err := d.mayGrant(ctx, sc, perms); err != nil {
+			// Deleting removes its assignments: the caller must hold what it holds.
+			if err := d.mayControlSA(ctx, sc, a.ID); err != nil {
 				return nil, err
 			}
 			if err := d.SAs.Delete(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, a.ID, v); err != nil {
@@ -194,6 +209,23 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// mayControlSA requires the caller to hold everything a service account holds (rotating, re-enabling, retargeting or
+// deleting it).
+func (d *Deps) mayControlSA(ctx context.Context, sc tenancy.Scope, id string) error {
+	if exempt(ctx, sc) {
+		return nil
+	}
+	grants, err := d.Engine.Effective(ctx, sc.TenantID(), "service_account", id)
+	if err != nil {
+		return d.fail("escalation", err)
+	}
+	perms := make([]string, 0, len(grants))
+	for _, g := range grants {
+		perms = append(perms, g.Permission)
+	}
+	return d.mayGrant(ctx, sc, perms)
 }
 
 // AdminTenant is a tenant the caller can administer and what they may do there.

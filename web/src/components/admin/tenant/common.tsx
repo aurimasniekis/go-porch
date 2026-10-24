@@ -118,40 +118,15 @@ export function Section({
   )
 }
 
-/**
- * A coloured badge whose text keeps the body text colour. Mantine's light variant draws coloured text on a tinted
- * background, which fails WCAG AA contrast for several palette colours (e.g. green-8 on green-light is 3.2:1).
- */
+/** A light badge (contrast-safe colours come from the theme, ADR-0040). */
 export function Tag(props: BadgeProps & { children: ReactNode }) {
-  return <Badge variant="light" {...props} c="var(--mantine-color-text)" />
+  return <Badge variant="light" {...props} />
 }
 
-/** An alert whose title keeps the body text colour (see Tag). */
+/** An alert (kept as a name for the pages that use it). */
 export function Notice(props: AlertProps) {
-  return <Alert {...props} styles={{ title: { color: 'var(--mantine-color-text)' } }} />
+  return <Alert {...props} />
 }
 
-const managedColors: Record<string, string> = { terraform: 'violet', api: 'blue', ui: 'gray', system: 'teal' }
-
-/** Who manages a resource: the kit's Provenance badge with readable text (see Tag). */
-export function ProvenanceTag({ managedBy, lastChangedBy }: { managedBy?: string; lastChangedBy?: string }) {
-  if (!managedBy) return null
-  const tag = (
-    <Tag color={managedColors[managedBy] ?? 'gray'} size="sm">
-      {managedBy}
-    </Tag>
-  )
-  if (managedBy !== 'terraform' && !lastChangedBy) return tag
-  return (
-    <Tooltip
-      label={[
-        managedBy === 'terraform' ? 'Managed by Terraform: manual changes are overwritten on the next apply.' : null,
-        lastChangedBy ? `Last changed by ${lastChangedBy}` : null,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      {tag}
-    </Tooltip>
-  )
-}
+/** Who manages a resource. */
+export { Provenance as ProvenanceTag } from '@/components/admin/kit'

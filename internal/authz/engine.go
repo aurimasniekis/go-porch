@@ -305,7 +305,7 @@ func (e *Engine) check(ctx context.Context, req Request) (Decision, error) {
 		p := m.policies[pid]
 		var acts []string
 		_ = json.Unmarshal([]byte(p.Actions), &acts)
-		if !slices.Contains(acts, "*") && !slices.Contains(acts, req.Action) {
+		if !slices.ContainsFunc(acts, func(a string) bool { return a == "*" || Grants(a, req.Action) }) {
 			continue
 		}
 		pt := PolicyTrace{PolicyID: pid, Slug: p.Slug}

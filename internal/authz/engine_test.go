@@ -384,7 +384,7 @@ func TestEscalationCheckProperty(t *testing.T) {
 				RoleID: roles[rng.IntN(len(roles))], ScopeType: "tenant"})
 		}
 		for _, p := range concrete {
-			missing, err := f.e.Engine.Missing(ctx, f.tn.ID, f.alice, []string{p})
+			missing, err := f.e.Engine.Missing(ctx, authz.Request{TenantID: f.tn.ID, Subject: authz.Subject{Type: "user", ID: f.alice}}, []string{p})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -408,7 +408,7 @@ func TestEscalationCheckProperty(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			missing, err := f.e.Engine.Missing(ctx, f.tn.ID, f.alice, perms)
+			missing, err := f.e.Engine.Missing(ctx, authz.Request{TenantID: f.tn.ID, Subject: authz.Subject{Type: "user", ID: f.alice}}, perms)
 			if err != nil || len(missing) > 0 {
 				continue
 			}

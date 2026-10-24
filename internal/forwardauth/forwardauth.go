@@ -97,12 +97,10 @@ func normHost(h string) string {
 	return h
 }
 
-// original reconstructs the URL the browser asked for from the proxy's headers.
+// original reconstructs the URL the browser asked for from the X-Forwarded-* headers that every supported proxy sets
+// (overwriting client values). Other headers such as X-Original-URL are ignored: proxies like Caddy and Traefik copy
+// client headers into the auth subrequest, so a header the proxy does not set itself would be attacker-controlled.
 func original(r *http.Request) (*url.URL, bool) {
-	if raw := r.Header.Get("X-Original-URL"); raw != "" { // nginx auth_request (configured by the operator)
-		u, err := url.Parse(raw)
-		return u, err == nil && u.Host != ""
-	}
 	host := r.Header.Get("X-Forwarded-Host")
 	if host == "" {
 		return nil, false
@@ -146,7 +144,7 @@ func (o *Outpost) auth(w http.ResponseWriter, r *http.Request) {
 	}
 	orig, ok := original(r)
 	if !ok {
-		http.Error(w, "missing X-Forwarded-Host/X-Forwarded-Uri (or X-Original-URL)", http.StatusBadRequest)
+		http.Error(w, "missing X-Forwarded-Host/X-Forwarded-Uri", http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()

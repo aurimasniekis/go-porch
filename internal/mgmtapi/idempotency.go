@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aurimasniekis/go-porch/internal/apperr"
+	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -78,6 +79,15 @@ func credential(r *http.Request) string {
 	return ""
 }
 
+func (d *Deps) credentialValid(r *http.Request) bool {
+	if t, ok := bearerToken(r); ok {
+		_, err := d.tokenPrincipal(r.Context(), t, httpx.ClientIP(r.Context()).String())
+		return err == nil
+	}
+	_, err := d.Sessions.Validate(r.Context(), session.TokenFromRequest(r))
+	return err == nil
+}
+
 func (d *Deps) writeIdempotencyProblem(w http.ResponseWriter, status int, code, detail string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -91,6 +101,12 @@ func (d *Deps) idempotency(next http.Handler) http.Handler {
 		key := r.Header.Get(IdempotencyHeader)
 		cred := credential(r)
 		if r.Method != http.MethodPost || key == "" || cred == "" || d.Keyring == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Only authenticated callers get replays: a revoked token or ended session must not read stored responses, and
+		// anonymous junk must not cost write transactions (review L2). Invalid credentials fall through to the 401.
+		if !d.credentialValid(r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -161,6 +177,9 @@ func (d *Deps) replay(ctx context.Context, w http.ResponseWriter, mac, reqSum []
 		if row.Location != "" {
 			w.Header().Set("Location", row.Location)
 		}
+		if row.Etag != "" {
+			w.Header().Set("ETag", row.Etag)
+		}
 		w.WriteHeader(int(row.Status))
 		_, _ = w.Write(row.Body)
 	}
@@ -170,7 +189,7 @@ func (d *Deps) replay(ctx context.Context, w http.ResponseWriter, mac, reqSum []
 func (d *Deps) complete(ctx context.Context, rec *recorder, mac []byte, path string) {
 	keep := rec.status >= 200 && rec.status <= 299 && rec.buf.Len() < idempotencyMaxBody
 	body := rec.buf.Bytes()
-	withheld, location, contentType := int64(0), rec.Header().Get("Location"), rec.Header().Get("Content-Type")
+	withheld, location, contentType, et := int64(0), rec.Header().Get("Location"), rec.Header().Get("Content-Type"), rec.Header().Get("ETag")
 	var obj map[string]any
 	if keep && json.Unmarshal(body, &obj) == nil {
 		for _, f := range secretFields {
@@ -190,7 +209,7 @@ func (d *Deps) complete(ctx context.Context, rec *recorder, mac []byte, path str
 			return tx.Q.DeleteIdempotencyKey(ctx, mac)
 		}
 		return tx.Q.CompleteIdempotencyKey(ctx, db.CompleteIdempotencyKeyParams{Status: int64(rec.status), ContentType: contentType, Body: body,
-			SecretWithheld: withheld, Location: location, KeyMac: mac})
+			SecretWithheld: withheld, Location: location, Etag: et, KeyMac: mac})
 	})
 	if err != nil {
 		d.log().Error("idempotency complete", "err", err)

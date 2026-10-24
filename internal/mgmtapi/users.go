@@ -3,10 +3,12 @@ package mgmtapi
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 )
 
@@ -157,6 +159,11 @@ func registerUsers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
+			if in.Body.Status != nil && *in.Body.Status != "active" {
+				if err := d.mayRemoveOperator(ctx, in.User); err != nil {
+					return nil, err
+				}
+			}
 			u, err := d.Users.Update(ctx, change(ctx, in.ManagedBy.ManagedBy), in.User, identity.UpdateParams{DisplayName: in.Body.DisplayName,
 				PrimaryEmail: in.Body.PrimaryEmail, Status: in.Body.Status, IfVersion: v})
 			if err != nil {
@@ -180,9 +187,42 @@ func registerUsers(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
+			if err := d.mayRemoveOperator(ctx, in.User); err != nil {
+				return nil, err
+			}
 			if err := d.Users.Delete(ctx, change(ctx, in.ManagedBy.ManagedBy), in.User, v); err != nil {
 				return nil, d.fail("delete-user", err)
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// mayRemoveOperator guards disabling or deleting a user with installation roles (review M6): automation tokens never
+// may, only owners may act on owners, and the last active owner stays.
+func (d *Deps) mayRemoveOperator(ctx context.Context, userID string) error {
+	roles, err := d.Store.R().ListOperatorRoles(ctx, userID)
+	if err != nil {
+		return d.fail("operator-guard", err)
+	}
+	if len(roles) == 0 {
+		return nil
+	}
+	p := Principal(ctx)
+	if p.Token != nil {
+		return problem(http.StatusForbidden, apperr.CodeForbidden, "users with installation roles can only be disabled or deleted interactively", nil)
+	}
+	if !slices.Contains(roles, identity.RoleOwner) {
+		return nil
+	}
+	if !p.IsOperator(identity.RoleOwner) {
+		return problem(http.StatusForbidden, apperr.CodeForbidden, "only owners can disable or delete an owner", nil)
+	}
+	n, err := d.Store.R().CountActiveOwnersExcept(ctx, userID)
+	if err != nil {
+		return d.fail("operator-guard", err)
+	}
+	if n == 0 {
+		return problem(http.StatusConflict, apperr.CodeConflict, "the installation must keep at least one active owner", nil)
+	}
+	return nil
 }

@@ -119,7 +119,7 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id string) (Applicatio
 }
 
 const getAuthCode = `-- name: GetAuthCode :one
-SELECT mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time, amr, created_at, expires_at, used_at, family_id, access_jti FROM auth_codes WHERE mac = ?
+SELECT mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time, amr, created_at, expires_at, used_at, family_id, access_jti, auth_method FROM auth_codes WHERE mac = ?
 `
 
 func (q *Queries) GetAuthCode(ctx context.Context, mac []byte) (AuthCode, error) {
@@ -144,6 +144,7 @@ func (q *Queries) GetAuthCode(ctx context.Context, mac []byte) (AuthCode, error)
 		&i.UsedAt,
 		&i.FamilyID,
 		&i.AccessJti,
+		&i.AuthMethod,
 	)
 	return i, err
 }
@@ -245,7 +246,7 @@ func (q *Queries) GetClientByApp(ctx context.Context, appID string) (OauthClient
 }
 
 const getRefreshTokenByMAC = `-- name: GetRefreshTokenByMAC :one
-SELECT id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, state, install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at, rotated_at, revoked_at, revoke_reason FROM refresh_tokens WHERE mac = ?
+SELECT id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, state, install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at, rotated_at, revoked_at, revoke_reason, auth_method FROM refresh_tokens WHERE mac = ?
 `
 
 func (q *Queries) GetRefreshTokenByMAC(ctx context.Context, mac []byte) (RefreshToken, error) {
@@ -272,6 +273,7 @@ func (q *Queries) GetRefreshTokenByMAC(ctx context.Context, mac []byte) (Refresh
 		&i.RotatedAt,
 		&i.RevokedAt,
 		&i.RevokeReason,
+		&i.AuthMethod,
 	)
 	return i, err
 }
@@ -319,8 +321,8 @@ func (q *Queries) InsertApplication(ctx context.Context, arg InsertApplicationPa
 
 const insertAuthCode = `-- name: InsertAuthCode :exec
 INSERT INTO auth_codes (mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time,
-  amr, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  amr, auth_method, created_at, expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertAuthCodeParams struct {
@@ -337,6 +339,7 @@ type InsertAuthCodeParams struct {
 	Resources     string
 	AuthTime      int64
 	Amr           string
+	AuthMethod    string
 	CreatedAt     int64
 	ExpiresAt     int64
 }
@@ -356,6 +359,7 @@ func (q *Queries) InsertAuthCode(ctx context.Context, arg InsertAuthCodeParams) 
 		arg.Resources,
 		arg.AuthTime,
 		arg.Amr,
+		arg.AuthMethod,
 		arg.CreatedAt,
 		arg.ExpiresAt,
 	)
@@ -466,9 +470,9 @@ func (q *Queries) InsertClient(ctx context.Context, arg InsertClientParams) erro
 }
 
 const insertRefreshToken = `-- name: InsertRefreshToken :exec
-INSERT INTO refresh_tokens (id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, state,
-  install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
+INSERT INTO refresh_tokens (id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, auth_method,
+  state, install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)
 `
 
 type InsertRefreshTokenParams struct {
@@ -483,6 +487,7 @@ type InsertRefreshTokenParams struct {
 	Resources       string
 	AuthTime        int64
 	Amr             string
+	AuthMethod      string
 	InstallEpoch    int64
 	UserEpoch       int64
 	CreatedAt       int64
@@ -503,6 +508,7 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 		arg.Resources,
 		arg.AuthTime,
 		arg.Amr,
+		arg.AuthMethod,
 		arg.InstallEpoch,
 		arg.UserEpoch,
 		arg.CreatedAt,
@@ -640,6 +646,40 @@ func (q *Queries) ListApplications(ctx context.Context, tenantID string) ([]Appl
 			&i.AccessMode,
 			&i.ForwardHeaders,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAudienceOwners = `-- name: ListAudienceOwners :many
+SELECT tenant_id, audiences FROM oauth_clients
+UNION ALL
+SELECT tenant_id, audiences FROM service_accounts
+`
+
+type ListAudienceOwnersRow struct {
+	TenantID  string
+	Audiences string
+}
+
+func (q *Queries) ListAudienceOwners(ctx context.Context) ([]ListAudienceOwnersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAudienceOwners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAudienceOwnersRow{}
+	for rows.Next() {
+		var i ListAudienceOwnersRow
+		if err := rows.Scan(&i.TenantID, &i.Audiences); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

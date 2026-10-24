@@ -8073,6 +8073,29 @@
               "maxLength": 64,
               "type": "string"
             }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -9333,6 +9356,29 @@
               "maxLength": 64,
               "type": "string"
             }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -9692,6 +9738,29 @@
               "maxLength": 64,
               "type": "string"
             }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -10047,6 +10116,29 @@
             "schema": {
               "description": "Role ID or slug.",
               "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Provenance of the change (informational).",
+            "in": "header",
+            "name": "X-Porch-Managed-By",
+            "schema": {
+              "description": "Provenance of the change (informational).",
+              "enum": [
+                "ui",
+                "api",
+                "terraform"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
+            "in": "header",
+            "name": "If-Match",
+            "schema": {
+              "description": "ETag (resource version) the change is based on; mismatches fail with 412.",
               "type": "string"
             }
           }

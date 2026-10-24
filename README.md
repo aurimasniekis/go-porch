@@ -23,8 +23,8 @@ Self-hosted identity and single sign-on for families, friend groups and homelabs
 | M3 | OIDC provider, demo app | done (OpenID conformance Basic/Config run locally, see `test/conformance`) |
 | M4 | Applications, portal, forward-auth | done |
 | M5 | Admin UI, policy tooling, delegation, service accounts | done |
-| M6 | Terraform, pulse, backups, hardening | planned |
-| M7 | Interop, release prep | planned |
+| M6 | Terraform, pulse, backups, hardening | done (pulsed itself and real S3 providers not verified) |
+| M7 | Interop, release prep | done (release workflow never run on GitHub; no external audit) |
 
 Not verified against real external systems: Google, S3 providers other than MinIO, Cloudflare.
 

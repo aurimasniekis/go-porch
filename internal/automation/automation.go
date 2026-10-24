@@ -192,7 +192,7 @@ func (svc *Service) Authenticate(ctx context.Context, raw, ip string) (*session.
 		})
 	}
 	t := fromRow(row, "")
-	return &session.TokenGrant{ID: t.ID, TenantID: t.TenantID, Role: t.Role, Permissions: t.Permissions}, row.CreatedBy, nil
+	return &session.TokenGrant{ID: t.ID, TenantID: t.TenantID, Role: t.Role, Permissions: t.Permissions, CreatedAt: t.CreatedAt}, row.CreatedBy, nil
 }
 
 // Get returns one token.

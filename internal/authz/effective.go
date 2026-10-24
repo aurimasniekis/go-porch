@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -61,10 +62,16 @@ func (e *Engine) Effective(ctx context.Context, tenantID, subjectType, subjectID
 	return out, nil
 }
 
-// Missing returns the permissions in want that subject does not hold unconditionally at tenant scope (escalation
-// checks for delegated administration: a tenant admin may only grant what they hold).
-func (e *Engine) Missing(ctx context.Context, tenantID, userID string, want []string) ([]string, error) {
-	grants, err := e.Effective(ctx, tenantID, "user", userID)
+// Missing returns the permissions in want that the subject of req does not hold for escalation purposes (ADR-0038): a
+// permission counts as held only through an unconditional, non-expiring grant at tenant scope, and only while no deny
+// policy blocks it for the subject (a denied administrator cannot grant, or remove a deny on, what they are denied).
+// req.TenantID and req.Subject identify the caller; req.Action and req.Resource are ignored.
+func (e *Engine) Missing(ctx context.Context, req Request, want []string) ([]string, error) {
+	grants, err := e.Effective(ctx, req.TenantID, req.Subject.Type, req.Subject.ID)
+	if err != nil {
+		return nil, err
+	}
+	m, err := e.model(ctx, req.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -72,16 +79,65 @@ func (e *Engine) Missing(ctx context.Context, tenantID, userID string, want []st
 	for _, w := range want {
 		held := false
 		for _, g := range grants {
-			if g.Scope == "tenant" && !g.Conditional && (g.Permission == w || Grants(g.Permission, w) || g.Permission == "*:*") {
+			if g.Scope == "tenant" && !g.Conditional && !g.Expires && Grants(g.Permission, w) {
 				held = true
 				break
 			}
+		}
+		if held {
+			denied, err := e.deniedFor(ctx, m, req, w)
+			if err != nil {
+				return nil, err
+			}
+			held = !denied
 		}
 		if !held {
 			missing = append(missing, w)
 		}
 	}
 	return missing, nil
+}
+
+// deniedFor reports whether a deny policy of the tenant blocks the subject for want (or, for a wildcard, for any
+// action it covers that a deny policy names). Each overlapping deny is evaluated with a representative action.
+func (e *Engine) deniedFor(ctx context.Context, m *model, req Request, want string) (bool, error) {
+	reps := map[string]bool{}
+	for _, pid := range m.denies {
+		var acts []string
+		_ = json.Unmarshal([]byte(m.policies[pid].Actions), &acts)
+		for _, a := range acts {
+			switch {
+			case a == "*" || Grants(a, want):
+				reps[concrete(want)] = true
+			case Grants(want, a):
+				reps[concrete(a)] = true
+			}
+		}
+	}
+	for act := range reps {
+		r := req
+		r.Action, r.Resource, r.SimulatedContext = act, Resource{Type: "tenant"}, nil
+		d, err := e.check(ctx, r)
+		if err != nil {
+			return false, err
+		}
+		if d.Reason == "denied_by_policy" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// concrete turns a wildcard permission into a representative concrete action ("app:*" → "app:any").
+func concrete(p string) string {
+	t, a, _ := strings.Cut(p, ":")
+	if t == "*" {
+		t = "any"
+	}
+	if a == "*" {
+		a = "any"
+	}
+	return t + ":" + a
 }
 
 // RolePermissions returns every permission a role grants including bundled roles.

@@ -81,8 +81,8 @@ DELETE FROM auth_requests WHERE expires_at < ?;
 
 -- name: InsertAuthCode :exec
 INSERT INTO auth_codes (mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time,
-  amr, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  amr, auth_method, created_at, expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetAuthCode :one
 SELECT * FROM auth_codes WHERE mac = ?;
@@ -97,9 +97,9 @@ UPDATE auth_codes SET family_id = ?, access_jti = ? WHERE mac = ?;
 DELETE FROM auth_codes WHERE expires_at < ?;
 
 -- name: InsertRefreshToken :exec
-INSERT INTO refresh_tokens (id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, state,
-  install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?);
+INSERT INTO refresh_tokens (id, mac, family_id, parent_id, client_id, tenant_id, user_id, scopes, resources, auth_time, amr, auth_method,
+  state, install_epoch, user_epoch, created_at, family_expires_at, idle_expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?);
 
 -- name: GetRefreshTokenByMAC :one
 SELECT * FROM refresh_tokens WHERE mac = ?;
@@ -143,3 +143,8 @@ WHERE r.user_id = ? AND r.state = 'active' GROUP BY r.family_id, r.client_id, a.
 
 -- name: RevokeUserFamily :execrows
 UPDATE refresh_tokens SET state = 'revoked', revoked_at = ?, revoke_reason = ? WHERE user_id = ? AND family_id = ? AND state != 'revoked';
+
+-- name: ListAudienceOwners :many
+SELECT tenant_id, audiences FROM oauth_clients
+UNION ALL
+SELECT tenant_id, audiences FROM service_accounts;

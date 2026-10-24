@@ -17,6 +17,7 @@ import (
 
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/idp"
 	"github.com/aurimasniekis/go-porch/internal/idp/fakeidp"
@@ -448,9 +449,13 @@ func TestClientAuthAndClientCredentials(t *testing.T) {
 	st, tn, _ := oidcStack(t)
 	svc := st.newRP(t, tn, "backup-job", apps.ClientParams{GrantTypes: []string{"client_credentials"}, RedirectURIs: []string{},
 		Audiences: []string{"https://api.smith.example"}})
-	code, tr := svc.token(t, url.Values{"grant_type": {"client_credentials"}, "scope": {"read"}})
+	code, tr := svc.token(t, url.Values{"grant_type": {"client_credentials"}})
 	if code != 200 || tr.AccessToken == "" || tr.RefreshToken != "" || tr.IDToken != "" {
 		t.Fatalf("client credentials %d %+v", code, tr)
+	}
+	// Scopes the client is not registered for are refused, never signed into the token (review M10).
+	if code, x := svc.token(t, url.Values{"grant_type": {"client_credentials"}, "scope": {"orders:delete"}}); code != 400 || x.Error != "invalid_scope" {
+		t.Fatalf("unregistered scope %d %+v", code, x)
 	}
 	_, ac := jwtParts(t, tr.AccessToken)
 	if ac["sub"] != svc.clientID || ac["aud"].([]any)[0] != "https://api.smith.example" {
@@ -555,5 +560,25 @@ func TestMaxAgeZeroNoLoop(t *testing.T) {
 	q := b.authorize(t, r.authParams(c, map[string]string{"max_age": "0"}))
 	if q.Get("code") == "" {
 		t.Fatalf("max_age=0 did not complete: %v", q)
+	}
+}
+
+// Security review M11: deny policies on the sign-in method also apply at refresh (the method travels with the token).
+func TestDenyPolicyOnAuthMethodAtRefresh(t *testing.T) {
+	st, tn, b := oidcStack(t)
+	r := st.newRP(t, tn, "app-m11", apps.ClientParams{})
+	v, c := pkce()
+	q := b.authorize(t, r.authParams(c, nil))
+	code, tr := r.exchange(t, q.Get("code"), v)
+	if code != 200 || tr.RefreshToken == "" {
+		t.Fatalf("exchange %d %+v", code, tr)
+	}
+	sc, _ := st.a.Tenants.SystemScope(context.Background(), tn.ID)
+	if _, err := st.a.Authz.CreatePolicy(context.Background(), domain.SystemChange, sc, authz.PolicyParams{Slug: "no-google", Name: "x", Effect: "deny",
+		Expression: `principal.auth_method == "google"`, Actions: []string{"app:access"}}); err != nil {
+		t.Fatal(err)
+	}
+	if code, x := r.token(t, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {tr.RefreshToken}}); code < 400 {
+		t.Fatalf("refresh allowed after deny on the sign-in method: %d %+v", code, x)
 	}
 }

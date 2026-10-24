@@ -86,6 +86,12 @@ because the `claims` parameter is ignored and only `openid` was requested); `oid
 `request_uri` test are not part of the plan with static clients (the suite marks them not applicable; they need dynamic
 registration). Implicit/hybrid/dynamic plans are not run.
 
+## Latest full run (M7, after the security-review fixes)
+
+[results-2026-10-24-m7.md](results-2026-10-24-m7.md): Basic plan 21 PASSED, 6 WARNING, 4 REVIEW, 4 SKIPPED, **0 FAILED**;
+Config plan 1 PASSED. The warnings and REVIEW items are the ones diagnosed below (REVIEW = protocol checks passed, a
+human must look at the screenshot).
+
 ## Results (2026-10-24)
 
 Porch `1d9ea3c` (M3, development mode) + this directory; conformance suite 5.3.3 (`f237360`, image `latest` pulled

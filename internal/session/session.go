@@ -97,6 +97,8 @@ type TokenGrant struct {
 	TenantID    string   // empty for installation tokens
 	Role        string   // installation tokens: admin or auditor
 	Permissions []string // tenant tokens
+	// CreatedAt is when the token was issued (its principal's auth_time: tokens never count as a fresh sign-in).
+	CreatedAt time.Time
 	// CreatorOperator is true while the creator of a tenant token holds installation owner or admin: such tokens act
 	// through the operator scope, still limited to their tenant and permissions.
 	CreatorOperator bool

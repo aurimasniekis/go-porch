@@ -37,7 +37,8 @@ DELETE FROM role_edges WHERE tenant_id = ? AND parent_id = ?;
 SELECT parent_id, child_id FROM role_edges WHERE tenant_id = ?;
 
 -- name: InsertGroupEdge :exec
-INSERT INTO group_edges (tenant_id, parent_id, child_id) VALUES (?, ?, ?);
+INSERT INTO group_edges (tenant_id, parent_id, child_id) VALUES (?, ?, ?)
+ON CONFLICT DO NOTHING;
 
 -- name: DeleteGroupEdge :execrows
 DELETE FROM group_edges WHERE tenant_id = ? AND parent_id = ? AND child_id = ?;

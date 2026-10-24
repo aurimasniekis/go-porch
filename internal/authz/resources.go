@@ -132,17 +132,25 @@ func (a *Admin) UpdateResource(ctx context.Context, ch domain.Change, sc tenancy
 }
 
 // DeleteResource removes a resource, its children and assignments scoped to it.
-func (a *Admin) DeleteResource(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string) error {
+func (a *Admin) DeleteResource(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, ifVersion int64) error {
 	return a.change(ctx, "authz.delete_resource", ch, sc, audit.Event{Action: "resource.deleted", Target: audit.Target{Type: "resource", ID: id}},
 		func(tx *store.Tx) error {
+			if r, err := tx.Q.GetResource(ctx, db.GetResourceParams{TenantID: sc.TenantID(), ID: id}); err == nil {
+				if err := domain.IfMatch(ifVersion, r.Version); err != nil {
+					return err
+				}
+			}
+			// Child resources go with their parent (FK cascade), so their scoped assignments go too.
+			if _, err := tx.SQL.ExecContext(ctx, `WITH RECURSIVE sub(id) AS (
+  SELECT ? UNION SELECT r.id FROM resources r JOIN sub ON r.parent_id = sub.id WHERE r.tenant_id = ?)
+DELETE FROM role_assignments WHERE tenant_id = ? AND scope_type = 'resource' AND scope_resource_id IN (SELECT id FROM sub)`,
+				id, sc.TenantID(), sc.TenantID()); err != nil {
+				return err
+			}
 			n, err := tx.Q.DeleteResource(ctx, db.DeleteResourceParams{TenantID: sc.TenantID(), ID: id})
 			if err == nil && n == 0 {
 				return ErrNotFound
 			}
-			if err != nil {
-				return err
-			}
-			_, err = tx.SQL.ExecContext(ctx, "DELETE FROM role_assignments WHERE tenant_id = ? AND scope_type = 'resource' AND scope_resource_id = ?", sc.TenantID(), id)
 			return err
 		})
 }

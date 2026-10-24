@@ -49,7 +49,8 @@ VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?);
 SELECT * FROM groups WHERE tenant_id = ? AND id = ?;
 
 -- name: InsertGroupMember :exec
-INSERT INTO group_members (tenant_id, group_id, user_id, source, created_at) VALUES (?, ?, ?, ?, ?);
+INSERT INTO group_members (tenant_id, group_id, user_id, source, created_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT DO NOTHING;
 
 -- name: ListGroupMembers :many
 SELECT * FROM group_members WHERE tenant_id = ? AND group_id = ? ORDER BY user_id;

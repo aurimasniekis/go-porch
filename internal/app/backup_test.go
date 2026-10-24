@@ -57,6 +57,8 @@ func TestBackupRestoreDrill(t *testing.T) {
 	expect(t, owner.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": "smith", "name": "Smith family"}, nil), http.StatusCreated)
 	expect(t, owner.do(http.MethodPost, "/api/v1/tenants/smith/groups", map[string]string{"slug": "kids", "name": "Kids"}, nil), http.StatusCreated)
 
+	tok := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/installation/automation-tokens",
+		map[string]any{"name": "tf", "role": "admin", "expires_in_days": 30}, nil))
 	run := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/installation/backups", nil, nil))
 	if run["ok"] != true || run["kek_included"] != true || run["stored_bytes"].(float64) <= 0 {
 		t.Fatalf("run %v", run)
@@ -66,9 +68,20 @@ func TestBackupRestoreDrill(t *testing.T) {
 	if run2["pruned"].(float64) != 1 { // retention 1
 		t.Fatalf("prune %v", run2)
 	}
+	// A bucket writer plants manifests that sort newest (review M7): they must not count for retention or "latest".
+	forged := `{"manifest":{"v":1,"id":"bkp_7zzzzzzzzzzzzzzzzzzzzzzzzz","created":"2099-01-01T00:00:00Z","objects":[]},"key_id":"x","signature":"AAAA"}`
+	if err := objs.Put(context.Background(), "backups/bkp_7zzzzzzzzzzzzzzzzzzzzzzzzz/manifest.json", []byte(forged)); err != nil {
+		t.Fatal(err)
+	}
+	run3 := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/installation/backups", nil, nil))
+	if run3["pruned"].(float64) != 1 { // only the older real backup goes; the forged one is ignored
+		t.Fatalf("prune with forged manifest %v", run3)
+	}
+	_ = objs.Delete(context.Background(), "backups/bkp_7zzzzzzzzzzzzzzzzzzzzzzzzz/manifest.json")
+	run2 = run3
 	st := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/installation/backups", nil, nil))
 	verifyKey := st["verify_key"].(string)
-	if len(st["runs"].([]any)) != 2 {
+	if len(st["runs"].([]any)) != 3 {
 		t.Fatalf("status %v", st)
 	}
 	h := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/installation/health", nil, nil))
@@ -123,6 +136,8 @@ func TestBackupRestoreDrill(t *testing.T) {
 	b := openWith(t, func(c *config.Config) { c.DataDir, c.KEK.File = dir, kekFile }, nil)
 	stale := &client{t: t, h: b.PublicHandler(), cookie: owner.cookie, csrf: owner.csrf, remote: owner.remote}
 	expect(t, stale.do(http.MethodGet, "/api/v1/me", nil, nil), http.StatusUnauthorized)
+	// Automation tokens from the backup are revoked by the restore (review M8).
+	expect(t, bearer(stale, tok["token"].(string))(http.MethodGet, "/api/v1/tenants", nil), http.StatusUnauthorized)
 	ts, _, err := b.Tenants.List(ctx, domain.Page{Limit: 50})
 	if err != nil || len(ts) != 1 || ts[0].Slug != "smith" {
 		t.Fatalf("restored tenants %v %v", ts, err)

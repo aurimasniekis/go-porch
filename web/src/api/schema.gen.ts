@@ -4834,7 +4834,12 @@ export interface operations {
     "delete-group": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
             path: {
                 /** @description Tenant ID or slug. */
                 tenant: string;
@@ -5525,7 +5530,12 @@ export interface operations {
     "delete-policy": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
             path: {
                 /** @description Tenant ID or slug. */
                 tenant: string;
@@ -5663,7 +5673,12 @@ export interface operations {
     "delete-resource": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
             path: {
                 /** @description Tenant ID or slug. */
                 tenant: string;
@@ -5888,7 +5903,12 @@ export interface operations {
     "delete-role": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
             path: {
                 /** @description Tenant ID or slug. */
                 tenant: string;

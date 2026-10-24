@@ -34,7 +34,7 @@ export const theme = createTheme({
 })
 
 /**
- * Text colour of the `light` variant (badges, alerts, light buttons) in the light scheme. Mantine uses shade 6, which
+ * Text colour of the `light` and `outline` variants (badges, alerts, buttons) in the light scheme. Mantine uses shade 6, which
  * fails WCAG AA on the variant's own tint; these values reach at least 4.6:1 on the tint over white and over striped
  * table rows (computed, see docs/DECISIONS.md ADR-0040).
  */
@@ -62,6 +62,8 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
     '--mantine-color-dimmed': 'var(--mantine-color-gray-7)',
     '--mantine-color-error': 'var(--mantine-color-red-9)',
     ...Object.fromEntries(Object.entries(lightVariantText).map(([c, v]) => [`--mantine-color-${c}-light-color`, v])),
+    // Outline badges and buttons draw text (and border) in the same colour on white.
+    ...Object.fromEntries(Object.entries(lightVariantText).map(([c, v]) => [`--mantine-color-${c}-outline`, v])),
   },
   dark: { '--mantine-color-dimmed': 'var(--mantine-color-dark-1)' },
 })

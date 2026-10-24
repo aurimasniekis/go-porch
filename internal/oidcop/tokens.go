@@ -25,6 +25,7 @@ type grant struct {
 	clientID, tenantID, userID string
 	scopes, resources, amr     []string
 	authTime                   time.Time
+	authMethod                 string
 	nonce                      string
 	familyID, parentID         string
 	familyExpires              time.Time
@@ -276,7 +277,7 @@ func (p *Provider) newRefreshTx(ctx context.Context, tx *store.Tx, c *client, g 
 	}
 	err = tx.Q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{ID: ids.New(ids.RefreshToken), Mac: mac, FamilyID: family, ParentID: domain.NullStr(g.parentID),
 		ClientID: c.row.ID, TenantID: g.tenantID, UserID: g.userID, Scopes: mustJSON(g.scopes), Resources: mustJSON(nonNil(g.resources)),
-		AuthTime: g.authTime.UnixMicro(), Amr: mustJSON(nonNil(g.amr)), InstallEpoch: inst.SecurityEpoch, UserEpoch: u.SecurityEpoch,
+		AuthTime: g.authTime.UnixMicro(), Amr: mustJSON(nonNil(g.amr)), AuthMethod: g.authMethod, InstallEpoch: inst.SecurityEpoch, UserEpoch: u.SecurityEpoch,
 		CreatedAt: tx.NowMicros(), FamilyExpiresAt: famExp.UnixMicro(), IdleExpiresAt: idle.UnixMicro()})
 	return token, family, err
 }

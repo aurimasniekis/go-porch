@@ -47,13 +47,14 @@ func (c *caddyLike) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, c.porch.String()+"/outpost/auth", nil)
+	// Like Caddy's forward_auth: client headers are copied into the subrequest, then X-Forwarded-* are overwritten.
+	for k, v := range r.Header {
+		req.Header[k] = v
+	}
 	req.Header.Set("X-Forwarded-Method", r.Method)
 	req.Header.Set("X-Forwarded-Proto", "https")
 	req.Header.Set("X-Forwarded-Host", r.Host)
 	req.Header.Set("X-Forwarded-Uri", r.URL.RequestURI())
-	for _, ck := range r.Cookies() {
-		req.AddCookie(ck)
-	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -275,5 +276,34 @@ func TestForwardAuthOutpostHardening(t *testing.T) {
 	again, _ := f.get(t, "https://whoami.test/.porch/callback?"+loc.RawQuery, nil)
 	if again.StatusCode != http.StatusBadRequest {
 		t.Fatalf("burned code reused: %d", again.StatusCode)
+	}
+}
+
+// Security review H1: proxies such as Caddy and Traefik copy client headers into the auth subrequest, so a client-set
+// X-Original-URL must never select the application (a cookie for one app must not open another).
+func TestForwardAuthIgnoresClientOriginalURL(t *testing.T) {
+	f := faStack(t, apps.AccessAssigned) // whoami.test: assigned only, ada has no grant
+	sc, _ := f.st.a.Tenants.SystemScope(context.Background(), f.tn.ID)
+	if _, err := f.st.a.Apps.Create(context.Background(), domain.SystemChange, sc, apps.CreateParams{Slug: "pub", Name: "Pub", Kind: apps.KindForwardAuth,
+		AccessMode: apps.AccessAllMembers, Hosts: []string{"public.test"}}); err != nil {
+		t.Fatal(err)
+	}
+	f.st.loginAs(f.b, "g-ada")
+	if resp, _ := f.get(t, "https://public.test/", nil); resp.StatusCode != http.StatusOK {
+		t.Fatalf("public %d", resp.StatusCode)
+	}
+	var fa string
+	pu, _ := url.Parse("https://public.test/")
+	for _, c := range f.b.c.Jar.Cookies(pu) {
+		if c.Name == "__Host-porch_fa" {
+			fa = c.Value
+		}
+	}
+	if fa == "" {
+		t.Fatal("no forward-auth cookie for public.test")
+	}
+	resp, body := f.get(t, "https://whoami.test/secret", map[string]string{"X-Original-URL": "https://public.test/", "Cookie": "__Host-porch_fa=" + fa})
+	if resp.StatusCode == http.StatusOK || strings.Contains(body, "GET /secret") {
+		t.Fatalf("X-Original-URL selected another application: %d %s", resp.StatusCode, body)
 	}
 }
