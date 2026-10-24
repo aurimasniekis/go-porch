@@ -1,0 +1,119 @@
+# Prometheus alerting rules for Porch. Load with `rule_files: [porch-alerts.yaml]`.
+# Metrics are scraped from the private management listener (default 127.0.0.1:9464/metrics), job="porch".
+groups:
+  - name: porch-availability
+    rules:
+      - alert: PorchDown
+        expr: up{job="porch"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Porch is not answering metrics scrapes
+          description: "{{ $labels.instance }} has been unreachable for 2 minutes. Sign-ins and token issuance are down."
+          runbook: docs/runbooks/porch-down.md
+      - alert: PorchNotReady
+        expr: porch_ready == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Porch reports not ready
+          description: "/readyz fails on {{ $labels.instance }} (storage degraded, keyring or database problem)."
+          runbook: docs/runbooks/porch-down.md
+      - alert: PorchHighServerErrorRate
+        expr: |
+          sum by (instance) (rate(porch_http_requests_total{code="5xx"}[5m]))
+            / clamp_min(sum by (instance) (rate(porch_http_requests_total[5m])), 1e-9) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: More than 5% of Porch requests fail with 5xx
+          description: "{{ $value | humanizePercentage }} of requests on {{ $labels.instance }} return 5xx."
+          runbook: docs/runbooks/porch-errors.md
+      - alert: PorchSlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (le, surface) (rate(porch_http_request_duration_seconds_bucket[5m]))) > 2
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: Porch p95 latency above 2 s on {{ $labels.surface }}
+          runbook: docs/runbooks/porch-errors.md
+
+  - name: porch-storage
+    rules:
+      - alert: PorchStoreBusy
+        expr: rate(porch_store_tx_busy_retries_total[5m]) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: SQLite write transactions are retrying on SQLITE_BUSY
+          description: Another process may hold the database, or the disk is too slow.
+          runbook: docs/runbooks/porch-storage.md
+      - alert: PorchSlowWrites
+        expr: histogram_quantile(0.95, sum by (le) (rate(porch_store_tx_duration_seconds_bucket[5m]))) > 0.25
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: Porch write transactions p95 above 250 ms
+          runbook: docs/runbooks/porch-storage.md
+      - alert: PorchWALLarge
+        expr: porch_store_wal_bytes > 512 * 1024 * 1024
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: The SQLite WAL is larger than 512 MiB (checkpoints are not keeping up)
+          runbook: docs/runbooks/porch-storage.md
+
+  - name: porch-security
+    rules:
+      - alert: PorchLoginFailureSpike
+        expr: sum by (instance, method) (increase(porch_auth_logins_total{outcome=~"failure|denied|throttled"}[15m])) > 30
+        labels: { severity: warning }
+        annotations:
+          summary: Many failed {{ $labels.method }} sign-ins in 15 minutes
+          description: Possible credential stuffing or a misconfigured identity provider.
+          runbook: docs/runbooks/porch-login-failures.md
+      - alert: PorchBackupLockouts
+        expr: increase(porch_auth_backup_lockouts_total[1h]) > 0
+        labels: { severity: info }
+        annotations:
+          summary: A backup login was locked out
+          description: Someone entered a wrong backup password or answer. Google sign-in is unaffected.
+          runbook: docs/runbooks/porch-login-failures.md
+
+  - name: porch-events-and-backups
+    rules:
+      - alert: PorchOutboxBacklog
+        expr: porch_outbox_events{state="pending"} > 500
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: More than 500 events wait in the outbox (pulse relay down or misconfigured)
+          runbook: docs/runbooks/porch-events.md
+      - alert: PorchOutboxDeadLetters
+        expr: porch_outbox_events{state="dead"} > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Events were dead-lettered after exhausting retries
+          runbook: docs/runbooks/porch-events.md
+      - alert: PorchBackupFailed
+        expr: increase(porch_backup_runs_total{result="failure"}[1h]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: A Porch backup run failed
+          runbook: docs/runbooks/porch-backups.md
+      - alert: PorchBackupStale
+        # Default schedule is every 6 h; alert after two missed runs.
+        expr: time() - max by (instance) (porch_backup_last_timestamp_seconds{result="success"}) > 13 * 3600
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: No successful Porch backup for more than 13 hours
+          runbook: docs/runbooks/porch-backups.md
+      - alert: PorchBackupNeverSucceeded
+        expr: absent(porch_backup_last_timestamp_seconds{result="success"}) and on() (time() - process_start_time_seconds{job="porch"}) > 13 * 3600
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Porch has run for 13 hours without a successful backup (are backups configured?)
+          runbook: docs/runbooks/porch-backups.md

@@ -1,0 +1,46 @@
+# promtool test rules porch-alerts.test.yaml
+rule_files: [porch-alerts.yaml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="porch", instance="p1"}'
+        values: '1 1 0 0 0 0 0'
+      - series: 'porch_ready{job="porch", instance="p1"}'
+        values: '1 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: PorchDown
+        exp_alerts:
+          - exp_labels: { severity: critical, job: porch, instance: p1 }
+            exp_annotations:
+              summary: Porch is not answering metrics scrapes
+              description: "p1 has been unreachable for 2 minutes. Sign-ins and token issuance are down."
+              runbook: docs/runbooks/porch-down.md
+      - eval_time: 6m
+        alertname: PorchNotReady
+        exp_alerts: []
+  - interval: 1m
+    input_series:
+      - series: 'porch_backup_last_timestamp_seconds{job="porch", instance="p1", result="success"}'
+        values: '0x900'
+    alert_rule_test:
+      - eval_time: 14h
+        alertname: PorchBackupStale
+        exp_alerts:
+          - exp_labels: { severity: critical, instance: p1 }
+            exp_annotations:
+              summary: No successful Porch backup for more than 13 hours
+              runbook: docs/runbooks/porch-backups.md
+  - interval: 1m
+    input_series:
+      - series: 'porch_outbox_events{job="porch", instance="p1", state="dead"}'
+        values: '0 0 2 2 2 2 2 2 2 2'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: PorchOutboxDeadLetters
+        exp_alerts:
+          - exp_labels: { severity: warning, job: porch, instance: p1, state: dead }
+            exp_annotations:
+              summary: Events were dead-lettered after exhausting retries
+              runbook: docs/runbooks/porch-events.md
