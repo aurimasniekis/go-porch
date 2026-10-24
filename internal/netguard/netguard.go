@@ -4,6 +4,8 @@
 package netguard
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -19,6 +21,21 @@ var ErrBlocked = errors.New("outbound connection to an internal address refused"
 // Guard decides which destination addresses are allowed.
 type Guard struct {
 	allow []netip.Prefix
+	roots *x509.CertPool // nil: system roots
+}
+
+// AddRootCAs trusts extra CA certificates (PEM) in addition to the system roots, e.g. a private CA of a LAN identity
+// provider or MinIO (outbound.ca_file).
+func (g *Guard) AddRootCAs(pem []byte) error {
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(pem) {
+		return errors.New("outbound.ca_file: no PEM certificates found")
+	}
+	g.roots = pool
+	return nil
 }
 
 // New returns a guard that additionally allows the given CIDRs (e.g. a LAN MinIO or a test IdP on 127.0.0.1/32).
@@ -89,7 +106,12 @@ func (g *Guard) control(_, address string, _ syscall.RawConn) error {
 // Transport returns an HTTP transport whose dialer enforces the guard.
 func (g *Guard) Transport() *http.Transport {
 	d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: g.control}
+	var tc *tls.Config
+	if g.roots != nil {
+		tc = &tls.Config{RootCAs: g.roots, MinVersion: tls.VersionTLS12}
+	}
 	return &http.Transport{
+		TLSClientConfig:       tc,
 		Proxy:                 nil, // never route through an environment proxy that could reach internals
 		DialContext:           d.DialContext,
 		ForceAttemptHTTP2:     true,

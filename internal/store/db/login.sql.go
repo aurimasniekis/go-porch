@@ -446,7 +446,7 @@ func (q *Queries) GetThrottle(ctx context.Context, key string) (ThrottleBucket, 
 }
 
 const getUserByBackupHandle = `-- name: GetUserByBackupHandle :one
-SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at FROM users WHERE backup_handle = ?
+SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at, upstream_confirmed_at FROM users WHERE backup_handle = ?
 `
 
 func (q *Queries) GetUserByBackupHandle(ctx context.Context, backupHandle sql.NullString) (User, error) {
@@ -466,12 +466,13 @@ func (q *Queries) GetUserByBackupHandle(ctx context.Context, backupHandle sql.Nu
 		&i.LastChangedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UpstreamConfirmedAt,
 	)
 	return i, err
 }
 
 const getUsersByPrimaryEmail = `-- name: GetUsersByPrimaryEmail :many
-SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at FROM users WHERE primary_email = ? LIMIT 2
+SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at, upstream_confirmed_at FROM users WHERE primary_email = ? LIMIT 2
 `
 
 func (q *Queries) GetUsersByPrimaryEmail(ctx context.Context, primaryEmail sql.NullString) ([]User, error) {
@@ -497,6 +498,7 @@ func (q *Queries) GetUsersByPrimaryEmail(ctx context.Context, primaryEmail sql.N
 			&i.LastChangedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UpstreamConfirmedAt,
 		); err != nil {
 			return nil, err
 		}

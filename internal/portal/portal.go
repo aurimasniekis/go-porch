@@ -19,7 +19,10 @@ type Handler struct {
 	IDP      *idp.Service
 	Sessions *session.Manager
 	Log      *slog.Logger
-	Limiter  *httpx.Limiter
+	Limiter  *httpx.Limiter // sign-in starts
+	// CallbackLimiter throttles upstream callbacks with its own bucket, so a completed sign-in costs one start token,
+	// not two.
+	CallbackLimiter *httpx.Limiter
 }
 
 // Register mounts the handlers on mux.
@@ -67,6 +70,11 @@ func (h *Handler) begin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
+	// Throttled like the start: every failed callback is audited, so anonymous floods must not reach the writer (review L9).
+	if h.CallbackLimiter != nil && !h.CallbackLimiter.Allow(httpx.SourceKey(httpx.ClientIP(r.Context()))) {
+		http.Error(w, "too many sign-in attempts, try again shortly", http.StatusTooManyRequests)
+		return
+	}
 	q := r.URL.Query()
 	cookieState := ""
 	if c, err := r.Cookie(idp.StateCookie); err == nil {

@@ -67,16 +67,18 @@ type Deps struct {
 	// BackupEnabled and BackupInterval come from the configuration (health checks).
 	BackupEnabled  bool
 	BackupInterval time.Duration
-	OP             *oidcop.Provider
-	Engine         *authz.Engine
-	Authz          *authz.Admin
-	Metrics        *metrics.Metrics
-	Keyring        *keyring.Keyring
-	Ready          func(context.Context) error
-	StartedAt      time.Time
-	Clock          clock.Clock
-	SetupRate      *httpx.Limiter
-	LoginRate      *httpx.Limiter
+	// TokenUpstreamMaxAge bounds how long a federated user's tokens work without an upstream confirmation.
+	TokenUpstreamMaxAge time.Duration
+	OP                  *oidcop.Provider
+	Engine              *authz.Engine
+	Authz               *authz.Admin
+	Metrics             *metrics.Metrics
+	Keyring             *keyring.Keyring
+	Ready               func(context.Context) error
+	StartedAt           time.Time
+	Clock               clock.Clock
+	SetupRate           *httpx.Limiter
+	LoginRate           *httpx.Limiter
 }
 
 func (d *Deps) now() time.Time {
@@ -142,6 +144,7 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerOps(api, d)
 	registerTokens(api, d)
 	registerBackups(api, d)
+	registerLookups(api, d)
 	return api
 }
 
@@ -237,6 +240,17 @@ func (d *Deps) tokenPrincipal(ctx context.Context, raw, ip string) (*session.Pri
 	u, err := d.Store.R().GetUser(ctx, userID)
 	if err != nil || u.Status != "active" {
 		return nil, automation.ErrInvalid
+	}
+	// Tokens of federated users follow the identity provider: when it has not confirmed the user for too long (they may
+	// have been removed upstream), tokens stop until the user signs in again (review L3).
+	if d.TokenUpstreamMaxAge > 0 {
+		ids, err := d.Store.R().ListUserIdentities(ctx, u.ID)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) > 0 && (!u.UpstreamConfirmedAt.Valid || d.now().Sub(domain.FromMicros(u.UpstreamConfirmedAt.Int64)) > d.TokenUpstreamMaxAge) {
+			return nil, automation.ErrInvalid
+		}
 	}
 	p := &session.Principal{SessionID: g.ID, UserID: u.ID, PublicID: u.PublicID, DisplayName: u.DisplayName, Email: u.PrimaryEmail.String,
 		Method: session.MethodAutomation, AuthTime: g.CreatedAt, CreatedAt: g.CreatedAt, OperatorRoles: []string{}, Token: g}

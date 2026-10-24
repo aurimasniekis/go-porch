@@ -2,6 +2,7 @@ package netguard
 
 import (
 	"context"
+	"encoding/pem"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -61,4 +62,30 @@ func TestEmbeddedIPv4Blocked(t *testing.T) {
 	if !g.Allowed(netip.MustParseAddr("2606:4700:4700::1111")) {
 		t.Error("public IPv6 refused")
 	}
+}
+
+func TestAddRootCAs(t *testing.T) {
+	g, _ := New(nil)
+	if err := g.AddRootCAs([]byte("not a certificate")); err == nil {
+		t.Fatal("garbage accepted as CA")
+	}
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	defer srv.Close()
+	pem := pemCert(srv.Certificate().Raw)
+	g, _ = New([]string{"127.0.0.0/8"})
+	if _, err := g.Client(5 * time.Second).Get(srv.URL); err == nil { //nolint:noctx // test
+		t.Fatal("untrusted test CA accepted")
+	}
+	if err := g.AddRootCAs(pem); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := g.Client(5 * time.Second).Get(srv.URL) //nolint:noctx // test
+	if err != nil {
+		t.Fatalf("trusted extra CA: %v", err)
+	}
+	resp.Body.Close()
+}
+
+func pemCert(der []byte) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }

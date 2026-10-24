@@ -67,7 +67,15 @@ type providerOutput struct {
 
 // ProviderRef addresses a provider.
 type ProviderRef struct {
-	Provider string `path:"provider" maxLength:"64"`
+	Provider string `path:"provider" maxLength:"64" doc:"Provider ID or slug."`
+}
+
+// providerID resolves a provider reference (ID or slug).
+func (d *Deps) providerID(ctx context.Context, ref string) string {
+	if p, err := d.Store.R().GetProviderBySlug(ctx, ref); err == nil {
+		return p.ID
+	}
+	return ref
 }
 
 func registerProviders(api huma.API, d *Deps) {
@@ -129,7 +137,7 @@ func registerProviders(api huma.API, d *Deps) {
 				return nil, err
 			}
 			b := in.Body
-			p, err := d.IDP.UpdateProvider(ctx, change(ctx, in.ManagedBy.ManagedBy), in.Provider, idp.ProviderParams{Name: b.Name, Issuer: b.Issuer,
+			p, err := d.IDP.UpdateProvider(ctx, change(ctx, in.ManagedBy.ManagedBy), d.providerID(ctx, in.Provider), idp.ProviderParams{Name: b.Name, Issuer: b.Issuer,
 				ClientID: b.ClientID, Secret: b.ClientSecret, AllowedHDs: b.AllowedHDs, Scopes: b.Scopes, Enabled: b.Enabled, IfVersion: v})
 			if err != nil {
 				return nil, d.fail("update-provider", err)
@@ -155,7 +163,7 @@ func registerProviders(api huma.API, d *Deps) {
 			if err != nil {
 				return nil, err
 			}
-			if err := d.IDP.DeleteProvider(ctx, change(ctx, in.ManagedBy.ManagedBy), in.Provider, v); err != nil {
+			if err := d.IDP.DeleteProvider(ctx, change(ctx, in.ManagedBy.ManagedBy), d.providerID(ctx, in.Provider), v); err != nil {
 				return nil, d.fail("delete-provider", err)
 			}
 			return &struct{}{}, nil

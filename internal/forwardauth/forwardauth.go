@@ -6,6 +6,7 @@ package forwardauth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -65,6 +66,8 @@ func (o *Outpost) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/outpost/auth", o.auth)
 	mux.HandleFunc("GET /outpost/start", o.start)
 	mux.HandleFunc("GET /.porch/callback", o.callback)
+	mux.HandleFunc("GET /outpost/confirm", o.confirm)
+	mux.HandleFunc("GET /.porch/finish", o.finish)
 	mux.HandleFunc("GET /.porch/logout", o.logout)
 }
 
@@ -318,7 +321,7 @@ func (o *Outpost) start(w http.ResponseWriter, r *http.Request) {
 	host := normHost(target.Host)
 	err = o.Store.W().TxNamed(ctx, "forwardauth.code", func(tx *store.Tx) error {
 		return tx.Q.InsertForwardAuthCode(ctx, db.InsertForwardAuthCodeParams{Mac: mac, AppID: app.ID, Host: host, TenantID: tenantID, UserID: sess.UserID,
-			SessionID: sess.SessionID, ReturnTo: returnTo, ExpiresAt: tx.Now.Add(codeTTL).UnixMicro()})
+			SessionID: sess.SessionID, ReturnTo: returnTo, ExpiresAt: tx.Now.Add(codeTTL).UnixMicro(), Origin: target.Scheme + "://" + target.Host})
 	})
 	if err != nil {
 		render(w, http.StatusInternalServerError, "Error", "Please try again.")
@@ -336,23 +339,38 @@ func (o *Outpost) auditDenied(ctx context.Context, sess *session.Principal, app 
 	})
 }
 
-// callback runs on the application host (proxied to Porch): it exchanges the code for a host-only cookie.
+// NonceCookie binds a forward-auth sign-in to the browser that started it on the application host (review L8).
+const NonceCookie = "__Host-porch_fa_nonce"
+
+// callback runs on the application host (proxied to Porch). It sets a host-only nonce cookie in this browser and sends
+// the browser to /outpost/confirm on Porch's origin with the first code and the nonce. A link to this URL made by
+// someone else therefore leads nowhere: confirm only accepts the browser whose Porch session the code belongs to.
 func (o *Outpost) callback(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	code := r.URL.Query().Get("code")
 	if code == "" || len(code) > 128 {
 		render(w, http.StatusBadRequest, "Sign-in failed", "Missing or invalid sign-in code.")
 		return
 	}
-	macs, err := o.Keyring.MACAll(keyring.PurposeToken, []byte("porch/fa-code/v1|"+code))
+	nonce, err := randomToken()
 	if err != nil {
 		render(w, http.StatusInternalServerError, "Error", "Please try again.")
 		return
 	}
-	host := normHost(r.Host)
-	var token string
+	http.SetCookie(w, &http.Cookie{Name: NonceCookie, Value: nonce, Path: "/", MaxAge: int(codeTTL / time.Second), Secure: true, HttpOnly: true,
+		SameSite: http.SameSiteLaxMode})
+	http.Redirect(w, r, o.PublicURL+"/outpost/confirm?"+url.Values{"code": {code}, "n": {nonce}}.Encode(), http.StatusFound)
+}
+
+// take burns a code (any attempt burns it, committed before validation) and returns it if it exists.
+func (o *Outpost) take(ctx context.Context, code string) (db.ForwardAuthCode, bool, error) {
+	if code == "" || len(code) > 128 {
+		return db.ForwardAuthCode{}, false, nil
+	}
+	macs, err := o.Keyring.MACAll(keyring.PurposeToken, []byte("porch/fa-code/v1|"+code))
+	if err != nil {
+		return db.ForwardAuthCode{}, false, err
+	}
 	var fc db.ForwardAuthCode
-	// Any redemption attempt burns the code, even one on the wrong host (committed before validation).
 	found := false
 	err = o.Store.W().TxNamed(ctx, "forwardauth.take_code", func(tx *store.Tx) error {
 		for _, m := range macs {
@@ -364,9 +382,57 @@ func (o *Outpost) callback(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if err == nil && (!found || fc.ExpiresAt <= o.Clock.Now().UnixMicro() || fc.Host != host) {
+	return fc, found && fc.ExpiresAt > o.Clock.Now().UnixMicro(), err
+}
+
+// confirm runs on Porch's origin: the first code is exchanged only by the browser holding the Porch session it was
+// issued to; the result is a second code bound to the nonce cookie set on the application host.
+func (o *Outpost) confirm(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	nonce := r.URL.Query().Get("n")
+	fc, ok, err := o.take(ctx, r.URL.Query().Get("code"))
+	if err != nil || !ok || fc.NonceMac != nil || nonce == "" || len(nonce) > 128 || fc.Origin == "" {
+		render(w, http.StatusBadRequest, "Sign-in failed", "This sign-in link expired or was already used. Open the application again.")
+		return
+	}
+	sess, err := o.Sessions.Authenticate(ctx, session.TokenFromRequest(r))
+	if err != nil || sess.SessionID != fc.SessionID {
+		render(w, http.StatusBadRequest, "Sign-in failed", "This sign-in link was started in another browser. Open the application again.")
+		return
+	}
+	code, err := randomToken()
+	if err != nil {
+		render(w, http.StatusInternalServerError, "Error", "Please try again.")
+		return
+	}
+	mac, err1 := o.Keyring.MAC(keyring.PurposeToken, []byte("porch/fa-code/v1|"+code))
+	nmac, err2 := o.Keyring.MAC(keyring.PurposeToken, []byte("porch/fa-nonce/v1|"+nonce))
+	if err1 != nil || err2 != nil {
+		render(w, http.StatusInternalServerError, "Error", "Please try again.")
+		return
+	}
+	err = o.Store.W().TxNamed(ctx, "forwardauth.confirm", func(tx *store.Tx) error {
+		return tx.Q.InsertForwardAuthCode(ctx, db.InsertForwardAuthCodeParams{Mac: mac, AppID: fc.AppID, Host: fc.Host, TenantID: fc.TenantID,
+			UserID: fc.UserID, SessionID: fc.SessionID, ReturnTo: fc.ReturnTo, ExpiresAt: tx.Now.Add(codeTTL).UnixMicro(), NonceMac: nmac,
+			Origin: fc.Origin})
+	})
+	if err != nil {
+		render(w, http.StatusInternalServerError, "Error", "Please try again.")
+		return
+	}
+	http.Redirect(w, r, fc.Origin+"/.porch/finish?"+url.Values{"code": {code}}.Encode(), http.StatusFound) //nolint:gosec // origin stored at start from a validated target
+}
+
+// finish runs on the application host: the second code plus this browser's nonce cookie yield the host-only
+// forward-auth cookie.
+func (o *Outpost) finish(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	host := normHost(r.Host)
+	fc, ok, err := o.take(ctx, r.URL.Query().Get("code"))
+	if err == nil && (!ok || fc.Host != host || fc.NonceMac == nil || !o.nonceMatches(r, fc.NonceMac)) {
 		err = errBadCode
 	}
+	var token string
 	if err == nil {
 		err = o.Store.W().TxNamed(ctx, "forwardauth.callback", func(tx *store.Tx) error {
 			sess, err := tx.Q.GetSession(ctx, fc.SessionID)
@@ -395,12 +461,30 @@ func (o *Outpost) callback(w http.ResponseWriter, r *http.Request) {
 			return err
 		})
 	}
+	http.SetCookie(w, &http.Cookie{Name: NonceCookie, Value: "", Path: "/", MaxAge: -1, Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	if err != nil {
-		render(w, http.StatusBadRequest, "Sign-in failed", "This sign-in link expired or was already used. Open the application again.")
+		render(w, http.StatusBadRequest, "Sign-in failed", "This sign-in link expired, was already used or was started in another browser. Open the application again.")
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: CookieName, Value: token, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, httpx.SafeReturnTo(fc.ReturnTo, "/"), http.StatusFound)
+}
+
+func (o *Outpost) nonceMatches(r *http.Request, want []byte) bool {
+	c, err := r.Cookie(NonceCookie)
+	if err != nil || c.Value == "" || len(c.Value) > 128 {
+		return false
+	}
+	macs, err := o.Keyring.MACAll(keyring.PurposeToken, []byte("porch/fa-nonce/v1|"+c.Value))
+	if err != nil {
+		return false
+	}
+	for _, m := range macs {
+		if hmac.Equal(m, want) {
+			return true
+		}
+	}
+	return false
 }
 
 const errBadCode = outpostError("invalid code")

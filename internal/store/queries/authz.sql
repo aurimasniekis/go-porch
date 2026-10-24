@@ -156,7 +156,8 @@ SELECT * FROM app_shares WHERE app_id = ? AND target_tenant_id = ?;
 SELECT a.* FROM applications a JOIN app_shares s ON s.app_id = a.id WHERE s.target_tenant_id = ? ORDER BY a.slug;
 
 -- name: InsertForwardAuthCode :exec
-INSERT INTO forward_auth_codes (mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO forward_auth_codes (mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at, nonce_mac, origin)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: TakeForwardAuthCode :one
 UPDATE forward_auth_codes SET used_at = ? WHERE mac = ? AND used_at IS NULL RETURNING *;

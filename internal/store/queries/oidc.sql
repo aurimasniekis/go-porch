@@ -148,3 +148,9 @@ UPDATE refresh_tokens SET state = 'revoked', revoked_at = ?, revoke_reason = ? W
 SELECT tenant_id, audiences FROM oauth_clients
 UNION ALL
 SELECT tenant_id, audiences FROM service_accounts;
+
+-- name: MarkAuthCodeReplayed :exec
+UPDATE auth_codes SET replayed_at = ? WHERE mac = ?;
+
+-- name: GetApplicationIDBySlug :one
+SELECT id FROM applications WHERE tenant_id = ? AND slug = ?;

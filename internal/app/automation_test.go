@@ -78,8 +78,14 @@ func TestAutomationTokens(t *testing.T) {
 	tt := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/tenants/smith/automation-tokens",
 		map[string]any{"name": "apps", "permissions": []string{"app:manage"}, "expires_in_days": 1}, nil))
 	apps := bearer(owner, tt["token"].(string))
+	// It manages apps, but cannot claim host names outside the tenant's domains or open apps to every member: neither
+	// is in its grant (review L9).
 	expect(t, apps(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "wiki", "name": "Wiki", "kind": "forward_auth",
-		"hosts": []string{"wiki.smith.example"}}), http.StatusCreated)
+		"hosts": []string{"wiki.smith.example"}, "access_mode": "assigned"}), http.StatusForbidden)
+	expect(t, apps(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "spa", "name": "SPA", "kind": "oidc",
+		"client": map[string]any{"client_type": "public", "redirect_uris": []string{"https://spa.smith.example/cb"}}}), http.StatusForbidden)
+	expect(t, apps(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "spa", "name": "SPA", "kind": "oidc", "access_mode": "assigned",
+		"client": map[string]any{"client_type": "public", "redirect_uris": []string{"https://spa.smith.example/cb"}}}), http.StatusCreated)
 	expect(t, apps(http.MethodGet, "/api/v1/tenants/smith/roles", nil), http.StatusNotFound)
 	expect(t, apps(http.MethodGet, "/api/v1/tenants/jones/applications", nil), http.StatusNotFound)
 	expect(t, apps(http.MethodGet, "/api/v1/tenants", nil), http.StatusForbidden)

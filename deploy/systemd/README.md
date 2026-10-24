@@ -70,28 +70,27 @@ lock: stop the service, run them as the `porch` user with `PORCH_CONFIG=/etc/por
 - `SystemCallFilter=@system-service` minus the privileged groups, `MemoryDenyWriteExecute=yes` (Porch is a static Go
   binary; no JIT), `RestrictAddressFamilies` limited to unix/inet/netlink.
 
-## LoadCredential (not used yet)
+## LoadCredential (alternative)
 
-The unit reads the KEK from `/etc/porch/kek` with a dedicated user instead of `LoadCredential=` or `DynamicUser=yes`.
-Porch refuses a KEK file whose mode has any group or other bits, and it must be owned by the service user or root.
-For a non-root service, systemd puts each credential on a private tmpfs or ramfs as a **root-owned 0400 file plus a
-POSIX ACL** granting the service user read access. A file with an ACL reports the ACL mask in its group bits (`0440`), so
-Porch would refuse it. On file systems without ACL support, systemd chowns the file to the service user instead; Porch
-accepts that `0400 porch:porch` file. Verified: the 0400 file owned by the service user is accepted. Not verifiable
-here: systemd's ACL path, because the test kernel (Docker Desktop) has no tmpfs ACL support. The ACL behaviour above
-comes from the systemd source and POSIX ACL semantics.
-
-Once Porch accepts credentials (a change outside deploy/: for example, trust a KEK under `$CREDENTIALS_DIRECTORY` and
-ignore the ACL mask there), switch to:
+Instead of a `porch`-owned `/etc/porch/kek`, systemd can hand the KEK to the service as a credential. For a non-root
+service, systemd places credentials in a private directory as root-owned files with a POSIX ACL for the service user;
+the ACL mask shows as group bits (`0440`). Porch accepts that mode **only** for `kek.source: credential`, which reads
+`$CREDENTIALS_DIRECTORY/<kek.file>`; world-readable or group-writable files are still refused.
 
 ```ini
 [Service]
-DynamicUser=yes                      # optional; drop User=/Group=
-LoadCredential=kek:/etc/porch/kek    # source can then be root:root 0400
-Environment=PORCH_KEK_FILE=%d/kek    # %d = $CREDENTIALS_DIRECTORY
+LoadCredential=porch-kek:/etc/credstore/porch.kek   # root:root 0400 on disk
 ```
 
-The source file `/etc/porch/kek` can then be `root:root 0400`, readable by nobody but root and systemd.
+```yaml
+kek:
+  source: credential
+  file: porch-kek          # the credential name, not a path
+```
+
+Remove `AssertPathExists=/etc/porch/kek` from the unit when you switch. Unit-tested in Porch (`TestKEKFromSystemdCredential`:
+0440 accepted in the credentials directory, refused elsewhere, 0444 refused). Not verified under a real systemd with ACL
+support (the test environment's kernel had no tmpfs ACLs).
 
 ## Verified
 

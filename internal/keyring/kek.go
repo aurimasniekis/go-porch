@@ -187,6 +187,21 @@ func LoadKEK(src Source) (*LocalKEK, error) {
 			}
 		}
 		return nil, fmt.Errorf("%w: kek.source is env but PORCH_KEK is not set", ErrNoKEK)
+	case "credential":
+		dir := ""
+		for _, kv := range src.Environ {
+			if v, ok := strings.CutPrefix(kv, "CREDENTIALS_DIRECTORY="); ok {
+				dir = v
+			}
+		}
+		if dir == "" {
+			return nil, fmt.Errorf("%w: kek.source is credential but CREDENTIALS_DIRECTORY is not set (run under systemd with LoadCredential=)", ErrNoKEK)
+		}
+		k, err := readKEKFile(filepath.Join(dir, filepath.Base(src.File)), true)
+		if err != nil {
+			return nil, err
+		}
+		return NewLocalKEK(k)
 	case "file", "":
 	default:
 		return nil, fmt.Errorf("unknown kek source %q", src.Kind)
@@ -198,7 +213,7 @@ func LoadKEK(src Source) (*LocalKEK, error) {
 		}
 		return loadOrCreateDevKEK(src.DataDir)
 	}
-	k, err := readKEKFile(path)
+	k, err := readKEKFile(path, false)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("%w: %s does not exist (generate one with `porch keys init --out %s`)", ErrNoKEK, path, path)
@@ -208,7 +223,9 @@ func LoadKEK(src Source) (*LocalKEK, error) {
 	return NewLocalKEK(k)
 }
 
-func readKEKFile(path string) ([]byte, error) {
+// readKEKFile reads a KEK file that must not be readable by others. systemd credentials (credential=true) live in a
+// private directory and are delivered group-readable (0440, access via ACL), so group read is tolerated there only.
+func readKEKFile(path string, credential bool) ([]byte, error) {
 	f, err := os.Open(path) //nolint:gosec // operator-configured key path
 	if err != nil {
 		return nil, err
@@ -221,7 +238,11 @@ func readKEKFile(path string) ([]byte, error) {
 	if !fi.Mode().IsRegular() {
 		return nil, fmt.Errorf("%w: %s is not a regular file", ErrBadKEKFile, path)
 	}
-	if fi.Mode().Perm()&0o077 != 0 {
+	forbidden := os.FileMode(0o077)
+	if credential {
+		forbidden = 0o037
+	}
+	if fi.Mode().Perm()&forbidden != 0 {
 		return nil, fmt.Errorf("%w: %s has mode %04o; it must not be accessible by group or others (chmod 0400)", ErrBadKEKFile, path, fi.Mode().Perm())
 	}
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok && int(st.Uid) != os.Geteuid() && st.Uid != 0 {
@@ -239,7 +260,7 @@ func loadOrCreateDevKEK(dataDir string) (*LocalKEK, error) {
 		return nil, ErrNoKEK
 	}
 	path := filepath.Join(dataDir, DevKEKFile)
-	k, err := readKEKFile(path)
+	k, err := readKEKFile(path, false)
 	if errors.Is(err, os.ErrNotExist) {
 		if k, err = GenerateKEK(); err != nil {
 			return nil, err

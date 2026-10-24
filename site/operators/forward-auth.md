@@ -17,6 +17,11 @@ sequenceDiagram
   P-->>B: 302 https://whoami.example.com/.porch/callback?code=…
   B->>C: /.porch/callback
   C->>P: (Host: whoami.example.com)
+  P-->>B: nonce cookie (host-only) + 302 to Porch /outpost/confirm
+  B->>P: confirm: same browser, same Porch session?
+  P-->>B: 302 https://whoami.example.com/.porch/finish?code=…
+  B->>C: /.porch/finish (nonce cookie)
+  C->>P: (Host: whoami.example.com)
   P-->>B: Set-Cookie __Host-porch_fa (host-only) + 302 back
   B->>C: GET / (cookie)
   C->>P: /outpost/auth
@@ -52,7 +57,10 @@ whoami.example.com {
 			uri /outpost/auth
 			copy_headers X-Porch-User X-Porch-Email X-Porch-Name X-Porch-Groups X-Porch-Tenant
 		}
-		reverse_proxy whoami:80
+		# The forward-auth cookie is for Porch only; do not hand it to the backend.
+		reverse_proxy whoami:80 {
+			header_up Cookie "__Host-porch_fa=[^;]*(;\s*)?" ""
+		}
 	}
 }
 ```
@@ -77,10 +85,18 @@ http:
 ```
 
 Traefik only forwards `X-Forwarded-*` from trusted IPs; also add a `headers` middleware that removes `X-Porch-*`.
+Traefik has no built-in way to remove one cookie, so the backend receives `__Host-porch_fa`; treat the backend as
+trusted, or put a cookie-filtering plugin in front of it.
 
 ## nginx
 
 ```nginx
+# http {} context: drop Porch's forward-auth cookie from what the backend sees.
+map $http_cookie $porch_backend_cookie {
+    default $http_cookie;
+    "~^(?<pc_a>.*?)__Host-porch_fa=[^;]*(?:;\s*)?(?<pc_b>.*)$" "$pc_a${pc_b}";
+}
+
 location = /_porch_auth {
     internal;
     proxy_pass http://porch:8080/outpost/auth;
@@ -96,12 +112,17 @@ location / {
     auth_request_set $porch_user $upstream_http_x_porch_user;
     error_page 401 = @porch_login;
     proxy_set_header X-Porch-User $porch_user;   # overwrites any client value
+    proxy_set_header Cookie $porch_backend_cookie;
     proxy_pass http://whoami;
 }
 location @porch_login { return 302 https://auth.example.com/outpost/start?rd=$scheme://$http_host$request_uri; }
 ```
 
 nginx `auth_request` cannot relay a redirect, so it maps 401 to the sign-in URL.
+
+The Caddy `header_up Cookie` and nginx `map` rules above were checked against Caddy 2.11.7 and nginx 1.27.3 with the
+cookie first, last, in the middle and absent. The cookie is host-only and `HttpOnly`, but a backend that logs or
+forwards request cookies would otherwise hold a live Porch forward-auth session for that host.
 
 ::: warning
 Porch reads the original request **only** from `X-Forwarded-Proto`, `X-Forwarded-Host` and `X-Forwarded-Uri`, which the

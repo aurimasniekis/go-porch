@@ -307,3 +307,50 @@ func TestForwardAuthIgnoresClientOriginalURL(t *testing.T) {
 		t.Fatalf("X-Original-URL selected another application: %d %s", resp.StatusCode, body)
 	}
 }
+
+// Security review L8: a sign-in link captured by an attacker (the callback with their first code, or the finish link
+// with their second code) never signs another browser into the attacker's identity.
+func TestForwardAuthLoginBoundToBrowser(t *testing.T) {
+	f := faStack(t, apps.AccessAllMembers)
+	f.st.loginAs(f.b, "g-ada") // the attacker
+	stopAt := func(path string) string {
+		c := *f.b.c
+		c.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
+			if req.URL.Path == path {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		}
+		resp, err := c.Get(f.st.origin() + "/outpost/start?rd=" + url.QueryEscape("https://whoami.test/x")) //nolint:noctx // test
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.Header.Get("Location")
+	}
+	for _, link := range []string{stopAt("/.porch/callback"), stopAt("/.porch/finish")} {
+		if link == "" {
+			t.Fatal("no sign-in link")
+		}
+		jar, _ := cookiejar.New(nil)
+		victim := &http.Client{Transport: f.b.c.Transport, Jar: jar}
+		r1, err := victim.Get(link) //nolint:noctx // test
+		if err != nil {
+			t.Fatal(err)
+		}
+		r1.Body.Close()
+		r2, err := victim.Get("https://whoami.test/profile") //nolint:noctx // test
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(r2.Body)
+		r2.Body.Close()
+		if strings.Contains(string(body), "ada@smith.example") {
+			t.Fatalf("victim signed in as the attacker via %s", link)
+		}
+	}
+	// The attacker's own browser still completes the flow.
+	if resp, body := f.get(t, "https://whoami.test/x", nil); resp.StatusCode != http.StatusOK || !strings.Contains(body, "ada@smith.example") {
+		t.Fatalf("own sign-in: %d", resp.StatusCode)
+	}
+}

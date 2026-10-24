@@ -71,7 +71,8 @@ func (a *App) accessLog(next http.Handler) http.Handler {
 func (a *App) PublicHandler() http.Handler {
 	mux := http.NewServeMux()
 	mgmtapi.New(mux, a.APIDeps())
-	(&portal.Handler{IDP: a.IDP, Sessions: a.Sessions, Log: a.Log, Limiter: httpx.NewLimiter(a.Clock, 30, 10)}).Register(mux)
+	(&portal.Handler{IDP: a.IDP, Sessions: a.Sessions, Log: a.Log, Limiter: httpx.NewLimiter(a.Clock, 30, 10),
+		CallbackLimiter: httpx.NewLimiter(a.Clock, 30, 10)}).Register(mux)
 	op := a.OP.Handler()
 	mux.Handle("/.well-known/openid-configuration", op)
 	mux.Handle("/jwks", op)
@@ -111,7 +112,7 @@ func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
 		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP,
-		SAs: a.SAs, Tokens: a.Tokens, Backups: a.Backups, BackupInterval: a.Cfg.Backup.Interval.D(), BackupEnabled: a.Cfg.Backup.Enabled, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
+		SAs: a.SAs, Tokens: a.Tokens, Backups: a.Backups, BackupInterval: a.Cfg.Backup.Interval.D(), TokenUpstreamMaxAge: a.Cfg.Automation.UpstreamMaxAge.D(), BackupEnabled: a.Cfg.Backup.Enabled, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
 		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 

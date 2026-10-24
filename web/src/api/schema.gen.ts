@@ -117,7 +117,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get an identity provider */
+        get: operations["get-identity-provider"];
         put?: never;
         post?: never;
         /** Delete an identity provider and its linked identities (needs a recent sign-in) */
@@ -727,7 +728,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get one share of an application (target tenant ID or slug) */
+        get: operations["get-application-share"];
         put?: never;
         post?: never;
         /** Stop sharing an application */
@@ -762,7 +764,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a role assignment */
+        get: operations["get-assignment"];
         put?: never;
         post?: never;
         /** Remove a role assignment */
@@ -900,7 +903,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a domain rule (by ID or domain) */
+        get: operations["get-domain-rule"];
         put?: never;
         post?: never;
         /** Delete a rule and the memberships derived from it (needs a recent sign-in) */
@@ -1008,7 +1012,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get an invitation */
+        get: operations["get-invite"];
         put?: never;
         post?: never;
         /** Revoke an invitation */
@@ -1043,7 +1048,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a membership (by membership ID or user ID) */
+        get: operations["get-member"];
         put?: never;
         post?: never;
         /** Remove a user from a tenant */
@@ -2332,12 +2338,12 @@ export interface components {
             name: string;
             /**
              * Format: int64
-             * @description Per-tenant absolute lifetime override (0 = installation default).
+             * @description Shortens members' absolute session lifetime (0 = installation default; the strictest tenant wins).
              */
             session_absolute_seconds?: number;
             /**
              * Format: int64
-             * @description Per-tenant idle timeout override (0 = installation default).
+             * @description Shortens members' idle timeout (0 = installation default; the strictest tenant of a member wins).
              */
             session_idle_seconds?: number;
             slug: string;
@@ -2728,6 +2734,39 @@ export interface operations {
             };
         };
     };
+    "get-identity-provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider ID or slug. */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProvider"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "delete-identity-provider": {
         parameters: {
             query?: never;
@@ -2738,6 +2777,7 @@ export interface operations {
                 "If-Match"?: string;
             };
             path: {
+                /** @description Provider ID or slug. */
                 provider: string;
             };
             cookie?: never;
@@ -2772,6 +2812,7 @@ export interface operations {
                 "If-Match"?: string;
             };
             path: {
+                /** @description Provider ID or slug. */
                 provider: string;
             };
             cookie?: never;
@@ -4227,6 +4268,40 @@ export interface operations {
             };
         };
     };
+    "get-application-share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+                target: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppShare"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "unshare-application": {
         parameters: {
             query?: never;
@@ -4316,6 +4391,39 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assignment"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                assignment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4669,6 +4777,40 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DomainRule"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-domain-rule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                rule: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     ETag?: string;
                     [name: string]: unknown;
@@ -5119,6 +5261,39 @@ export interface operations {
             };
         };
     };
+    "get-invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                invite: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "delete-invite": {
         parameters: {
             query?: never;
@@ -5208,6 +5383,41 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                /** @description Membership ID. */
+                member: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     ETag?: string;
                     [name: string]: unknown;

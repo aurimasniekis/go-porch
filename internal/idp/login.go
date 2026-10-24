@@ -254,6 +254,9 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 			if err != nil {
 				return err
 			}
+			if err := tx.Q.SetUserUpstreamConfirmed(ctx, db.SetUserUpstreamConfirmedParams{UpstreamConfirmedAt: domain.NullMicros(&tx.Now), ID: uid}); err != nil {
+				return err
+			}
 			res.UserID, res.Session = uid, &c
 			_, err = svc.audit.Append(ctx, tx, audit.Event{Actor: audit.Actor{Type: audit.ActorUser, ID: uid}, Action: "login.upstream",
 				AuthMethod: method, Target: audit.Target{Type: "session", ID: c.ID}, Details: map[string]any{"provider_id": prov.ID, "hd": claims.HD}})
@@ -285,6 +288,9 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 				return err
 			}
 			res.UserID = uid
+			if err := tx.Q.SetUserUpstreamConfirmed(ctx, db.SetUserUpstreamConfirmedParams{UpstreamConfirmedAt: domain.NullMicros(&tx.Now), ID: uid}); err != nil {
+				return err
+			}
 			_, err = tx.Q.SetSessionUpstreamChecked(ctx, db.SetSessionUpstreamCheckedParams{UpstreamCheckedAt: domain.NullMicros(&tx.Now), ID: cur.SessionID})
 			return err
 		})
@@ -293,7 +299,8 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 		}
 		return res, nil
 	case IntentStepUp:
-		if now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
+		// A provider that does not report auth_time cannot prove a fresh sign-in (review L9).
+		if claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
 			svc.failure(ctx, prov.ID, "stale_auth_time", nil)
 			return Result{}, ErrStaleAuth
 		}
@@ -306,6 +313,9 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 			if err != nil {
 				return err
 			}
+			if err := tx.Q.SetUserUpstreamConfirmed(ctx, db.SetUserUpstreamConfirmedParams{UpstreamConfirmedAt: domain.NullMicros(&tx.Now), ID: uid}); err != nil {
+				return err
+			}
 			res.UserID, res.Session = uid, &c
 			_, err = svc.audit.Append(ctx, tx, audit.Event{Actor: audit.Actor{Type: audit.ActorUser, ID: uid}, Action: "session.step_up",
 				AuthMethod: method, Target: audit.Target{Type: "session", ID: c.ID}})
@@ -316,7 +326,7 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 		}
 		return res, err
 	case IntentLink:
-		if now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
+		if claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
 			svc.failure(ctx, prov.ID, "stale_auth_time", nil)
 			return Result{}, ErrStaleAuth
 		}

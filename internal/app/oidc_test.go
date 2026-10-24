@@ -21,6 +21,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/idp"
 	"github.com/aurimasniekis/go-porch/internal/idp/fakeidp"
+	"github.com/aurimasniekis/go-porch/internal/store"
 	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
@@ -580,5 +581,24 @@ func TestDenyPolicyOnAuthMethodAtRefresh(t *testing.T) {
 	}
 	if code, x := r.token(t, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {tr.RefreshToken}}); code < 400 {
 		t.Fatalf("refresh allowed after deny on the sign-in method: %d %+v", code, x)
+	}
+}
+
+// Security review L9 (code-replay race): a replay that lands while the first exchange is still issuing marks the code;
+// the first exchange then revokes what it issued instead of returning it.
+func TestConcurrentCodeReplayRevokes(t *testing.T) {
+	st, tn, b := oidcStack(t)
+	r := st.newRP(t, tn, "app-race", apps.ClientParams{})
+	v, c := pkce()
+	q := b.authorize(t, r.authParams(c, nil))
+	// Simulate the concurrent replay having marked the code after the first exchange burned it.
+	if err := st.a.Store.W().Tx(context.Background(), func(tx *store.Tx) error {
+		_, err := tx.SQL.ExecContext(context.Background(), "UPDATE auth_codes SET replayed_at = ?", tx.NowMicros())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if code, tr := r.exchange(t, q.Get("code"), v); code != 400 || tr.Error != "invalid_grant" || tr.AccessToken != "" {
+		t.Fatalf("exchange of a replayed code: %d %+v", code, tr)
 	}
 }

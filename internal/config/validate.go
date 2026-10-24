@@ -85,6 +85,9 @@ func (c *Config) Validate() error {
 	v.durationRange("session.setup_absolute", s.SetupAbsolute, time.Minute, 24*time.Hour)
 	v.durationRange("setup.token_ttl", c.Setup.TokenTTL, time.Minute, 7*24*time.Hour)
 	c.validateBackup(v)
+	if d := c.Automation.UpstreamMaxAge.D(); d != 0 {
+		v.durationRange("automation.upstream_max_age", c.Automation.UpstreamMaxAge, time.Hour, 366*24*time.Hour)
+	}
 	if p := c.Events.Pulse; p.Enabled {
 		if !strings.HasPrefix(p.URL, "tls://") && !strings.HasPrefix(p.URL, "nats://") {
 			v.add("events.pulse.url must be a nats:// or tls:// URL")
@@ -165,8 +168,13 @@ func (c *Config) validateKEK(v *validator, prod bool) {
 			v.add("kek.file must be stored outside data_dir in production")
 		}
 	case "env":
+	case "credential":
+		// systemd LoadCredential=: kek.file names the credential inside $CREDENTIALS_DIRECTORY.
+		if c.KEK.File == "" || strings.ContainsAny(c.KEK.File, "/\\") {
+			v.add("kek.file must name the systemd credential (e.g. porch-kek) when kek.source is credential")
+		}
 	default:
-		v.add("kek.source must be file or env")
+		v.add("kek.source must be file, env or credential")
 	}
 }
 

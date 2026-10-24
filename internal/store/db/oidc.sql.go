@@ -118,8 +118,24 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id string) (Applicatio
 	return i, err
 }
 
+const getApplicationIDBySlug = `-- name: GetApplicationIDBySlug :one
+SELECT id FROM applications WHERE tenant_id = ? AND slug = ?
+`
+
+type GetApplicationIDBySlugParams struct {
+	TenantID string
+	Slug     string
+}
+
+func (q *Queries) GetApplicationIDBySlug(ctx context.Context, arg GetApplicationIDBySlugParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getApplicationIDBySlug, arg.TenantID, arg.Slug)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAuthCode = `-- name: GetAuthCode :one
-SELECT mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time, amr, created_at, expires_at, used_at, family_id, access_jti, auth_method FROM auth_codes WHERE mac = ?
+SELECT mac, id, client_id, tenant_id, user_id, session_id, redirect_uri, scopes, nonce, code_challenge, resources, auth_time, amr, created_at, expires_at, used_at, family_id, access_jti, auth_method, replayed_at FROM auth_codes WHERE mac = ?
 `
 
 func (q *Queries) GetAuthCode(ctx context.Context, mac []byte) (AuthCode, error) {
@@ -145,6 +161,7 @@ func (q *Queries) GetAuthCode(ctx context.Context, mac []byte) (AuthCode, error)
 		&i.FamilyID,
 		&i.AccessJti,
 		&i.AuthMethod,
+		&i.ReplayedAt,
 	)
 	return i, err
 }
@@ -845,6 +862,20 @@ func (q *Queries) ListUserRefreshFamilies(ctx context.Context, userID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const markAuthCodeReplayed = `-- name: MarkAuthCodeReplayed :exec
+UPDATE auth_codes SET replayed_at = ? WHERE mac = ?
+`
+
+type MarkAuthCodeReplayedParams struct {
+	ReplayedAt sql.NullInt64
+	Mac        []byte
+}
+
+func (q *Queries) MarkAuthCodeReplayed(ctx context.Context, arg MarkAuthCodeReplayedParams) error {
+	_, err := q.db.ExecContext(ctx, markAuthCodeReplayed, arg.ReplayedAt, arg.Mac)
+	return err
 }
 
 const purgeAuthCodes = `-- name: PurgeAuthCodes :execrows

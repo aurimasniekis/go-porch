@@ -19,12 +19,18 @@ export const IDP = process.env.PORCH_E2E_IDP ?? 'http://127.0.0.1:9999'
  */
 async function settle(page: Page) {
   await page.waitForFunction(() => {
+    // Effective opacity: a dialog can be opaque itself while a transition wrapper around it is still fading in.
+    const opacity = (el: Element | null): number => {
+      let o = 1
+      for (; el; el = el.parentElement) o *= Number(getComputedStyle(el).opacity)
+      return o
+    }
     const fading = [
       ...document.querySelectorAll('[role="dialog"], .mantine-Modal-overlay, .mantine-Notification-root'),
-    ].some((el) => getComputedStyle(el).opacity !== '1')
+    ].some((el) => opacity(el) !== 1)
     const animating = document
       .getAnimations()
-      .some((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity)
+      .some((a) => (a.playState === 'running' || a.pending) && a.effect?.getComputedTiming().iterations !== Infinity)
     return !fading && !animating
   })
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))

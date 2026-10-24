@@ -27,7 +27,6 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/installation"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/localauth"
-	"github.com/aurimasniekis/go-porch/internal/netguard"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
 	"github.com/aurimasniekis/go-porch/internal/oidcop"
 	"github.com/aurimasniekis/go-porch/internal/serviceacct"
@@ -128,7 +127,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 		StepUpWindow: cfg.Session.StepUpWindow.D(), UpstreamRecheck: cfg.Session.UpstreamRecheck.D(), SetupAbsolute: cfg.Session.SetupAbsolute.D(),
 		Clock: a.Clock})
 	a.Setup = setup.New(a.Store, a.Keyring, a.Audit, a.Users, a.Sessions)
-	guard, err := netguard.New(cfg.Outbound.AllowCIDRs)
+	guard, err := NewGuard(cfg)
 	if err != nil {
 		return err
 	}

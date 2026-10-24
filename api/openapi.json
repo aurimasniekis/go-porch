@@ -3461,12 +3461,12 @@
             "type": "string"
           },
           "session_absolute_seconds": {
-            "description": "Per-tenant absolute lifetime override (0 = installation default).",
+            "description": "Shortens members' absolute session lifetime (0 = installation default; the strictest tenant wins).",
             "format": "int64",
             "type": "integer"
           },
           "session_idle_seconds": {
-            "description": "Per-tenant idle timeout override (0 = installation default).",
+            "description": "Shortens members' idle timeout (0 = installation default; the strictest tenant of a member wins).",
             "format": "int64",
             "type": "integer"
           },
@@ -4450,10 +4450,12 @@
         "operationId": "delete-identity-provider",
         "parameters": [
           {
+            "description": "Provider ID or slug.",
             "in": "path",
             "name": "provider",
             "required": true,
             "schema": {
+              "description": "Provider ID or slug.",
               "maxLength": 64,
               "type": "string"
             }
@@ -4510,14 +4512,73 @@
           "identity-providers"
         ]
       },
-      "patch": {
-        "operationId": "update-identity-provider",
+      "get": {
+        "operationId": "get-identity-provider",
         "parameters": [
           {
+            "description": "Provider ID or slug.",
             "in": "path",
             "name": "provider",
             "required": true,
             "schema": {
+              "description": "Provider ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityProvider"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get an identity provider",
+        "tags": [
+          "identity-providers"
+        ]
+      },
+      "patch": {
+        "operationId": "update-identity-provider",
+        "parameters": [
+          {
+            "description": "Provider ID or slug.",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "description": "Provider ID or slug.",
               "maxLength": 64,
               "type": "string"
             }
@@ -6969,6 +7030,74 @@
         "tags": [
           "applications"
         ]
+      },
+      "get": {
+        "operationId": "get-application-share",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppShare"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get one share of an application (target tenant ID or slug)",
+        "tags": [
+          "applications"
+        ]
       }
     },
     "/tenants/{tenant}/assignments": {
@@ -7180,6 +7309,65 @@
           }
         ],
         "summary": "Remove a role assignment",
+        "tags": [
+          "authz"
+        ]
+      },
+      "get": {
+        "operationId": "get-assignment",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assignment",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Assignment"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get a role assignment",
         "tags": [
           "authz"
         ]
@@ -7907,6 +8095,72 @@
           }
         ],
         "summary": "Delete a rule and the memberships derived from it (needs a recent sign-in)",
+        "tags": [
+          "enrollment"
+        ]
+      },
+      "get": {
+        "operationId": "get-domain-rule",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule",
+            "required": true,
+            "schema": {
+              "maxLength": 253,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainRule"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get a domain rule (by ID or domain)",
         "tags": [
           "enrollment"
         ]
@@ -8741,6 +8995,65 @@
         "tags": [
           "enrollment"
         ]
+      },
+      "get": {
+        "operationId": "get-invite",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invite"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get an invitation",
+        "tags": [
+          "enrollment"
+        ]
       }
     },
     "/tenants/{tenant}/members": {
@@ -8975,6 +9288,74 @@
           }
         ],
         "summary": "Remove a user from a tenant",
+        "tags": [
+          "members"
+        ]
+      },
+      "get": {
+        "operationId": "get-member",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Membership ID.",
+            "in": "path",
+            "name": "member",
+            "required": true,
+            "schema": {
+              "description": "Membership ID.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Get a membership (by membership ID or user ID)",
         "tags": [
           "members"
         ]

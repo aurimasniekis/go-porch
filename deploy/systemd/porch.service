@@ -6,9 +6,8 @@
 #   /etc/porch/kek                KEK, porch:porch 0400 (`porch keys init --out /etc/porch/kek`); never inside data_dir
 #   /var/lib/porch                data dir, porch:porch 0700 (StateDirectory)
 #
-# The KEK is read directly from /etc/porch/kek by a dedicated user. LoadCredential= is not used yet: on ACL-capable
-# credential filesystems systemd hands a non-root service a root-owned 0400 file plus a user ACL, whose mask shows as
-# group bits (0440), and Porch refuses a KEK with group bits (README.md, "LoadCredential").
+# The KEK is read directly from /etc/porch/kek by a dedicated user. To use LoadCredential= instead, see README.md
+# ("LoadCredential"): kek.source: credential accepts systemd's group-readable credential files.
 # Check the sandbox on the target host with: systemd-analyze security porch.service
 
 [Unit]

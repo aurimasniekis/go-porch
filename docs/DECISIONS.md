@@ -334,6 +334,9 @@ model changes are made by installation operators through services and tests (ADR
 - Unauthenticated GET/HEAD → 302 to `<porch>/outpost/start?rd=<original>`; other methods and JSON requests → 401.
 - `rd` must be an absolute https (http only in development) URL on a host registered to an enabled forward-auth app.
 - The one-time code (60 s) is bound to the host and is burned by any redemption attempt, even on the wrong host.
+  Since the M7 review it is also bound to the browser: `/.porch/callback` sets a host-only nonce cookie and sends the
+  browser to `/outpost/confirm`, which accepts only the Porch session the code was issued to and issues a second code
+  bound to the nonce, redeemed at `/.porch/finish` (no forward-auth login CSRF).
 - The host-only `__Host-porch_fa` cookie lives at most `forward_auth.session_ttl` (12 h) and never longer than the Porch
   session; every request re-checks the Porch session (revocation, epochs, hourly upstream recheck) and `app:access`.
 - Identity headers default to `X-Porch-User` (sub), `X-Porch-Email`, `X-Porch-Name`, `X-Porch-Groups`, `X-Porch-Tenant`;
@@ -488,6 +491,10 @@ not verified against a running pulsed (creds issuance).
 - RP-initiated logout changes state only when the `id_token_hint` names the user of the current Porch session
   (otherwise it only redirects: an RP without hints no longer ends the Porch session).
 - Restore revokes every automation token and retires every non-active signing key.
-**Residual (deferred).** Automation tokens of federated users do not re-check the upstream account hourly (they stop
-when the user is disabled or loses membership); forward-auth login CSRF; see BACKLOG.
+- Follow-up fixes: automation tokens of users with external identities work only while the identity provider confirmed
+  the user within `automation.upstream_max_age` (default 30 days); forward-auth sign-in is bound to the browser
+  (ADR-0036); a replayed authorization code revokes tokens even if the first exchange is still in flight; the login
+  callback is throttled; a provider that omits `auth_time` never satisfies step-up or linking; delegated application
+  managers register forward-auth hosts only inside the tenant's domain-rule domains and need `app:access` to open an
+  application to all members.
 

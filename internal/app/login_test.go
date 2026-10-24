@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/aurimasniekis/go-porch/internal/app"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
 	"github.com/aurimasniekis/go-porch/internal/domain"
@@ -549,3 +550,79 @@ func identityParams(name, email string) identityCreate {
 
 var _ = store.ErrNotFound
 var _ = session.CookieName
+
+// Security review L3: automation tokens of a Google user stop working when Google has not confirmed the user for
+// longer than automation.upstream_max_age, and work again after the next sign-in.
+func TestFederatedTokenNeedsUpstreamConfirmation(t *testing.T) {
+	st := newStack(t)
+	tn := st.setupGoogle(nil, idp.RuleParams{Domain: "smith.example", EvidenceKind: idp.EvidenceWorkspaceHD, Mode: idp.ModeJIT})
+	st.google.AddUser(workspaceUser("g-ada", "ada@smith.example", "smith.example"))
+	ada := st.browser()
+	st.loginAs(ada, "g-ada")
+	adaID := ada.me()["user_id"].(string)
+	// Make Ada a tenant administrator so she can issue a tenant token.
+	sc, _ := st.a.Tenants.SystemScope(context.Background(), tn.ID)
+	roles, _ := st.a.Authz.Roles(context.Background(), sc)
+	var admin string
+	for _, r := range roles {
+		if r.Slug == "admin" {
+			admin = r.ID
+		}
+	}
+	if _, err := st.a.Authz.Assign(context.Background(), domain.SystemChange, sc, authz.AssignmentParams{SubjectType: "user", SubjectID: adaID,
+		RoleID: admin, ScopeType: "tenant"}); err != nil {
+		t.Fatal(err)
+	}
+	code, tok := ada.api(http.MethodPost, "/api/v1/tenants/"+tn.Slug+"/automation-tokens", map[string]any{"name": "tf", "permissions": []string{"group:manage"},
+		"expires_in_days": 90})
+	if code != http.StatusCreated {
+		t.Fatalf("token %d %v", code, tok)
+	}
+	call := func() int {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, st.origin()+"/api/v1/tenants/"+tn.Slug+"/groups", nil)
+		req.Header.Set("Authorization", "Bearer "+tok["token"].(string))
+		resp, err := st.browser().c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	if c := call(); c != http.StatusOK {
+		t.Fatalf("fresh token %d", c)
+	}
+	st.clk.Advance(31 * 24 * time.Hour)
+	if c := call(); c != http.StatusUnauthorized {
+		t.Fatalf("token without upstream confirmation for 31 days: %d", c)
+	}
+	st.loginAs(st.browser(), "g-ada")
+	if c := call(); c != http.StatusOK {
+		t.Fatalf("token after a new Google sign-in: %d", c)
+	}
+}
+
+// Security review L9: anonymous callback floods are throttled before they reach the audit log.
+func TestLoginCallbackThrottled(t *testing.T) {
+	st := newStack(t)
+	st.setupGoogle(nil)
+	b := st.browser()
+	throttled := 0
+	for range 100 {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, st.origin()+"/login/google/callback?state=x&code=y", nil)
+		resp, err := b.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests {
+			throttled++
+		}
+	}
+	n, err := st.a.Store.R().CountAuditEvents(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if throttled == 0 || n > 60 {
+		t.Fatalf("callback flood: %d throttled, %d audit events", throttled, n)
+	}
+}

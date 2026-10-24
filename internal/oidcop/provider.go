@@ -339,23 +339,18 @@ func (p *Provider) CodeExchange(ctx context.Context, r *op.ClientRequest[oidc.Ac
 		if n == 1 {
 			return nil
 		}
-		// Replay (RFC 6749 §4.1.2): revoke whatever the first exchange issued.
+		// Replay (RFC 6749 §4.1.2): revoke whatever the first exchange issued. If it is still issuing, the mark makes it
+		// revoke its own tokens when it records them.
 		used = true
 		cur, err := tx.Q.GetAuthCode(ctx, code.Mac)
 		if err != nil {
 			return err
 		}
-		if cur.FamilyID.Valid {
-			if _, err := tx.Q.RevokeRefreshFamily(ctx, db.RevokeRefreshFamilyParams{RevokedAt: sqlMicros(tx.Now), RevokeReason: domain.NullStr("code_replay"),
-				FamilyID: cur.FamilyID.String}); err != nil {
-				return err
-			}
+		if err := tx.Q.MarkAuthCodeReplayed(ctx, db.MarkAuthCodeReplayedParams{ReplayedAt: sqlMicros(tx.Now), Mac: code.Mac}); err != nil {
+			return err
 		}
-		if cur.AccessJti.Valid {
-			if err := tx.Q.RevokeAccessToken(ctx, db.RevokeAccessTokenParams{Jti: cur.AccessJti.String, ExpiresAt: tx.Now.Add(time.Hour).UnixMicro(),
-				Reason: "code_replay"}); err != nil {
-				return err
-			}
+		if err := revokeIssued(ctx, tx, cur.FamilyID.String, cur.AccessJti.String); err != nil {
+			return err
 		}
 		_, err = p.Audit.Append(ctx, tx, audit.Event{Actor: audit.Actor{Type: audit.ActorClient, ID: c.row.ID}, TenantID: c.row.TenantID,
 			Action: "oidc.code_replay", Outcome: audit.OutcomeDenied, ReasonCode: "code_reused", Target: audit.Target{Type: "user", ID: cur.UserID}})
@@ -391,15 +386,45 @@ func (p *Provider) CodeExchange(ctx context.Context, r *op.ClientRequest[oidc.Ac
 	if err != nil {
 		return nil, err
 	}
-	_ = p.Store.W().TxNamed(ctx, "oidc.code_tokens", func(tx *store.Tx) error {
-		return tx.Q.SetAuthCodeTokens(ctx, db.SetAuthCodeTokensParams{FamilyID: domain.NullStr(family), AccessJti: domain.NullStr(jti), Mac: code.Mac})
+	replayed := false
+	err = p.Store.W().TxNamed(ctx, "oidc.code_tokens", func(tx *store.Tx) error {
+		if err := tx.Q.SetAuthCodeTokens(ctx, db.SetAuthCodeTokensParams{FamilyID: domain.NullStr(family), AccessJti: domain.NullStr(jti), Mac: code.Mac}); err != nil {
+			return err
+		}
+		cur, err := tx.Q.GetAuthCode(ctx, code.Mac)
+		if err != nil {
+			return err
+		}
+		if replayed = cur.ReplayedAt.Valid; replayed {
+			return revokeIssued(ctx, tx, family, jti)
+		}
+		return nil
 	})
+	if err != nil {
+		return nil, oidc.ErrServerError().WithParent(err)
+	}
+	if replayed {
+		return nil, oidc.ErrInvalidGrant().WithDescription("authorization code was replayed; tokens issued from it were revoked")
+	}
 	return op.NewResponse(resp), nil
 }
 
+// revokeIssued revokes a refresh-token family and an access token (either may be empty).
+func revokeIssued(ctx context.Context, tx *store.Tx, family, jti string) error {
+	if family != "" {
+		if _, err := tx.Q.RevokeRefreshFamily(ctx, db.RevokeRefreshFamilyParams{RevokedAt: sqlMicros(tx.Now), RevokeReason: domain.NullStr("code_replay"),
+			FamilyID: family}); err != nil {
+			return err
+		}
+	}
+	if jti != "" {
+		return tx.Q.RevokeAccessToken(ctx, db.RevokeAccessTokenParams{Jti: jti, ExpiresAt: tx.Now.Add(time.Hour).UnixMicro(), Reason: "code_replay"})
+	}
+	return nil
+}
+
 // checkStillAllowed re-runs the access decision at every token issuance (app:access on the client's application). Token
-// requests come from the application's server, so there is no browser context: conditions that depend on the network
-// evaluate against an empty client address and fail closed.
+// requests come from the application's server: network conditions see that server's address, not the user's.
 func (p *Provider) checkStillAllowed(ctx context.Context, c *client, g grant) error {
 	u, err := p.Store.R().GetUser(ctx, g.userID)
 	if err != nil || u.Status != "active" {

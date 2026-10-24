@@ -293,6 +293,18 @@ func validLaunchURL(s string) bool {
 	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != ""
 }
 
+// ref resolves an application reference (ID or slug) within the tenant; unknown references are returned unchanged
+// so the caller reports "not found".
+func (svc *Service) ref(ctx context.Context, sc tenancy.Scope, ref string) string {
+	if ids.Valid(ids.Application, ref) {
+		return ref
+	}
+	if id, err := svc.s.R().GetApplicationIDBySlug(ctx, db.GetApplicationIDBySlugParams{TenantID: sc.TenantID(), Slug: ref}); err == nil {
+		return id
+	}
+	return ref
+}
+
 // ValidAudience reports whether a is an absolute URI or a short identifier usable as an access-token audience.
 func ValidAudience(a string) bool {
 	u, err := url.Parse(a)
@@ -450,6 +462,7 @@ func nonNil(s []string) []string {
 
 // Get returns an application of the scoped tenant with its client (if any).
 func (svc *Service) Get(ctx context.Context, sc tenancy.Scope, id string) (Application, *Client, error) {
+	id = svc.ref(ctx, sc, id)
 	if !sc.Valid() {
 		return Application{}, nil, tenancy.ErrNoAccess
 	}
@@ -508,6 +521,7 @@ type UpdateParams struct {
 
 // Update modifies an application and its client.
 func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, p UpdateParams) (Application, *Client, error) {
+	id = svc.ref(ctx, sc, id)
 	if !sc.Valid() {
 		return Application{}, nil, tenancy.ErrNoAccess
 	}
@@ -629,6 +643,7 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Sco
 
 // RotateSecret issues a new client secret (shown once); the old one stops working immediately.
 func (svc *Service) RotateSecret(ctx context.Context, ch domain.Change, sc tenancy.Scope, appID string) (string, error) {
+	appID = svc.ref(ctx, sc, appID)
 	if !sc.Valid() {
 		return "", tenancy.ErrNoAccess
 	}
@@ -657,6 +672,7 @@ func (svc *Service) RotateSecret(ctx context.Context, ch domain.Change, sc tenan
 
 // Delete removes an application, its client and every token issued to it.
 func (svc *Service) Delete(ctx context.Context, ch domain.Change, sc tenancy.Scope, id string, ifVersion int64) error {
+	id = svc.ref(ctx, sc, id)
 	if !sc.Valid() {
 		return tenancy.ErrNoAccess
 	}
@@ -775,6 +791,7 @@ type Share struct {
 
 // Shares lists the tenants an application is shared with.
 func (svc *Service) Shares(ctx context.Context, sc tenancy.Scope, appID string) ([]Share, error) {
+	appID = svc.ref(ctx, sc, appID)
 	if !sc.Valid() {
 		return nil, tenancy.ErrNoAccess
 	}
@@ -791,6 +808,7 @@ func (svc *Service) Shares(ctx context.Context, sc tenancy.Scope, appID string) 
 
 // ShareWith lets members of target use the application (subject to the app's access mode).
 func (svc *Service) ShareWith(ctx context.Context, ch domain.Change, sc tenancy.Scope, appID, targetTenantID string) error {
+	appID = svc.ref(ctx, sc, appID)
 	if !sc.Valid() {
 		return tenancy.ErrNoAccess
 	}
@@ -824,6 +842,7 @@ func (svc *Service) ShareWith(ctx context.Context, ch domain.Change, sc tenancy.
 
 // Unshare removes a share.
 func (svc *Service) Unshare(ctx context.Context, ch domain.Change, sc tenancy.Scope, appID, targetTenantID string) error {
+	appID = svc.ref(ctx, sc, appID)
 	if !sc.Valid() {
 		return tenancy.ErrNoAccess
 	}

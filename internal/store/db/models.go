@@ -93,6 +93,7 @@ type AuthCode struct {
 	FamilyID      sql.NullString
 	AccessJti     sql.NullString
 	AuthMethod    string
+	ReplayedAt    sql.NullInt64
 }
 
 type AuthRequest struct {
@@ -214,6 +215,8 @@ type ForwardAuthCode struct {
 	ReturnTo  string
 	ExpiresAt int64
 	UsedAt    sql.NullInt64
+	NonceMac  []byte
+	Origin    string
 }
 
 type ForwardAuthSession struct {
@@ -623,19 +626,20 @@ type ThrottleBucket struct {
 }
 
 type User struct {
-	ID            string
-	PublicID      string
-	DisplayName   string
-	PrimaryEmail  sql.NullString
-	Status        string
-	BackupHandle  sql.NullString
-	SecurityEpoch int64
-	LastLoginAt   sql.NullInt64
-	Version       int64
-	ManagedBy     string
-	LastChangedBy sql.NullString
-	CreatedAt     int64
-	UpdatedAt     int64
+	ID                  string
+	PublicID            string
+	DisplayName         string
+	PrimaryEmail        sql.NullString
+	Status              string
+	BackupHandle        sql.NullString
+	SecurityEpoch       int64
+	LastLoginAt         sql.NullInt64
+	Version             int64
+	ManagedBy           string
+	LastChangedBy       sql.NullString
+	CreatedAt           int64
+	UpdatedAt           int64
+	UpstreamConfirmedAt sql.NullInt64
 }
 
 type UserEmail struct {

@@ -19,8 +19,8 @@ type Tenant struct {
 	Slug                   string    `json:"slug"`
 	Name                   string    `json:"name"`
 	Status                 string    `json:"status" enum:"active,disabled"`
-	SessionIdleSeconds     int64     `json:"session_idle_seconds,omitempty" doc:"Per-tenant idle timeout override (0 = installation default)."`
-	SessionAbsoluteSeconds int64     `json:"session_absolute_seconds,omitempty" doc:"Per-tenant absolute lifetime override (0 = installation default)."`
+	SessionIdleSeconds     int64     `json:"session_idle_seconds,omitempty" doc:"Shortens members' idle timeout (0 = installation default; the strictest tenant of a member wins)."`
+	SessionAbsoluteSeconds int64     `json:"session_absolute_seconds,omitempty" doc:"Shortens members' absolute session lifetime (0 = installation default; the strictest tenant wins)."`
 	Version                int64     `json:"version"`
 	ManagedBy              string    `json:"managed_by"`
 	LastChangedBy          string    `json:"last_changed_by,omitempty"`

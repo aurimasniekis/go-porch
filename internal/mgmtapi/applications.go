@@ -3,12 +3,16 @@ package mgmtapi
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/authz"
+	"github.com/aurimasniekis/go-porch/internal/identity"
+	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
 // Disclosure controls optional claims released to an application.
@@ -269,6 +273,13 @@ func registerApplications(api huma.API, d *Deps) {
 					return nil, err
 				}
 			}
+			mode := b.AccessMode
+			if mode == "" {
+				mode = apps.AccessAllMembers
+			}
+			if err := d.mayOpenApp(ctx, sc, b.Hosts, mode); err != nil {
+				return nil, err
+			}
 			// A confidential client secret is a persistent credential: issue it only after a recent sign-in (review L5).
 			if b.Kind == apps.KindOIDC && (b.Client == nil || b.Client.ClientType != "public") {
 				if err := d.stepUp(ctx); err != nil {
@@ -337,6 +348,13 @@ func registerApplications(api huma.API, d *Deps) {
 					return nil, err
 				}
 			}
+			mode := ""
+			if b.AccessMode != nil {
+				mode = *b.AccessMode
+			}
+			if err := d.mayOpenApp(ctx, sc, b.Hosts, mode); err != nil {
+				return nil, err
+			}
 			var disc *apps.Disclosure
 			if b.Disclosure != nil {
 				x := apps.Disclosure(*b.Disclosure)
@@ -395,4 +413,34 @@ func registerApplications(api huma.API, d *Deps) {
 			}
 			return &struct{}{}, nil
 		})
+}
+
+// mayOpenApp limits delegated application managers (review L9): forward-auth hosts must lie in a domain the tenant
+// owns through its domain rules (host names are unique installation-wide, so claiming one is an installation matter),
+// and opening an application to all members confers app:access, which the caller must hold.
+func (d *Deps) mayOpenApp(ctx context.Context, sc tenancy.Scope, hosts []string, mode string) error {
+	p := Principal(ctx)
+	operator := sc.Via() == tenancy.ViaOperator && (p.Token == nil || p.Token.Role == identity.RoleAdmin)
+	if len(hosts) > 0 && !operator {
+		rules, err := d.IDP.Rules(ctx, sc)
+		if err != nil {
+			return d.fail("hosts", err)
+		}
+		for _, h := range hosts {
+			h = strings.ToLower(strings.TrimSpace(h))
+			ok := false
+			for _, r := range rules {
+				if h == r.Domain || strings.HasSuffix(h, "."+r.Domain) {
+					ok = true
+				}
+			}
+			if !ok {
+				return problem(http.StatusForbidden, apperr.CodeForbidden, "hosts: "+h+" is not in a domain of this tenant; ask an installation operator", nil)
+			}
+		}
+	}
+	if mode == apps.AccessAllMembers {
+		return d.mayGrant(ctx, sc, []string{authz.PermAppAccess})
+	}
+	return nil
 }

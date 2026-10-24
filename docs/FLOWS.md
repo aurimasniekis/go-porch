@@ -152,10 +152,15 @@ sequenceDiagram
     P-->>C: 302 https://auth.example.com/outpost/start?rd=https://app.example.com/
     C-->>B: 302
     B->>P: start: login (§1), authz app:access
-    P-->>B: 302 https://app.example.com/.porch/callback?code=… (one-time, 60 s, bound to host)
-    B->>C: GET /.porch/callback?code
+    P-->>B: 302 https://app.example.com/.porch/callback?code=c1 (one-time, 60 s, bound to host + Porch session)
+    B->>C: GET /.porch/callback?code=c1
     C->>P: proxied to Porch
-    P->>P: exchange code (host must match), set host-only cookie, 302 to original path
+    P-->>B: Set-Cookie __Host-porch_fa_nonce=n (app host) + 302 https://auth.example.com/outpost/confirm?code=c1&n=n
+    B->>P: confirm (Porch session cookie must be the one c1 was issued to)
+    P-->>B: 302 https://app.example.com/.porch/finish?code=c2 (c2 bound to n)
+    B->>C: GET /.porch/finish?code=c2 (nonce cookie)
+    C->>P: proxied to Porch
+    P->>P: c2 host + nonce must match, set host-only cookie, 302 to original path
   else valid
     P->>P: re-check app:access (authz epoch cache)
     P-->>C: 200 + X-Porch-User, X-Porch-Email, X-Porch-Groups (configured)

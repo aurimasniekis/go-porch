@@ -74,3 +74,6 @@ SELECT count(*) FROM users;
 -- name: CountActiveOwnersExcept :one
 SELECT count(*) FROM installation_role_assignments a JOIN users u ON u.id = a.user_id
 WHERE a.role = 'owner' AND u.status = 'active' AND u.id != ?;
+
+-- name: SetUserUpstreamConfirmed :exec
+UPDATE users SET upstream_confirmed_at = ? WHERE id = ?;

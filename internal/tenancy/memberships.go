@@ -179,6 +179,28 @@ func (svc *Service) RemoveMember(ctx context.Context, ch domain.Change, sc Scope
 	})
 }
 
+// GetMember returns one membership by membership ID or user ID, with the user's name and email.
+func (svc *Service) GetMember(ctx context.Context, sc Scope, ref string) (Membership, error) {
+	if !sc.Valid() {
+		return Membership{}, ErrNoAccess
+	}
+	r, err := svc.s.R().GetMembership(ctx, db.GetMembershipParams{TenantID: sc.tenantID, ID: ref})
+	if errors.Is(err, sql.ErrNoRows) {
+		r, err = svc.s.R().GetMembershipByUser(ctx, db.GetMembershipByUserParams{TenantID: sc.tenantID, UserID: ref})
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return Membership{}, ErrMemberNotFound
+	}
+	if err != nil {
+		return Membership{}, err
+	}
+	m := memberFromRow(r)
+	if u, err := svc.s.R().GetUser(ctx, r.UserID); err == nil {
+		m.DisplayName, m.Email = u.DisplayName, u.PrimaryEmail.String
+	}
+	return m, nil
+}
+
 // UserMemberships lists the tenants a user belongs to (any status).
 func (svc *Service) UserMemberships(ctx context.Context, userID string) ([]db.ListUserMembershipsRow, error) {
 	return svc.s.R().ListUserMemberships(ctx, userID)

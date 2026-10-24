@@ -53,6 +53,9 @@ whoami.localhost {
 			uri /outpost/auth
 			copy_headers X-Porch-User X-Porch-Email X-Porch-Name X-Porch-Groups X-Porch-Tenant
 		}
-		reverse_proxy whoami:8000
+		# Porch's forward-auth cookie is for Porch only; do not hand it to the backend.
+		reverse_proxy whoami:8000 {
+			header_up Cookie "__Host-porch_fa=[^;]*(;\s*)?" ""
+		}
 	}
 }

@@ -63,6 +63,7 @@ type Config struct {
 	BackupLogin BackupLoginConfig `yaml:"backup_login"`
 	Backup      BackupConfig      `yaml:"backup"`
 	Events      EventsConfig      `yaml:"events"`
+	Automation  AutomationConfig  `yaml:"automation"`
 	Outbound    OutboundConfig    `yaml:"outbound"`
 	Authz       AuthzConfig       `yaml:"authz"`
 	Forward     ForwardAuthConfig `yaml:"forward_auth"`
@@ -80,6 +81,13 @@ type ForwardAuthConfig struct {
 	TrustedPeers []string `yaml:"trusted_peers"`
 	// SessionTTL bounds a per-application forward-auth session (it also never outlives the Porch session).
 	SessionTTL Duration `yaml:"session_ttl"`
+}
+
+// AutomationConfig configures automation tokens (ADR-0041).
+type AutomationConfig struct {
+	// UpstreamMaxAge: tokens of users with external identities work only while the identity provider confirmed the
+	// user (sign-in, hourly recheck or step-up) within this window; 0 disables the check.
+	UpstreamMaxAge Duration `yaml:"upstream_max_age"`
 }
 
 // EventsConfig configures domain-event delivery (ADR-0019).
@@ -151,11 +159,14 @@ type BackupLoginConfig struct {
 type OutboundConfig struct {
 	// AllowCIDRs are internal destinations Porch may connect to (e.g. a LAN identity provider or MinIO).
 	AllowCIDRs []string `yaml:"allow_cidrs"`
+	// CAFile adds PEM CA certificates trusted for outbound TLS (identity providers, S3), on top of the system roots.
+	CAFile string `yaml:"ca_file"`
 }
 
 // KEKConfig locates the master key-encryption key (ADR-0003).
 type KEKConfig struct {
-	// Source is "file" (default) or "env" (reads base64 from PORCH_KEK; discouraged).
+	// Source is "file" (default), "credential" (systemd LoadCredential=: File names the credential) or "env"
+	// (reads base64 from PORCH_KEK; discouraged).
 	Source string `yaml:"source"`
 	File   string `yaml:"file"`
 }

@@ -108,8 +108,9 @@ function SettingsForm({
             Session limits
           </Title>
           <Text size="sm" c="dimmed">
-            Override how long sessions in this tenant last. 0 uses the installation default. Not enforced yet: sessions
-            currently always use the installation defaults.
+            Shorten how long members' sessions last. 0 uses the installation default. A session belongs to the person,
+            not the tenant, so members of several tenants get the strictest limits; overrides never lengthen sessions.
+            New limits apply from the next sign-in.
           </Text>
           <Group grow align="flex-start" wrap="wrap">
             <NumberInput

@@ -141,7 +141,7 @@ func (q *Queries) GetSetupTokenByMAC(ctx context.Context, mac []byte) (SetupToke
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at FROM users WHERE id = ?
+SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at, upstream_confirmed_at FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
@@ -161,12 +161,13 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 		&i.LastChangedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UpstreamConfirmedAt,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
-SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at FROM users WHERE public_id = ?
+SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at, upstream_confirmed_at FROM users WHERE public_id = ?
 `
 
 func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User, error) {
@@ -186,6 +187,7 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID string) (User,
 		&i.LastChangedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UpstreamConfirmedAt,
 	)
 	return i, err
 }
@@ -399,7 +401,7 @@ func (q *Queries) ListUserEmails(ctx context.Context, userID string) ([]UserEmai
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at FROM users
+SELECT id, public_id, display_name, primary_email, status, backup_handle, security_epoch, last_login_at, version, managed_by, last_changed_by, created_at, updated_at, upstream_confirmed_at FROM users
 WHERE id > ?1
   AND (?2 IS NULL OR primary_email = ?2)
   AND (?3 IS NULL OR status = ?3)
@@ -444,6 +446,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 			&i.LastChangedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UpstreamConfirmedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -456,6 +459,20 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserUpstreamConfirmed = `-- name: SetUserUpstreamConfirmed :exec
+UPDATE users SET upstream_confirmed_at = ? WHERE id = ?
+`
+
+type SetUserUpstreamConfirmedParams struct {
+	UpstreamConfirmedAt sql.NullInt64
+	ID                  string
+}
+
+func (q *Queries) SetUserUpstreamConfirmed(ctx context.Context, arg SetUserUpstreamConfirmedParams) error {
+	_, err := q.db.ExecContext(ctx, setUserUpstreamConfirmed, arg.UpstreamConfirmedAt, arg.ID)
+	return err
 }
 
 const touchUserLogin = `-- name: TouchUserLogin :exec

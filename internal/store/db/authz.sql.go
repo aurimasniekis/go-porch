@@ -510,7 +510,8 @@ func (q *Queries) InsertAssignment(ctx context.Context, arg InsertAssignmentPara
 }
 
 const insertForwardAuthCode = `-- name: InsertForwardAuthCode :exec
-INSERT INTO forward_auth_codes (mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO forward_auth_codes (mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at, nonce_mac, origin)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertForwardAuthCodeParams struct {
@@ -522,6 +523,8 @@ type InsertForwardAuthCodeParams struct {
 	SessionID string
 	ReturnTo  string
 	ExpiresAt int64
+	NonceMac  []byte
+	Origin    string
 }
 
 func (q *Queries) InsertForwardAuthCode(ctx context.Context, arg InsertForwardAuthCodeParams) error {
@@ -534,6 +537,8 @@ func (q *Queries) InsertForwardAuthCode(ctx context.Context, arg InsertForwardAu
 		arg.SessionID,
 		arg.ReturnTo,
 		arg.ExpiresAt,
+		arg.NonceMac,
+		arg.Origin,
 	)
 	return err
 }
@@ -1303,7 +1308,7 @@ func (q *Queries) SetApplicationAccess(ctx context.Context, arg SetApplicationAc
 }
 
 const takeForwardAuthCode = `-- name: TakeForwardAuthCode :one
-UPDATE forward_auth_codes SET used_at = ? WHERE mac = ? AND used_at IS NULL RETURNING mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at, used_at
+UPDATE forward_auth_codes SET used_at = ? WHERE mac = ? AND used_at IS NULL RETURNING mac, app_id, host, tenant_id, user_id, session_id, return_to, expires_at, used_at, nonce_mac, origin
 `
 
 type TakeForwardAuthCodeParams struct {
@@ -1324,6 +1329,8 @@ func (q *Queries) TakeForwardAuthCode(ctx context.Context, arg TakeForwardAuthCo
 		&i.ReturnTo,
 		&i.ExpiresAt,
 		&i.UsedAt,
+		&i.NonceMac,
+		&i.Origin,
 	)
 	return i, err
 }

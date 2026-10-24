@@ -2,7 +2,7 @@
 
 Independent read-only review of the whole repository (an agent that did not write the code), with repro tests run
 against in-process stacks. Findings, severity as reported, and their status after the fix pass. Regression tests are
-named in the last column; "deferred" items are in `docs/BACKLOG.md`.
+named in the last column. All findings are fixed.
 
 | ID | Severity | Finding | Status | Evidence |
 |---|---|---|---|---|
@@ -22,16 +22,16 @@ named in the last column; "deferred" items are in `docs/BACKLOG.md`.
 | M11 | medium | Deny policies on `principal.auth_method` failed open at code exchange/refresh | fixed: the sign-in method is stored with codes and refresh tokens | `TestDenyPolicyOnAuthMethodAtRefresh` |
 | L1 | low | Role update could strip permissions the caller lacks; resource delete dropped others' scoped assignments (and left descendants' stale) | fixed | `TestReviewRoleStripGuarded` |
 | L2 | low | Idempotent replay before authentication | fixed | `TestReviewIdempotencyNeedsAuthentication` |
-| L3 | low | Automation tokens skip the hourly upstream recheck | deferred (documented in ADR-0044) | — |
+| L3 | low | Automation tokens skip the hourly upstream recheck | fixed: tokens of federated users need an upstream confirmation within `automation.upstream_max_age` (30 d) | `TestFederatedTokenNeedsUpstreamConfirmation` |
 | L4 | low | Token principals had `auth_time = now` | fixed: token creation time | `TestAutomationTokens` |
 | L5 | low | Creating a service account / confidential client skipped step-up | fixed | app tests (setup sessions) |
 | L6 | low | `launch_url` not validated on update | fixed | `TestReviewAudiencesTenantsAndLaunchURL` |
 | L7 | low | `end_session` accepted any signed token as hint and revoked without a session (logout CSRF / token revocation DoS) | fixed: state changes only with an ID-token hint for the signed-in user | `TestRevocationAndEndSession` |
-| L8 | low | Forward-auth login CSRF (code not bound to the browser) | deferred | — |
+| L8 | low | Forward-auth login CSRF (code not bound to the browser) | fixed: nonce cookie on the app host + confirm on Porch's origin (ADR-0036) | `TestForwardAuthLoginBoundToBrowser` |
 | L9 | low | Netguard missed IPv4-embedding IPv6 ranges | fixed | `TestEmbeddedIPv4Blocked` |
 | L9 | low | Retiring signing keys survived a restore; unbounded object reads; interrupted restore skipped post-restore steps | fixed | `TestBackupRestoreDrill` |
-| L9 | low | Code-replay race, unthrottled login-callback audit rows, missing `auth_time` treated as now, forward-auth host claiming by delegated admins | deferred | — |
-| Info | — | Per-tenant session lifetimes are never applied (`SetTenant` unused) | documented; matrix corrected | — |
+| L9 | low | Code-replay race, unthrottled login-callback audit rows, missing `auth_time` treated as now, forward-auth host claiming by delegated admins | fixed: replay mark revokes in-flight issuance; callback throttled; missing `auth_time` is stale for step-up/linking; delegated hosts must be in the tenant's domain rules and opening an app to all members needs `app:access` | `TestConcurrentCodeReplayRevokes`, `TestLoginCallbackThrottled`, `TestDelegatedTenantSettings`, `TestAutomationTokens` |
+| Info | — | Per-tenant session lifetimes are never applied (`SetTenant` unused) | fixed: overrides shorten every member's sessions (strictest tenant wins) | `TestTenantSessionLimits` |
 
 Also fixed from the Terraform provider work: policy `PUT` accepted a stale `If-Match`; role/group/resource/policy
 deletes ignored `If-Match` and provenance; forward-auth create returned no hosts; idempotent replays lacked the ETag;

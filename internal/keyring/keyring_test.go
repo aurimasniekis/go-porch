@@ -338,3 +338,35 @@ func TestKEKRotationRewrapsRetiredKeys(t *testing.T) {
 		t.Fatalf("rotation with a stale retired row: %d %v", n, err)
 	}
 }
+
+// systemd LoadCredential= delivers the KEK group-readable inside a private directory: accepted there only.
+func TestKEKFromSystemdCredential(t *testing.T) {
+	dir := t.TempDir()
+	k, err := GenerateKEK()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "porch-kek")
+	if err := os.WriteFile(path, EncodeKEK(k), 0o440); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o440); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"CREDENTIALS_DIRECTORY=" + dir}
+	if _, err := LoadKEK(Source{Kind: "credential", File: "porch-kek", Environ: env}); err != nil {
+		t.Fatalf("credential: %v", err)
+	}
+	if _, err := LoadKEK(Source{Kind: "file", File: path}); err == nil {
+		t.Fatal("group-readable KEK accepted outside the credentials directory")
+	}
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadKEK(Source{Kind: "credential", File: "porch-kek", Environ: env}); err == nil {
+		t.Fatal("world-readable credential accepted")
+	}
+	if _, err := LoadKEK(Source{Kind: "credential", File: "porch-kek"}); err == nil {
+		t.Fatal("credential source without CREDENTIALS_DIRECTORY accepted")
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aurimasniekis/go-porch/internal/app"
 	"github.com/aurimasniekis/go-porch/internal/authz"
@@ -162,9 +163,12 @@ func TestDelegatedTenantSettings(t *testing.T) {
 	expect(t, eve.do(http.MethodPatch, "/api/v1/tenants/smith", map[string]any{"name": "Smith family"}, nil), http.StatusOK)
 	expect(t, eve.do(http.MethodPatch, "/api/v1/tenants/smith", map[string]any{"status": "disabled"}, nil), http.StatusForbidden)
 	expect(t, eve.do(http.MethodDelete, "/api/v1/tenants/smith", nil, nil), http.StatusForbidden)
-	// Shares and domain rules stay with installation operators.
-	app := decode[map[string]any](t, eve.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "wiki", "name": "Wiki",
+	// Forward-auth host names are installation-wide: outside the tenant's domain rules only operators claim them.
+	expect(t, eve.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "wiki", "name": "Wiki",
+		"kind": "forward_auth", "hosts": []string{"wiki.smith.example"}}, nil), http.StatusForbidden)
+	app := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "wiki", "name": "Wiki",
 		"kind": "forward_auth", "hosts": []string{"wiki.smith.example"}}, nil))
+	// Shares and domain rules stay with installation operators.
 	expect(t, eve.do(http.MethodGet, "/api/v1/tenants/smith/applications/"+app["id"].(string)+"/shares", nil, nil), http.StatusForbidden)
 	expect(t, eve.do(http.MethodGet, "/api/v1/tenants/smith/domain-rules", nil, nil), http.StatusForbidden)
 }
@@ -410,4 +414,73 @@ func TestOperatorRoleManagement(t *testing.T) {
 	if n := len(ev["items"].([]any)); n != 3 { // setup grant + grant + revoke
 		t.Fatalf("role audit events: %d", n)
 	}
+}
+
+// Per-tenant session limits apply to members: the strictest active tenant wins, and overrides only shorten.
+func TestTenantSessionLimits(t *testing.T) {
+	a := newApp(t)
+	owner := setupOwner(t, a)
+	for _, slug := range []string{"smith", "jones"} {
+		expect(t, owner.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": slug, "name": slug}, nil), http.StatusCreated)
+	}
+	expect(t, owner.do(http.MethodPatch, "/api/v1/tenants/smith", map[string]any{"session_idle_seconds": 600, "session_absolute_seconds": 7200}, nil),
+		http.StatusOK)
+	expect(t, owner.do(http.MethodPatch, "/api/v1/tenants/jones", map[string]any{"session_idle_seconds": 300, "session_absolute_seconds": 90 * 24 * 3600}, nil),
+		http.StatusOK)
+	_, userID := memberClient(t, a, owner, "smith", "Ann")
+	expect(t, owner.do(http.MethodPost, "/api/v1/tenants/jones/members", map[string]string{"user_id": userID}, nil), http.StatusCreated)
+	var sc session.Created
+	err := a.Store.W().Tx(context.Background(), func(tx *store.Tx) error {
+		var err error
+		sc, err = a.Sessions.CreateTx(context.Background(), tx, session.NewParams{UserID: userID, Method: session.MethodBackup})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := a.Store.R().GetSession(context.Background(), sc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.IdleSecs != 300 || row.AbsoluteExpiresAt-row.CreatedAt != int64(2*time.Hour/time.Microsecond) {
+		t.Fatalf("limits: idle %d absolute %v", row.IdleSecs, time.Duration(row.AbsoluteExpiresAt-row.CreatedAt)*time.Microsecond)
+	}
+}
+
+// Single-object reads and slug addressing (gaps found by the Terraform provider).
+func TestSingleObjectLookups(t *testing.T) {
+	a := newApp(t)
+	owner := setupOwner(t, a)
+	for _, slug := range []string{"smith", "jones"} {
+		expect(t, owner.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": slug, "name": slug}, nil), http.StatusCreated)
+	}
+	_, userID := memberClient(t, a, owner, "smith", "Ann")
+	m := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/tenants/smith/members/"+userID, nil, nil))
+	if m["user_id"] != userID || m["display_name"] != "Ann" {
+		t.Fatalf("member by user ID %v", m)
+	}
+	expect(t, owner.do(http.MethodGet, "/api/v1/tenants/smith/members/"+m["id"].(string), nil, nil), http.StatusOK)
+	expect(t, owner.do(http.MethodGet, "/api/v1/tenants/jones/members/"+userID, nil, nil), http.StatusNotFound)
+
+	app := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "wiki", "name": "Wiki",
+		"kind": "forward_auth", "hosts": []string{"wiki.smith.example"}}, nil))
+	if got := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/tenants/smith/applications/wiki", nil, nil)); got["id"] != app["id"] {
+		t.Fatalf("app by slug %v", got)
+	}
+	expect(t, owner.do(http.MethodPost, "/api/v1/tenants/smith/applications/wiki/shares", map[string]string{"tenant": "jones"}, nil), http.StatusNoContent)
+	if sh := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/tenants/smith/applications/wiki/shares/jones", nil, nil)); sh["tenant_slug"] != "jones" {
+		t.Fatalf("share %v", sh)
+	}
+	expect(t, owner.do(http.MethodGet, "/api/v1/tenants/smith/applications/wiki/shares/smith", nil, nil), http.StatusNotFound)
+
+	asg := decode[map[string]any](t, assign(owner, "smith", map[string]any{"subject_type": "user", "subject_id": userID, "role_id": roleID(t, owner, "smith", "member")}))
+	if got := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/tenants/smith/assignments/"+asg["id"].(string), nil, nil)); got["id"] != asg["id"] {
+		t.Fatalf("assignment %v", got)
+	}
+	inv := decode[map[string]any](t, owner.do(http.MethodPost, "/api/v1/tenants/smith/invites", map[string]any{"email": "x@smith.example", "valid_seconds": 3600}, nil))
+	if got := decode[map[string]any](t, owner.do(http.MethodGet, "/api/v1/tenants/smith/invites/"+inv["id"].(string), nil, nil)); got["email"] != "x@smith.example" {
+		t.Fatalf("invite %v", got)
+	}
+	expect(t, owner.do(http.MethodGet, "/api/v1/identity-providers/nope", nil, nil), http.StatusNotFound)
+	expect(t, owner.do(http.MethodGet, "/api/v1/tenants/smith/domain-rules/nope.example", nil, nil), http.StatusNotFound)
 }

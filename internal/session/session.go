@@ -159,6 +159,40 @@ func RandomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
+// limits returns the session lifetimes for a user: the installation defaults, shortened by the overrides of every
+// active tenant the user belongs to. Sessions are installation-wide, so the strictest tenant wins; an override can
+// shorten sessions but never lengthen them beyond the installation defaults. The tenant the session was started for
+// (loginTenantID, may be empty) counts even without a membership.
+func (m *Manager) limits(ctx context.Context, tx *store.Tx, userID, loginTenantID string) (idle, absolute time.Duration, err error) {
+	idle, absolute = m.opts.Idle, m.opts.Absolute
+	ms, err := tx.Q.ListUserMemberships(ctx, userID)
+	if err != nil {
+		return 0, 0, err
+	}
+	tenantIDs := make([]string, 0, len(ms)+1)
+	if loginTenantID != "" {
+		tenantIDs = append(tenantIDs, loginTenantID)
+	}
+	for _, mem := range ms {
+		if mem.Status == "active" && mem.TenantStatus == "active" {
+			tenantIDs = append(tenantIDs, mem.TenantID)
+		}
+	}
+	for _, id := range tenantIDs {
+		t, err := tx.Q.GetTenant(ctx, id)
+		if err != nil {
+			return 0, 0, err
+		}
+		if t.SessionIdleSecs.Valid {
+			idle = min(idle, time.Duration(t.SessionIdleSecs.Int64)*time.Second)
+		}
+		if t.SessionAbsoluteSecs.Valid {
+			absolute = min(absolute, time.Duration(t.SessionAbsoluteSecs.Int64)*time.Second)
+		}
+	}
+	return idle, absolute, nil
+}
+
 // CreateTx inserts a session inside tx.
 func (m *Manager) CreateTx(ctx context.Context, tx *store.Tx, p NewParams) (Created, error) {
 	token, err := RandomToken()
@@ -181,16 +215,9 @@ func (m *Manager) CreateTx(ctx context.Context, tx *store.Tx, p NewParams) (Crea
 	if err != nil {
 		return Created{}, err
 	}
-	idle, absolute := m.opts.Idle, m.opts.Absolute
-	if p.TenantID != "" {
-		if t, err := tx.Q.GetTenant(ctx, p.TenantID); err == nil {
-			if t.SessionIdleSecs.Valid {
-				idle = time.Duration(t.SessionIdleSecs.Int64) * time.Second
-			}
-			if t.SessionAbsoluteSecs.Valid {
-				absolute = time.Duration(t.SessionAbsoluteSecs.Int64) * time.Second
-			}
-		}
+	idle, absolute, err := m.limits(ctx, tx, p.UserID, p.TenantID)
+	if err != nil {
+		return Created{}, err
 	}
 	if p.Method == MethodSetup {
 		absolute = min(absolute, m.opts.SetupAbsolute)

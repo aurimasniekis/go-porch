@@ -39,12 +39,30 @@ func ObjectStoreFor(cfg *config.Config) (*backup.S3, error) {
 		}
 		ca = b
 	}
-	guard, err := netguard.New(cfg.Outbound.AllowCIDRs)
+	guard, err := NewGuard(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return backup.NewS3(backup.S3Options{Endpoint: s.Endpoint, Bucket: s.Bucket, Prefix: s.Prefix, Region: s.Region, AccessKey: s.AccessKeyID,
 		SecretKey: secret, Insecure: s.Insecure, Lookup: s.Lookup, CAPEM: ca, CreateBucket: s.CreateBucket, Transport: guard.Transport()})
+}
+
+// NewGuard builds the outbound SSRF guard from the configuration (allowed internal ranges and extra CAs).
+func NewGuard(cfg *config.Config) (*netguard.Guard, error) {
+	g, err := netguard.New(cfg.Outbound.AllowCIDRs)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Outbound.CAFile != "" {
+		pem, err := os.ReadFile(cfg.Outbound.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("outbound.ca_file: %w", err)
+		}
+		if err := g.AddRootCAs(pem); err != nil {
+			return nil, err
+		}
+	}
+	return g, nil
 }
 
 // initBackups builds the backup service (it exists even when backups are off, to report that state).
