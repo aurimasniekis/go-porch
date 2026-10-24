@@ -4,8 +4,9 @@
 # never as passed.
 #
 # Usage: scripts/acceptance.sh [--quick] [--report FILE]
-#   --quick   skip `make check` and the OpenID conformance suite
-# Needs: Go, pnpm (web), Docker (MinIO drill, conformance), python3, curl; Terraform for the provider acceptance tests.
+#   --quick   skip `make check`, the OpenID conformance suite and the running-pulsed check
+# Needs: Go, pnpm (web), Docker (MinIO drill, conformance, pulsed), python3, curl; Terraform for the provider
+# acceptance tests; a go-pulse checkout next to this repository (PULSE_REPO) for the running-pulsed check.
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -104,7 +105,14 @@ else
 fi
 
 row "Events" "Outbox → NATS JetStream through the go-pulse SDK (IDs, headers, dedupe)" "$(go test ./internal/events -run TestRelayJetStream -count=1 >/dev/null 2>&1 && echo PASS || echo FAIL)" "go test ./internal/events"
-row "Events" "Events visible in a running pulsed (replay API)" "NOT VERIFIED" "pulsed + creds issuance not run"
+pulse_repo=${PULSE_REPO:-$root/../pulse}
+if [[ "$quick" != true && -f $pulse_repo/deploy/compose.dev.yaml ]] && command -v docker >/dev/null 2>&1; then
+  if run "Porch events in a running pulsed" "$logs/pulse.log" env PULSE_REPO="$pulse_repo" test/pulse/verify.sh; then
+    row "Events" "Events in a running pulsed (admin events API): envelope, Porch IDs, pulse outage, no duplicates on restart" PASS "test/pulse/verify.sh"
+  else row "Events" "Events in a running pulsed" FAIL "$logs/pulse.log"; fi
+else
+  row "Events" "Events in a running pulsed" SKIPPED "--quick, or no pulse checkout/Docker (test/pulse/verify.sh)"
+fi
 row "External" "Real Google Workspace, real S3 providers, real Cloudflare" "NOT VERIFIED" "fakes/MinIO only"
 
 {

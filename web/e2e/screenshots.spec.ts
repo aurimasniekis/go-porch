@@ -24,6 +24,7 @@ interface ShotOptions {
   fullPage?: boolean
 }
 
+/** Captures `<name>-light.png` and, by switching the emulated colour scheme (the UI follows it live), `<name>-dark.png`. */
 async function shot(page: Page, name: string, opts: ShotOptions = {}) {
   if (opts.size) await page.setViewportSize(opts.size)
   // Toasts from the seeding steps would cover the page.
@@ -32,8 +33,13 @@ async function shot(page: Page, name: string, opts: ShotOptions = {}) {
   }
   await expect(page.locator('.mantine-Notification-root')).toHaveCount(0, { timeout: 15_000 })
   await page.waitForLoadState('networkidle')
-  await settle(page)
-  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: opts.fullPage ?? false })
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme })
+    await expect(page.locator('html')).toHaveAttribute('data-mantine-color-scheme', scheme)
+    await settle(page)
+    await page.screenshot({ path: join(OUT, `${name}-${scheme}.png`), fullPage: opts.fullPage ?? false })
+  }
+  await page.emulateMedia({ colorScheme: 'light' })
 }
 
 async function signedIn(browser: Browser, who: string, colorScheme: 'light' | 'dark' = 'light') {
@@ -199,40 +205,32 @@ test.describe.serial('Documentation screenshots', () => {
     const p = await ctx.newPage()
     await p.goto('/login')
     await expect(p.getByRole('link', { name: /Continue with Google/ })).toBeVisible()
-    await shot(p, 'login-light', { size: { width: 1440, height: 780 } })
+    await shot(p, 'login', { size: { width: 1440, height: 780 } })
     await ctx.close()
   })
 
-  test('launcher, light and dark, and the account page', async ({ browser }) => {
+  test('launcher and the account page', async ({ browser }) => {
     const light = await signedIn(browser, 'Ada Smith')
     await expect(light.page.getByRole('article', { name: 'Recipe wiki' })).toBeVisible()
-    await shot(light.page, 'launcher-light', { size: { width: 1440, height: 680 } })
+    await shot(light.page, 'launcher', { size: { width: 1440, height: 680 } })
     await light.page.goto('/account')
     await expect(light.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
-    await shot(light.page, 'account-light', { size: VIEW.viewport, fullPage: true })
-    const state = await light.ctx.storageState()
+    await shot(light.page, 'account', { size: VIEW.viewport, fullPage: true })
     await light.ctx.close()
-
-    const ctx = await browser.newContext({ ...VIEW, colorScheme: 'dark', storageState: state })
-    const p = await ctx.newPage()
-    await p.goto('/')
-    await expect(p.getByRole('article', { name: 'Recipe wiki' })).toBeVisible()
-    await shot(p, 'launcher-dark', { size: { width: 1440, height: 680 } })
-    await ctx.close()
   })
 
   test('tenant administration pages', async () => {
     await page.goto(`${T}/members`)
     await expect(page.getByRole('cell', { name: /Mia Smith/ }).first()).toBeVisible()
-    await shot(page, 'members-light')
+    await shot(page, 'members')
 
     await page.goto(`${T}/applications`)
     await expect(page.getByRole('cell', { name: /Recipe wiki/ }).first()).toBeVisible()
-    await shot(page, 'applications-light')
+    await shot(page, 'applications')
 
     await page.goto(`${T}/assignments`)
     await expect(page.getByText('Photo viewer').first()).toBeVisible()
-    await shot(page, 'assignments-light')
+    await shot(page, 'assignments')
   })
 
   test('role editor with the permission picker', async () => {
@@ -246,7 +244,7 @@ test.describe.serial('Documentation screenshots', () => {
     await perms.fill('book:read')
     await perms.press('Enter')
     await perms.fill('book:')
-    await shot(page, 'roles-light')
+    await shot(page, 'roles')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
   })
@@ -263,7 +261,7 @@ test.describe.serial('Documentation screenshots', () => {
     await dlg.getByRole('button', { name: 'Environment v1 reference' }).click()
     await expect(dlg.getByRole('table', { name: 'Policy helper functions' })).toBeVisible()
     await expect(dlg.getByText('Expression compiles against environment v1.')).toBeVisible()
-    await shot(page, 'policy-light')
+    await shot(page, 'policy')
     await page.keyboard.press('Escape')
   })
 
@@ -288,7 +286,7 @@ test.describe.serial('Documentation screenshots', () => {
     const decision = page.getByRole('region', { name: 'Decision' })
     await expect(decision.getByText('Allowed', { exact: true })).toBeVisible()
     await decision.scrollIntoViewIfNeeded()
-    await shot(page, 'simulator-light')
+    await shot(page, 'simulator')
   })
 
   test('installation pages: audit and health', async () => {
@@ -300,10 +298,10 @@ test.describe.serial('Documentation screenshots', () => {
     await expect(toggles.first()).toBeVisible()
     await toggles.first().click()
     await expect(table.getByText('Chain hash (prefix)')).toBeVisible()
-    await shot(page, 'audit-light', { size: VIEW.viewport })
+    await shot(page, 'audit', { size: VIEW.viewport })
 
     await page.goto('/admin/i/health')
     await expect(page.getByRole('table', { name: 'Health checks' })).toBeVisible()
-    await shot(page, 'health-light', { fullPage: true })
+    await shot(page, 'health', { fullPage: true })
   })
 })

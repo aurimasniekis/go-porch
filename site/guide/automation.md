@@ -71,4 +71,6 @@ changes are overwritten on the next apply. This is a hint, not a lock.
 Porch records domain events (tenants, memberships, users, applications and shares, identity providers and domain
 rules created, updated or deleted) in an outbox in the same transaction as the change. A relay publishes them to
 [pulse](https://github.com/aurimasniekis/go-pulse) over NATS JetStream as `evt.porch.<area>.<entity>.<action>`, with a
-stable event ID for de-duplication. Pulse being down never blocks sign-in. The relay is tested against an embedded NATS JetStream server; a running `pulsed` is not verified yet.
+stable event ID for de-duplication. Pulse being down never blocks sign-in. The relay is tested against an embedded NATS JetStream server and against a running
+`pulsed` (`test/pulse/verify.sh`): events arrive with Porch's IDs, events written while pulse is down are delivered
+when it returns, and restarting Porch publishes nothing twice.

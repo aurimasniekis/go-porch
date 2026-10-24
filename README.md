@@ -202,10 +202,11 @@ Milestones M0–M7 of the [plan](docs/PLAN.md) are implemented and tested. Every
 | OpenID Connect | OpenID conformance suite, Basic and Config OP: 0 failures (local run, not certification) |
 | Backups | encrypt, upload to MinIO, verify and restore into a clean data directory |
 | Terraform | provider acceptance tests and a 69-resource scenario against a real Porch, in CI |
+| Events | delivered to a running pulsed, including after a pulse outage, with no duplicates after a restart |
 | Security | internal review (3 high, 11 medium, low items), all fixed with regression tests |
 
-**Not verified yet:** real Google and Google Workspace, S3 providers other than MinIO, real Cloudflare, a running
-pulsed, and the release workflow. Not built yet: front- and back-channel logout, passkeys, high availability.
+**Not verified yet:** real Google and Google Workspace, S3 providers other than MinIO, real Cloudflare, and the
+release workflow on GitHub (no tag has been pushed). Not built yet: front- and back-channel logout, passkeys, high availability.
 
 ## Documentation
 

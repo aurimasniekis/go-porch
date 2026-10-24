@@ -1,0 +1,73 @@
+/* Adapted from Pulse site/.vitepress/theme/custom.css (Apache-2.0, same author). Brand colours follow the logo. */
+:root {
+  --vp-c-brand-1: #2f5fc4;
+  --vp-c-brand-2: #3b6fd6;
+  --vp-c-brand-3: #24509f;
+  --vp-c-brand-soft: rgba(59, 111, 214, 0.12);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #2f5fc4 20%, #2f9e8f);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, rgba(59, 111, 214, 0.35) 50%, rgba(47, 158, 143, 0.3) 50%);
+  --vp-home-hero-image-filter: blur(56px);
+  --pc-shot-border: #d5dbe3;
+}
+
+.dark {
+  --vp-c-brand-1: #8fb0ef;
+  --vp-c-brand-2: #b3c9f4;
+  --vp-c-brand-3: #6b93e6;
+  --vp-c-brand-soft: rgba(143, 176, 239, 0.16);
+  --vp-home-hero-name-background: linear-gradient(120deg, #8fb0ef 20%, #5fd3c0);
+  --pc-shot-border: #2e3440;
+}
+
+.pc-shot {
+  margin: 20px 0;
+}
+
+.pc-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--pc-shot-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+}
+
+.pc-shot figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+
+.dark .pc-shot .pc-light,
+html:not(.dark) .pc-shot .pc-dark {
+  display: none;
+}
+
+.pc-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 8px 24px;
+}
+
+.pc-gallery .pc-shot {
+  margin: 8px 0;
+}
+
+.pc-home {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+
+@media (min-width: 640px) {
+  .pc-home {
+    padding: 0 48px 64px;
+  }
+}
+
+.pc-home h2 {
+  margin-top: 48px;
+  border-top: 0;
+}

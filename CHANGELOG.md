@@ -22,7 +22,8 @@ No version has been released yet. This section summarizes milestones M0–M7 ([d
 - Google federation is tested against a fake Google provider only; real Google is not verified.
 - Backups are tested against MinIO only; other S3 providers are not verified. Cloudflare client-IP handling is not
   verified against real Cloudflare.
-- The pulse relay is tested against an embedded NATS JetStream server; a running pulsed is not verified.
+- The pulse relay is tested against an embedded NATS JetStream server and a local pulsed (development stack); a
+  production pulsed deployment is not verified.
 - The OpenID conformance suite (Basic and Config OP) was run locally; this is not an official certification.
 - The container image, Compose file and systemd unit were tested on Docker Desktop and in a systemd container, not on
   a bare Linux host.
