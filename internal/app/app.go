@@ -10,7 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/buildinfo"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
@@ -23,6 +25,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/localauth"
 	"github.com/aurimasniekis/go-porch/internal/netguard"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
+	"github.com/aurimasniekis/go-porch/internal/oidcop"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -44,6 +47,8 @@ type App struct {
 	Setup    *setup.Service
 	IDP      *idp.Service
 	Local    *localauth.Service
+	Apps     *apps.Service
+	OP       *oidcop.Provider
 	ClientIP *httpx.ClientIPResolver
 
 	auditFile io.Closer
@@ -55,6 +60,8 @@ type Options struct {
 	Environ []string
 	// HashParams overrides Argon2id parameters (tests only).
 	HashParams *localauth.Params
+	// RSABits overrides the RSA signing key size (tests only; default 3072).
+	RSABits int
 }
 
 // Open opens the data directory (taking its lock), loads the keyring and builds every service.
@@ -100,6 +107,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	}
 	a.Users = identity.New(a.Store, a.Audit)
 	a.Tenants = tenancy.New(a.Store, a.Audit)
+	a.Tenants.OnCreate = authz.EnsureBuiltinsTx
 	a.Sessions = session.New(a.Store, a.Keyring, session.Options{Idle: cfg.Session.Idle.D(), Absolute: cfg.Session.Absolute.D(),
 		StepUpWindow: cfg.Session.StepUpWindow.D(), UpstreamRecheck: cfg.Session.UpstreamRecheck.D(), SetupAbsolute: cfg.Session.SetupAbsolute.D(),
 		Clock: a.Clock})
@@ -119,6 +127,17 @@ func (a *App) init(ctx context.Context, opts Options) error {
 		pol.Params = *opts.HashParams
 	}
 	a.Local = localauth.New(a.Store, a.Keyring, a.Audit, a.Sessions, a.Clock, a.Metrics, pol)
+	a.Apps = apps.New(a.Store, a.Keyring, a.Audit)
+	a.Apps.AllowInsecureRedirects = !cfg.IsProduction()
+	keys := oidcop.NewKeys(a.Store, a.Keyring, a.Audit)
+	if opts.RSABits > 0 {
+		keys.RSABits = opts.RSABits
+	}
+	if err := keys.Load(ctx); err != nil {
+		return fmt.Errorf("oidc signing keys: %w", err)
+	}
+	a.OP = &oidcop.Provider{Issuer: cfg.PublicOrigin(), Store: a.Store, Keyring: a.Keyring, Audit: a.Audit, Signing: keys, Apps: a.Apps,
+		Sessions: a.Sessions, Tenants: a.Tenants, Clock: a.Clock, Metrics: a.Metrics, Log: a.Log}
 	if b.Disabled {
 		a.Log.Warn("backup_login.disabled is set: the local backup login is OFF for every user; if Google is unavailable nobody can sign in except via `porch admin recover`")
 	}

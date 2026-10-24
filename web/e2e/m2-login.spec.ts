@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { apiCall, expectAccessible, googleLogin, IDP, trackCSP } from './helpers'
 
@@ -34,6 +35,26 @@ test.describe.serial('M2: setup, Google login, backup login', () => {
       evidence_kind: 'workspace_hd',
       mode: 'jit',
     })
+    // Register the demo relying party for m3-demo-app.spec.ts (the secret is only returned here).
+    const demo = `http://localhost:${process.env.PORCH_E2E_DEMO_PORT ?? '9091'}`
+    const app = await apiCall(page.request, 'POST', '/tenants/smith/applications', {
+      slug: 'demo-app',
+      name: 'Demo app',
+      kind: 'oidc',
+      launch_url: demo,
+      client: {
+        redirect_uris: [`${demo}/callback`],
+        post_logout_redirect_uris: [`${demo}/`],
+        grant_types: ['authorization_code', 'refresh_token'],
+        audiences: ['https://api.smith.example'],
+      },
+      disclosure: { email: true, groups: true, roles: true, entitlements: false },
+    })
+    const client = app?.client as { client_id: string }
+    writeFileSync(
+      process.env.PORCH_E2E_STATE ?? 'e2e-state.json',
+      JSON.stringify({ client_id: client.client_id, client_secret: app?.client_secret, demo }),
+    )
   })
 
   test('a Workspace user signs in with Google and is enrolled', async ({ page }) => {

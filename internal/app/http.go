@@ -72,6 +72,17 @@ func (a *App) PublicHandler() http.Handler {
 	mux := http.NewServeMux()
 	mgmtapi.New(mux, a.APIDeps())
 	(&portal.Handler{IDP: a.IDP, Sessions: a.Sessions, Log: a.Log, Limiter: httpx.NewLimiter(a.Clock, 30, 10)}).Register(mux)
+	op := a.OP.Handler()
+	mux.Handle("/.well-known/openid-configuration", op)
+	mux.Handle("/jwks", op)
+	mux.Handle("/oauth2/", op)
+	mux.Handle("GET /oauth2/continue", a.OP.Continue(func(ctx context.Context, providerID string) string {
+		p, err := a.IDP.Provider(ctx, providerID)
+		if err != nil {
+			return ""
+		}
+		return p.Slug
+	}))
 	mux.Handle("/", webui.Handler(webui.Dist(), a.recheckHook))
 	var h http.Handler = mux
 	h = httpx.LimitBody(a.Cfg.HTTP.MaxBodyBytes, h)
@@ -103,7 +114,7 @@ func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
 // APIDeps returns the management API dependencies.
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
-		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Metrics: a.Metrics,
+		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP, Metrics: a.Metrics,
 		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 
@@ -217,6 +228,10 @@ func (a *App) Serve(ctx context.Context, ls *Listeners) error {
 		if err := mgmt.Serve(ls.Management); !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
+		return nil
+	})
+	g.Go(func() error {
+		a.maintain(gctx)
 		return nil
 	})
 	g.Go(func() error {

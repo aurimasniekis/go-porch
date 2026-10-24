@@ -4,7 +4,12 @@ title = "porch gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Test fixtures generated at test time only; documentation shows placeholder token shapes"
+description = "Placeholder token shapes in docs; gitignored local run artefacts (never committed)"
+paths = [
+  '''test/conformance/\.work/''',
+  '''(^|/)node_modules/''',
+  '''^bin/''',
+]
 regexes = [
   '''porch_at_EXAMPLE[A-Za-z0-9_]*''',
   '''porch_setup_EXAMPLE[A-Za-z0-9_]*''',

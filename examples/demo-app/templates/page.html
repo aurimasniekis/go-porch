@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>{{if .Error}}Error · {{end}}Porch demo app</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <p class="brand"><a href="/">Porch demo app</a></p>
+  <p class="issuer">Issuer: <code>{{.Issuer}}</code></p>
+</header>
+<main id="main">
+{{- if .Error}}
+  <h1>Sign-in problem</h1>
+  <div class="notice error" role="alert">
+    <p>{{.Error}}</p>
+  </div>
+  <p>HTTP status {{.Status}}.</p>
+  <p><a class="button" href="/">Back to the start page</a></p>
+{{- else if .User}}
+  {{- with .Flash}}
+  <div class="notice{{if $.FlashError}} error{{end}}" role="status"><p>{{.}}</p></div>
+  {{- end}}
+  <h1>Signed in as {{if .Name}}{{.Name}}{{else}}{{.User.Subject}}{{end}}</h1>
+  <section aria-labelledby="summary-h">
+    <h2 id="summary-h">Summary</h2>
+    <dl class="summary">
+      <dt>Name</dt><dd>{{if .Name}}{{.Name}}{{else}}<em>not disclosed</em>{{end}}</dd>
+      <dt>Subject (sub)</dt><dd><code id="subject">{{.User.Subject}}</code></dd>
+      <dt>Email</dt><dd>{{if .Email}}{{.Email}}{{else}}<em>not disclosed</em>{{end}}</dd>
+      <dt>Tenant</dt><dd>{{if .Tenant}}{{.Tenant}}{{else}}<em>no porch.tenant claim</em>{{end}}</dd>
+      <dt>Signed in at</dt><dd>{{fmtTime .User.SignedInAt}}</dd>
+      <dt>Access token expires</dt><dd>{{fmtTime .ExpiresAt}}</dd>
+      <dt>Last refresh</dt><dd>{{fmtTime .User.RefreshedAt}}</dd>
+      <dt>Refresh token</dt><dd id="refresh-token">{{if .HasRefresh}}present (opaque, rotating; not shown){{else}}none{{end}}</dd>
+    </dl>
+    <div class="actions">
+      <form method="post" action="/refresh">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit"{{if not .HasRefresh}} disabled aria-describedby="refresh-token"{{end}}>Refresh tokens</button>
+      </form>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <button type="submit" class="secondary">Sign out</button>
+      </form>
+    </div>
+  </section>
+
+  <section aria-labelledby="idt-h">
+    <h2 id="idt-h">ID token claims</h2>
+    <p class="label ok">Verified: signature against Porch JWKS (ES256/RS256), issuer, audience, expiry and nonce{{if .User.IDClaims.at_hash}}, at_hash{{end}}.</p>
+    <pre tabindex="0" aria-label="ID token claims JSON"><code>{{.User.IDClaimsRaw}}</code></pre>
+  </section>
+
+  <section aria-labelledby="at-h">
+    <h2 id="at-h">Access token</h2>
+    {{- with .User.Access}}
+    {{- if .JWT}}
+    {{- if .Verified}}
+    <p class="label ok">JWT access token (RFC 9068): decoded, verified by signature against Porch JWKS.</p>
+    {{- else}}
+    <p class="label bad">JWT access token: decoded but NOT verified. Do not trust these claims.</p>
+    {{- end}}
+    <h3>Checks</h3>
+    <ul class="checks">
+      {{- range .Checks}}
+      <li class="{{if .OK}}ok{{else}}bad{{end}}"><span class="mark">{{if .OK}}pass{{else}}FAIL{{end}}</span> {{.Name}} <small>({{.Detail}})</small></li>
+      {{- end}}
+    </ul>
+    <h3>Header</h3>
+    <pre tabindex="0" aria-label="Access token header JSON"><code>{{.Header}}</code></pre>
+    <h3>Claims</h3>
+    {{- if .Claims}}
+    <pre tabindex="0" aria-label="Access token claims JSON"><code>{{.Claims}}</code></pre>
+    {{- else}}
+    <p><em>The payload could not be decoded.</em></p>
+    {{- end}}
+    {{- else}}
+    <p class="label">Opaque access token ({{.Length}} characters): not a JWT, nothing to decode. Porch issues RFC 9068 JWTs; an opaque token means another provider (or a test double) issued it.</p>
+    {{- end}}
+    {{- end}}
+    <p class="hint">Expected audience: <code>{{.ExpectAud}}</code> (DEMO_RESOURCE if set, else the client_id).</p>
+  </section>
+
+  <section aria-labelledby="ui-h">
+    <h2 id="ui-h">UserInfo response</h2>
+    {{- if .User.UserInfo}}
+    <pre tabindex="0" aria-label="UserInfo JSON"><code>{{.User.UserInfo}}</code></pre>
+    {{- else}}
+    <p class="label bad">{{.User.UserInfoErr}}</p>
+    {{- end}}
+  </section>
+{{- else}}
+  {{- with .Flash}}
+  <div class="notice{{if $.FlashError}} error{{end}}" role="status"><p>{{.}}</p></div>
+  {{- end}}
+  <h1>You are signed out</h1>
+  <p>This demo application signs you in through Porch with the authorization code flow (PKCE S256, nonce, RFC 9207
+    <code>iss</code> check) and then shows exactly what Porch issued: the verified ID token, the access token, the
+    userinfo response and the refresh token.</p>
+  <p><a class="button" href="/login">Sign in with Porch</a></p>
+{{- end}}
+</main>
+<footer><p>Example relying party for Porch. Sessions are kept in memory only.</p></footer>
+</body>
+</html>

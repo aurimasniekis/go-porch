@@ -15,6 +15,7 @@ import (
 
 	"github.com/aurimasniekis/go-porch/internal/app"
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -23,6 +24,11 @@ import (
 const origin = "http://localhost:8080"
 
 func newApp(t *testing.T, mutate ...func(*config.Config)) *app.App {
+	t.Helper()
+	return newAppWithClock(t, nil, mutate...)
+}
+
+func newAppWithClock(t *testing.T, clk clock.Clock, mutate ...func(*config.Config)) *app.App {
 	t.Helper()
 	cfg := config.Default()
 	cfg.Mode = config.ModeDevelopment
@@ -36,7 +42,7 @@ func newApp(t *testing.T, mutate ...func(*config.Config)) *app.App {
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	a, err := app.Open(context.Background(), cfg, slog.New(slog.DiscardHandler), app.Options{Environ: []string{}})
+	a, err := app.Open(context.Background(), cfg, slog.New(slog.DiscardHandler), app.Options{Environ: []string{}, Clock: clk, RSABits: 2048})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,5 +367,44 @@ func TestServerTimeoutsSet(t *testing.T) {
 		if s.ReadHeaderTimeout == 0 || s.ReadTimeout == 0 || s.WriteTimeout == 0 || s.IdleTimeout == 0 || s.MaxHeaderBytes == 0 {
 			t.Fatalf("server timeouts not set: %+v", s)
 		}
+	}
+}
+
+// Applications through the API: the client secret is shown exactly once; rotation needs a recent sign-in.
+func TestApplicationsAPI(t *testing.T) {
+	clk := clock.NewFake(time.Now())
+	a := newAppWithClock(t, clk)
+	c := setupOwner(t, a)
+	expect(t, c.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": "smith", "name": "Smith"}, nil), http.StatusCreated)
+	rec := c.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "grafana", "name": "Grafana", "kind": "oidc",
+		"client": map[string]any{"redirect_uris": []string{"https://grafana.smith.example/login/generic_oauth"}, "audiences": []string{"https://grafana.smith.example"}}}, nil)
+	expect(t, rec, http.StatusCreated)
+	created := decode[map[string]any](t, rec)
+	secret, _ := created["client_secret"].(string)
+	cl := created["client"].(map[string]any)
+	if !strings.HasPrefix(secret, "porch_cs_") || cl["client_id"] == "" || cl["require_pkce"] != true || cl["signing_alg"] != "ES256" ||
+		cl["discovery_url"] != origin+"/.well-known/openid-configuration" {
+		t.Fatalf("created %v", created)
+	}
+	got := c.do(http.MethodGet, "/api/v1/tenants/smith/applications/"+created["id"].(string), nil, nil)
+	if strings.Contains(got.Body.String(), secret) || strings.Contains(got.Body.String(), "client_secret\"") {
+		t.Fatal("secret returned again")
+	}
+	// Wildcard redirect URIs are always refused.
+	rec = c.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "x", "name": "x", "kind": "oidc",
+		"client": map[string]any{"redirect_uris": []string{"https://*.smith.example/cb"}}}, nil)
+	expect(t, rec, http.StatusUnprocessableEntity)
+	// Rotation needs a step-up: the setup session is fresh now, stale after 10 minutes.
+	clk.Advance(10 * time.Minute)
+	rec = c.do(http.MethodPost, "/api/v1/tenants/smith/applications/"+created["id"].(string)+"/rotate-secret", nil, nil)
+	expect(t, rec, http.StatusForbidden)
+	if p := decode[map[string]any](t, rec); p["code"] != "reauth_required" {
+		t.Fatalf("problem %v", p)
+	}
+	// Signing keys are listed for operators.
+	keys := c.do(http.MethodGet, "/api/v1/installation/signing-keys", nil, nil)
+	expect(t, keys, http.StatusOK)
+	if !strings.Contains(keys.Body.String(), "ES256") || !strings.Contains(keys.Body.String(), "RS256") {
+		t.Fatalf("keys %s", keys.Body.String())
 	}
 }

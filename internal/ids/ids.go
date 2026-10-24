@@ -48,6 +48,7 @@ const (
 	Alert           = "alr"
 	AuthRequest     = "arq"
 	AuthCode        = "acd"
+	AccessToken     = "acc"
 	RefreshToken    = "rtk"
 	RefreshFamily   = "rtf"
 	SigningKey      = "sgk"

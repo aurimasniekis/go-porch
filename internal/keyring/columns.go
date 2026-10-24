@@ -11,4 +11,5 @@ var Columns = []Column{
 	FieldColumn("backup_credentials", "user_id", "password_enc", PurposeField),
 	FieldColumn("backup_credentials", "user_id", "answers_enc", PurposeField),
 	FieldColumn("recovery_pairs", "id", "title_enc", PurposeField),
+	FieldColumn("signing_keys", "id", "private_enc", PurposeSigning),
 }

@@ -30,8 +30,11 @@ Status legend:
 | Login | Backup login: password → titles → answers; shared reserve-before-hash lockout (1 → 6 h, ×2 to 48 h), per-source + circuit throttles, enumeration resistance, strength gate, random-word suggestion | tested | UI `/login`, `/account`; API `/auth/backup/*`, `/me/backup-credential` | `internal/localauth` (24 parallel → exactly threshold, no extra answer guesses, escalation, throttles), DoS isolation + restart persistence (`internal/app`), Playwright (M2) |
 | Sessions | Server-side sessions: idle/absolute (+ tenant override), user + installation epochs, CSRF, step-up window, rotation | tested (core) | API cookie auth | `internal/session` tests (M1); login methods arrive in M2 |
 | Sessions | Federated hourly `prompt=none` recheck (API 401 `upstream_recheck_required`, page redirect), Workspace removal ends session; step-up via Google `prompt=login max_age=0` or backup credential; identity linking | tested | portal + API | `TestUpstreamRecheck`, `TestGoogleStepUp`, `TestStepUpRotatesSession` (M2) |
-| OIDC OP | Code + PKCE, tokens, refresh families | planned | — | M3 |
-| OIDC OP | OpenID conformance suite | planned | — | M3 |
+| OIDC OP | Authorization code + PKCE S256 (required for public clients, default for all), exact redirect URIs, RFC 9207 `iss`, ES256/RS256 ID tokens, RFC 9068 access tokens (`at+jwt`, RFC 8707 audiences), rotating refresh tokens with family reuse detection, code-replay revocation, client credentials, introspection, userinfo, revocation, RP-initiated logout, CORS for registered origins only | tested | `/oauth2/*`, `/.well-known/openid-configuration`, `/jwks`; API `/tenants/{t}/applications` | `internal/app/oidc_test.go` (go-oidc RP; 11 protocol tests) (M3) |
+| OIDC OP | Signing keys: ES256 + RS256 sealed in keyring, rotation with overlap, retirement | tested | API `/installation/signing-keys` | `TestSigningKeyRotationOverlap` (M3) |
+| OIDC OP | prompt=none / prompt=login / max_age, cross-tenant denial | tested | — | `TestPromptAndMaxAge`, `TestCrossTenantAccessDenied` (M3) |
+| OIDC OP | Interop: in-repo demo RP (go-oidc) against a real `porch serve` | tested | `examples/demo-app` | Playwright `m3-demo-app.spec.ts`: sign-in, verified ID + RFC 9068 access token, refresh rotation, RP-initiated logout (M3) |
+| OIDC OP | OpenID conformance suite (Basic/Config OP) | in progress | — | `test/conformance` (results pending) |
 | Apps | Applications, shares, launcher | planned | — | M4 |
 | Apps | Forward-auth outpost | planned | — | M4 |
 | AuthZ | RBAC + expr policies + explain | planned | — | M5 |

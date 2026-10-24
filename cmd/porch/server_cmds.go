@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -37,6 +38,7 @@ func openApp(ctx context.Context, cfgPath string, stderr io.Writer) (*app.App, e
 		return nil, err
 	}
 	log := porchlog.New(stderr, cfg.Log.Level, cfg.Log.Format)
+	slog.SetDefault(log) // zitadel/oidc logs through the default logger
 	return app.Open(ctx, cfg, log, app.Options{})
 }
 

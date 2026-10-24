@@ -268,3 +268,38 @@ Under an `invite_only` domain rule, the resulting membership carries the rule's 
 removes it); a plain invite yields source `invite:<id>` (manual-like, never removed automatically). `verified_email`
 rules accept the email domain of a verified email from the rule's provider only and are labelled weaker than
 `workspace_hd` in the API and UI.
+
+## ADR-0030 — Implement zitadel's `op.Server`, not its legacy `Storage`
+
+**Context.** zitadel/oidc's legacy `Storage` path builds ID and access tokens from one `GetAudience()` value (so API
+audiences would leak into ID tokens or clients into access tokens), signs access tokens without RFC 9068's `typ: at+jwt`,
+and leaves refresh-token semantics implicit.
+**Decision.** Porch implements `op.Server` (embedding `UnimplementedServer`). zitadel keeps the HTTP layer: request
+decoding, redirect-URI matching (exact; RFC 8252 loopback port exception for native clients), client-authentication
+parsing and error rendering. Porch issues every token itself: ID tokens (`aud` = client, `azp`, `nonce`, `at_hash`),
+RFC 9068 access tokens (`aud` = registered API audience / RFC 8707 `resource`, else the client), opaque rotating refresh
+tokens with family reuse detection, and implements discovery (incl. RFC 9207 `iss`), JWKS, userinfo, introspection,
+revocation and RP-initiated logout. Unsupported: implicit/hybrid flows, request objects, dynamic registration, device
+flow, token exchange (they return the library's "unsupported" errors).
+
+## ADR-0031 — Re-authentication for `prompt=login` and `max_age`
+
+**Decision.** `max_age` compares the session's `auth_time`. `prompt=login` records which session was sent to
+re-authenticate; the request continues only when that session came back *rotated* (a step-up always rotates) with an
+`auth_time` inside the step-up window. Federated sessions re-authenticate upstream with `prompt=login&max_age=0`;
+backup sessions repeat the two-step backup login. `prompt=none` never shows UI: no session, a due upstream recheck or a
+required re-authentication yield `login_required`.
+
+## ADR-0032 — No consent screen for administrator-registered applications
+
+**Decision.** Applications are registered by installation operators for their own tenants (first-party in this
+deployment model), so Porch does not show a per-user consent screen. What an app receives is controlled by the app's
+disclosure settings and the client's allowed scopes. Setup and recovery-link sessions cannot sign in to applications.
+**Consequences.** Revisit if third-party/self-service app registration is ever added (Backlog).
+
+## ADR-0033 — Access-token revocation is best effort
+
+**Decision.** Access tokens are self-contained JWTs (≤ 10 min by default). Revocation (RFC 7009, code replay, logout)
+adds the `jti` to a denylist honoured by Porch's own userinfo and introspection endpoints. Resource servers that verify
+JWTs offline do not see the denylist; they bound exposure by the token lifetime or use introspection. Refresh-token
+revocation is immediate.

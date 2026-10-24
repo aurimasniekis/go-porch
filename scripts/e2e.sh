@@ -15,6 +15,7 @@ if [[ "${E2E_SKIP_BUILD:-}" != 1 ]]; then
   (cd web && pnpm install --frozen-lockfile --silent && pnpm build >/dev/null)
   CGO_ENABLED=0 go build -o bin/porch ./cmd/porch
   go build -o bin/fakegoogle ./test/fakegoogle
+  go build -o bin/demo-app ./examples/demo-app
 fi
 
 cat > "$work/porch.yaml" <<YAML
@@ -40,7 +41,7 @@ porch_pid=$!
 for _ in $(seq 1 50); do bin/porch healthcheck --url "http://127.0.0.1:$MGMT/readyz" >/dev/null 2>&1 && break; sleep 0.2; done
 
 export PORCH_E2E_URL="http://localhost:$PUB" PORCH_E2E_SETUP_TOKEN="$token" PORCH_E2E_IDP="http://127.0.0.1:$IDP"
-export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT"
+export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json"
 status=0
 (cd web && pnpm exec playwright test "$@") || status=$?
 if [[ $status -ne 0 ]]; then echo "--- porch log"; tail -50 "$work/porch.log"; echo "--- idp log"; tail -20 "$work/idp.log"; fi

@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
 	"github.com/aurimasniekis/go-porch/internal/apperr"
+	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
@@ -22,6 +23,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/idp"
 	"github.com/aurimasniekis/go-porch/internal/localauth"
 	"github.com/aurimasniekis/go-porch/internal/obs/metrics"
+	"github.com/aurimasniekis/go-porch/internal/oidcop"
 	"github.com/aurimasniekis/go-porch/internal/session"
 	"github.com/aurimasniekis/go-porch/internal/setup"
 	"github.com/aurimasniekis/go-porch/internal/store"
@@ -50,6 +52,8 @@ type Deps struct {
 	Setup     *setup.Service
 	IDP       *idp.Service
 	Local     *localauth.Service
+	Apps      *apps.Service
+	OP        *oidcop.Provider
 	Metrics   *metrics.Metrics
 	SetupRate *httpx.Limiter
 	LoginRate *httpx.Limiter
@@ -98,6 +102,8 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerProviders(api, d)
 	registerDomainRules(api, d)
 	registerAlerts(api, d)
+	registerApplications(api, d)
+	registerSigningKeys(api, d)
 	return api
 }
 

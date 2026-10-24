@@ -87,6 +87,8 @@ func fromRow(r db.Tenant) Tenant {
 type Service struct {
 	s     *store.Store
 	audit *audit.Writer
+	// OnCreate runs inside the transaction that creates a tenant (built-in roles).
+	OnCreate func(ctx context.Context, tx *store.Tx, tenantID string) error
 }
 
 // New returns a service.
@@ -192,6 +194,11 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, p CreateParams
 		}
 		if err != nil {
 			return err
+		}
+		if svc.OnCreate != nil {
+			if err := svc.OnCreate(ctx, tx, id); err != nil {
+				return err
+			}
 		}
 		if _, err := svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, TenantID: id, Action: "tenant.created",
 			Target: audit.Target{Type: "tenant", ID: id}, Details: map[string]any{"slug": p.Slug, "managed_by": ch.Managed()}}); err != nil {

@@ -196,6 +196,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation/signing-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OIDC signing keys */
+        get: operations["list-signing-keys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation/signing-keys/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate an OIDC signing key (owner, needs a recent sign-in) */
+        post: operations["rotate-signing-key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/logout": {
         parameters: {
             query?: never;
@@ -371,6 +405,60 @@ export interface paths {
         head?: never;
         /** Update a tenant */
         patch: operations["update-tenant"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Applications of a tenant */
+        get: operations["list-applications"];
+        put?: never;
+        /** Create an application (OIDC client or forward-auth) */
+        post: operations["create-application"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications/{app}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an application */
+        get: operations["get-application"];
+        put?: never;
+        post?: never;
+        /** Delete an application and its client */
+        delete: operations["delete-application"];
+        options?: never;
+        head?: never;
+        /** Update an application */
+        patch: operations["update-application"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications/{app}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue a new client secret (needs a recent sign-in; the old secret stops working) */
+        post: operations["rotate-client-secret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/tenants/{tenant}/domain-rules": {
@@ -556,6 +644,27 @@ export interface components {
             severity: "info" | "warning" | "critical";
             target_id?: string;
         };
+        Application: {
+            client?: components["schemas"]["OIDCClient"];
+            /** Format: date-time */
+            created_at: string;
+            description: string;
+            disclosure: components["schemas"]["Disclosure"];
+            enabled: boolean;
+            id: string;
+            /** @enum {string} */
+            kind: "oidc" | "forward_auth";
+            last_changed_by?: string;
+            launch_url: string;
+            managed_by: string;
+            name: string;
+            slug: string;
+            tenant_id: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
         AuditVerification: {
             /** Format: int64 */
             broken_at?: number;
@@ -595,6 +704,51 @@ export interface components {
             identifier: string;
             password: string;
         };
+        ClientConfig: {
+            /** Format: int64 */
+            access_token_ttl_seconds?: number;
+            allowed_origins?: string[];
+            allowed_scopes?: string[];
+            /**
+             * @description Create only; default web.
+             * @enum {string}
+             */
+            application_type?: "web" | "native" | "user_agent";
+            audiences?: string[];
+            /**
+             * @description Create only; default confidential.
+             * @enum {string}
+             */
+            client_type?: "confidential" | "public";
+            grant_types?: string[];
+            /** Format: int64 */
+            id_token_ttl_seconds?: number;
+            post_logout_redirect_uris?: string[];
+            redirect_uris?: string[];
+            /** Format: int64 */
+            refresh_idle_seconds?: number;
+            /** Format: int64 */
+            refresh_ttl_seconds?: number;
+            /** @description Default true; public clients always require PKCE. */
+            require_pkce?: boolean;
+            /** @enum {string} */
+            signing_alg?: "ES256" | "RS256";
+        };
+        ClientSecret: {
+            client_id: string;
+            /** @description Shown only in this response. */
+            client_secret: string;
+        };
+        CreateApplicationRequest: {
+            client?: components["schemas"]["ClientConfig"];
+            description?: string;
+            disclosure?: components["schemas"]["Disclosure"];
+            /** @enum {string} */
+            kind: "oidc" | "forward_auth";
+            launch_url?: string;
+            name: string;
+            slug: string;
+        };
         CreateDomainRuleRequest: {
             domain: string;
             /** @enum {string} */
@@ -632,6 +786,35 @@ export interface components {
             display_name: string;
             /** @description Attribute only; never used to link login identities. */
             primary_email?: string;
+        };
+        CreatedApplication: {
+            client?: components["schemas"]["OIDCClient"];
+            /** @description Shown only in this response. Store it now. */
+            client_secret?: string;
+            /** Format: date-time */
+            created_at: string;
+            description: string;
+            disclosure: components["schemas"]["Disclosure"];
+            enabled: boolean;
+            id: string;
+            /** @enum {string} */
+            kind: "oidc" | "forward_auth";
+            last_changed_by?: string;
+            launch_url: string;
+            managed_by: string;
+            name: string;
+            slug: string;
+            tenant_id: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            version: number;
+        };
+        Disclosure: {
+            email: boolean;
+            entitlements: boolean;
+            groups: boolean;
+            roles: boolean;
         };
         DomainRule: {
             /** Format: date-time */
@@ -782,6 +965,38 @@ export interface components {
             items: components["schemas"]["Member"][];
             next_cursor?: string;
         };
+        OIDCClient: {
+            /** Format: int64 */
+            access_token_ttl_seconds: number;
+            /** @description Browser origins allowed to call the token endpoint (SPA clients). */
+            allowed_origins: string[];
+            allowed_scopes: string[];
+            /** @enum {string} */
+            application_type: "web" | "native" | "user_agent";
+            /** @description API audiences access tokens may be issued for (RFC 8707 resource values). */
+            audiences: string[];
+            client_id: string;
+            /** @enum {string} */
+            client_type: "confidential" | "public";
+            discovery_url: string;
+            grant_types: string[];
+            /** Format: int64 */
+            id_token_ttl_seconds: number;
+            issuer: string;
+            post_logout_redirect_uris: string[];
+            redirect_uris: string[];
+            /** @description Always true: redirect URIs match exactly (loopback port exception for native clients). */
+            redirect_uris_exact: boolean;
+            /** Format: int64 */
+            refresh_idle_seconds: number;
+            /** Format: int64 */
+            refresh_ttl_seconds: number;
+            require_pkce: boolean;
+            /** @description Last characters of the current secret. */
+            secret_hint?: string;
+            /** @enum {string} */
+            signing_alg: "ES256" | "RS256";
+        };
         Operator: {
             /** Format: date-time */
             created_at: string;
@@ -821,6 +1036,15 @@ export interface components {
         RecoveryRequest: {
             token: string;
         };
+        RotateKeyRequest: {
+            /** @enum {string} */
+            alg: "ES256" | "RS256";
+            /**
+             * Format: int64
+             * @description How long the old key stays published (default 24h).
+             */
+            overlap_seconds?: number;
+        };
         SessionInfo: {
             /** Format: date-time */
             auth_time: string;
@@ -838,6 +1062,16 @@ export interface components {
         };
         SetupStatus: {
             completed: boolean;
+        };
+        SigningKey: {
+            alg: string;
+            /** Format: date-time */
+            created_at: string;
+            kid: string;
+            /** Format: date-time */
+            retire_after?: string;
+            /** @enum {string} */
+            state: "active" | "retiring" | "retired";
         };
         StrengthEstimate: {
             /** Format: double */
@@ -874,6 +1108,14 @@ export interface components {
         TenantList: {
             items: components["schemas"]["Tenant"][];
             next_cursor?: string;
+        };
+        UpdateApplicationRequest: {
+            client?: components["schemas"]["ClientConfig"];
+            description?: string;
+            disclosure?: components["schemas"]["Disclosure"];
+            enabled?: boolean;
+            launch_url?: string;
+            name?: string;
         };
         UpdateMemberRequest: {
             /** @enum {string} */
@@ -1372,6 +1614,68 @@ export interface operations {
             };
         };
     };
+    "list-signing-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SigningKey"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "rotate-signing-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RotateKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SigningKey"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     logout: {
         parameters: {
             query?: never;
@@ -1815,6 +2119,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Tenant"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-application": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedApplication"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "delete-application": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-application": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "rotate-client-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientSecret"];
                 };
             };
             /** @description Error */

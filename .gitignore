@@ -34,3 +34,6 @@ node_modules/
 
 # Root binary
 /porch
+
+# Conformance-suite run artefacts (generated client secrets, TLS keys)
+/test/conformance/.work/

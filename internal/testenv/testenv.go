@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/identity"
@@ -30,6 +31,8 @@ type Env struct {
 	Tenants  *tenancy.Service
 	Sessions *session.Manager
 	Setup    *setup.Service
+	Authz    *authz.Admin
+	Engine   *authz.Engine
 }
 
 // Start is the fake clock's initial time.
@@ -48,8 +51,11 @@ func New(t testing.TB) *Env {
 	users := identity.New(s, a)
 	sess := session.New(s, kr, session.Options{Idle: 8 * time.Hour, Absolute: 12 * time.Hour, StepUpWindow: 5 * time.Minute,
 		UpstreamRecheck: time.Hour, SetupAbsolute: time.Hour, Clock: c})
-	return &Env{Clock: c, Store: s, Keyring: kr, Audit: a, Users: users, Tenants: tenancy.New(s, a), Sessions: sess,
-		Setup: setup.New(s, kr, a, users, sess)}
+	tenants := tenancy.New(s, a)
+	tenants.OnCreate = authz.EnsureBuiltinsTx
+	return &Env{Clock: c, Store: s, Keyring: kr, Audit: a, Users: users, Tenants: tenants, Sessions: sess, Authz: authz.NewAdmin(s, a),
+		Engine: authz.NewEngine(s, c, nil, []string{"10.0.0.0/8"}),
+		Setup:  setup.New(s, kr, a, users, sess)}
 }
 
 // Admin is a change made by a test operator.

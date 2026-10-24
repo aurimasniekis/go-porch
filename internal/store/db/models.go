@@ -19,6 +19,39 @@ type Alert struct {
 	AcknowledgedBy sql.NullString
 }
 
+type AppHost struct {
+	Host     string
+	TenantID string
+	AppID    string
+}
+
+type AppShare struct {
+	TenantID       string
+	AppID          string
+	TargetTenantID string
+	GrantedBy      sql.NullString
+	CreatedAt      int64
+}
+
+type Application struct {
+	ID             string
+	TenantID       string
+	Slug           string
+	Name           string
+	Kind           string
+	Description    string
+	LaunchUrl      string
+	Enabled        int64
+	DisclosureJson string
+	Version        int64
+	ManagedBy      string
+	LastChangedBy  sql.NullString
+	CreatedAt      int64
+	UpdatedAt      int64
+	AccessMode     string
+	ForwardHeaders string
+}
+
 type AuditEvent struct {
 	ID          string
 	Seq         int64
@@ -38,6 +71,51 @@ type AuditEvent struct {
 	DetailsEnc  []byte
 	PrevHash    []byte
 	Hash        []byte
+}
+
+type AuthCode struct {
+	Mac           []byte
+	ID            string
+	ClientID      string
+	TenantID      string
+	UserID        string
+	SessionID     string
+	RedirectUri   string
+	Scopes        string
+	Nonce         string
+	CodeChallenge string
+	Resources     string
+	AuthTime      int64
+	Amr           string
+	CreatedAt     int64
+	ExpiresAt     int64
+	UsedAt        sql.NullInt64
+	FamilyID      sql.NullString
+	AccessJti     sql.NullString
+}
+
+type AuthRequest struct {
+	ID              string
+	ClientID        string
+	TenantID        string
+	RedirectUri     string
+	Scopes          string
+	State           string
+	Nonce           string
+	CodeChallenge   string
+	ResponseMode    string
+	Prompt          string
+	MaxAge          sql.NullInt64
+	LoginHint       string
+	Resources       string
+	ReauthSessionID sql.NullString
+	CreatedAt       int64
+	ExpiresAt       int64
+}
+
+type AuthzEpoch struct {
+	TenantID string
+	Epoch    int64
 }
 
 type BackupChallenge struct {
@@ -95,6 +173,31 @@ type ExternalIdentity struct {
 	LastLoginAt sql.NullInt64
 }
 
+type ForwardAuthCode struct {
+	Mac       []byte
+	AppID     string
+	Host      string
+	TenantID  string
+	UserID    string
+	SessionID string
+	ReturnTo  string
+	ExpiresAt int64
+	UsedAt    sql.NullInt64
+}
+
+type ForwardAuthSession struct {
+	ID        string
+	Mac       []byte
+	AppID     string
+	Host      string
+	TenantID  string
+	UserID    string
+	SessionID string
+	CreatedAt int64
+	ExpiresAt int64
+	RevokedAt sql.NullInt64
+}
+
 type Group struct {
 	ID            string
 	TenantID      string
@@ -106,6 +209,12 @@ type Group struct {
 	LastChangedBy sql.NullString
 	CreatedAt     int64
 	UpdatedAt     int64
+}
+
+type GroupEdge struct {
+	TenantID string
+	ParentID string
+	ChildID  string
 }
 
 type GroupMember struct {
@@ -202,6 +311,31 @@ type Membership struct {
 	UpdatedAt     int64
 }
 
+type OauthClient struct {
+	ID                 string
+	TenantID           string
+	AppID              string
+	ClientType         string
+	ApplicationType    string
+	SecretMac          []byte
+	SecretHint         string
+	RedirectUris       string
+	PostLogoutUris     string
+	GrantTypes         string
+	AllowedScopes      string
+	Audiences          string
+	AllowedOrigins     string
+	RequirePkce        int64
+	SigningAlg         string
+	AccessTokenTtlSecs int64
+	IDTokenTtlSecs     int64
+	RefreshTtlSecs     int64
+	RefreshIdleSecs    int64
+	Version            int64
+	CreatedAt          int64
+	UpdatedAt          int64
+}
+
 type OidcLoginState struct {
 	ID         string
 	StateMac   []byte
@@ -228,6 +362,23 @@ type Outbox struct {
 	DeadAt        sql.NullInt64
 }
 
+type Policy struct {
+	ID            string
+	TenantID      string
+	Slug          string
+	Name          string
+	Effect        string
+	Actions       string
+	Expression    string
+	EnvVersion    int64
+	CompiledHash  string
+	Version       int64
+	ManagedBy     string
+	LastChangedBy sql.NullString
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
 type RecoveryLink struct {
 	ID         string
 	Mac        []byte
@@ -242,6 +393,92 @@ type RecoveryPair struct {
 	UserID   string
 	Position int64
 	TitleEnc []byte
+}
+
+type RefreshToken struct {
+	ID              string
+	Mac             []byte
+	FamilyID        string
+	ParentID        sql.NullString
+	ClientID        string
+	TenantID        string
+	UserID          string
+	Scopes          string
+	Resources       string
+	AuthTime        int64
+	Amr             string
+	State           string
+	InstallEpoch    int64
+	UserEpoch       int64
+	CreatedAt       int64
+	FamilyExpiresAt int64
+	IdleExpiresAt   int64
+	RotatedAt       sql.NullInt64
+	RevokedAt       sql.NullInt64
+	RevokeReason    sql.NullString
+}
+
+type Resource struct {
+	ID             string
+	TenantID       string
+	Type           string
+	Slug           string
+	Name           string
+	ParentID       sql.NullString
+	AttributesJson string
+	Version        int64
+	ManagedBy      string
+	LastChangedBy  sql.NullString
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
+type RevokedAccessToken struct {
+	Jti       string
+	ExpiresAt int64
+	Reason    string
+}
+
+type Role struct {
+	ID            string
+	TenantID      string
+	Slug          string
+	Name          string
+	Description   string
+	BuiltIn       int64
+	Version       int64
+	ManagedBy     string
+	LastChangedBy sql.NullString
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
+type RoleAssignment struct {
+	ID                string
+	TenantID          string
+	SubjectType       string
+	SubjectID         string
+	RoleID            string
+	ScopeType         string
+	ScopeResourceType string
+	ScopeResourceID   string
+	ConditionPolicyID sql.NullString
+	ExpiresAt         sql.NullInt64
+	Source            string
+	CreatedAt         int64
+	CreatedBy         sql.NullString
+}
+
+type RoleEdge struct {
+	TenantID string
+	ParentID string
+	ChildID  string
+}
+
+type RolePermission struct {
+	TenantID   string
+	RoleID     string
+	Permission string
 }
 
 type Session struct {
@@ -280,6 +517,17 @@ type SetupToken struct {
 	ExpiresAt  int64
 	ConsumedAt sql.NullInt64
 	ConsumedBy sql.NullString
+}
+
+type SigningKey struct {
+	ID          string
+	Alg         string
+	PrivateEnc  []byte
+	PublicJwk   string
+	State       string
+	CreatedAt   int64
+	RetireAfter sql.NullInt64
+	RetiredAt   sql.NullInt64
 }
 
 type StoreSpaceProbe struct {

@@ -75,7 +75,7 @@ func (st *stack) open(mutate ...func(*config.Config)) {
 	if err := cfg.Validate(); err != nil {
 		st.t.Fatal(err)
 	}
-	a, err := app.Open(context.Background(), cfg, slog.New(slog.DiscardHandler), app.Options{Environ: []string{}, Clock: st.clk, HashParams: &fastHash})
+	a, err := app.Open(context.Background(), cfg, slog.New(slog.DiscardHandler), app.Options{Environ: []string{}, Clock: st.clk, HashParams: &fastHash, RSABits: 2048})
 	if err != nil {
 		st.t.Fatal(err)
 	}

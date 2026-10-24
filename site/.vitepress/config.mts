@@ -60,6 +60,7 @@ export default withMermaid(
             { text: 'What is Porch?', link: '/guide/what-is-porch' },
             { text: 'Concepts', link: '/guide/concepts' },
             { text: 'Signing in', link: '/guide/signing-in' },
+            { text: 'Connect an application', link: '/guide/connect-an-app' },
             { text: 'Project status', link: '/guide/status' },
           ],
         },
