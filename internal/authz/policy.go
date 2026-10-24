@@ -27,41 +27,41 @@ const (
 
 // PrincipalV1 is the subject as seen by policies. All fields are server-derived.
 type PrincipalV1 struct {
-	ID          string            `expr:"id"`
-	Type        string            `expr:"type"`
-	Email       string            `expr:"email"`
-	EmailDomain string            `expr:"email_domain"`
-	Groups      []string          `expr:"groups"`
-	Roles       []string          `expr:"roles"`
-	AuthMethod  string            `expr:"auth_method"`
-	AuthAge     int64             `expr:"auth_age"` // seconds since authentication
-	Attributes  map[string]string `expr:"attributes"`
+	ID          string            `expr:"id" json:"id"`
+	Type        string            `expr:"type" json:"type"`
+	Email       string            `expr:"email" json:"email"`
+	EmailDomain string            `expr:"email_domain" json:"email_domain"`
+	Groups      []string          `expr:"groups" json:"groups"`
+	Roles       []string          `expr:"roles" json:"roles"`
+	AuthMethod  string            `expr:"auth_method" json:"auth_method"`
+	AuthAge     int64             `expr:"auth_age" json:"auth_age"` // seconds since authentication
+	Attributes  map[string]string `expr:"attributes" json:"attributes"`
 }
 
 // ResourceV1 is the target.
 type ResourceV1 struct {
-	ID         string            `expr:"id"`
-	Type       string            `expr:"type"`
-	Slug       string            `expr:"slug"`
-	Attributes map[string]string `expr:"attributes"`
+	ID         string            `expr:"id" json:"id"`
+	Type       string            `expr:"type" json:"type"`
+	Slug       string            `expr:"slug" json:"slug"`
+	Attributes map[string]string `expr:"attributes" json:"attributes"`
 }
 
 // ContextV1 is request context derived by the server (never taken from the client, except in the simulator).
 type ContextV1 struct {
-	IP         string `expr:"ip"`
-	Network    string `expr:"network"` // "trusted" when the client IP is in authz.trusted_networks, else "external"
-	TenantSlug string `expr:"tenant"`
-	Hour       int    `expr:"hour"`    // UTC
-	Weekday    string `expr:"weekday"` // UTC, e.g. "Mon"
+	IP         string `expr:"ip" json:"ip,omitempty"`
+	Network    string `expr:"network" json:"network,omitempty"` // "trusted" when the client IP is in authz.trusted_networks, else "external"
+	TenantSlug string `expr:"tenant" json:"tenant,omitempty"`
+	Hour       int    `expr:"hour" json:"hour,omitempty"`       // UTC
+	Weekday    string `expr:"weekday" json:"weekday,omitempty"` // UTC, e.g. "Mon"
 }
 
 // EnvV1 is the complete policy environment, version 1.
 type EnvV1 struct {
-	Principal PrincipalV1 `expr:"principal"`
-	Resource  ResourceV1  `expr:"resource"`
-	Action    string      `expr:"action"`
-	Context   ContextV1   `expr:"context"`
-	Now       time.Time   `expr:"now"`
+	Principal PrincipalV1 `expr:"principal" json:"principal"`
+	Resource  ResourceV1  `expr:"resource" json:"resource"`
+	Action    string      `expr:"action" json:"action"`
+	Context   ContextV1   `expr:"context" json:"context"`
+	Now       time.Time   `expr:"now" json:"now"`
 }
 
 // allowedBuiltins are pure helpers; everything else is disabled.

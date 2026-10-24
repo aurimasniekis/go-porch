@@ -17,6 +17,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/identity"
@@ -54,6 +55,8 @@ type Deps struct {
 	Local     *localauth.Service
 	Apps      *apps.Service
 	OP        *oidcop.Provider
+	Engine    *authz.Engine
+	Authz     *authz.Admin
 	Metrics   *metrics.Metrics
 	SetupRate *httpx.Limiter
 	LoginRate *httpx.Limiter
@@ -104,6 +107,7 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerAlerts(api, d)
 	registerApplications(api, d)
 	registerSigningKeys(api, d)
+	registerPortal(api, d)
 	return api
 }
 

@@ -269,7 +269,7 @@ func TestLoadKEKSources(t *testing.T) {
 	if _, err := LoadKEK(Source{Kind: "file", File: loose, Production: true}); !errors.Is(err, ErrBadKEKFile) {
 		t.Fatalf("world-readable KEK accepted: %v", err)
 	}
-	env := []string{"HALLPASS_KEK=" + strings.TrimSpace(string(EncodeKEK(k)))}
+	env := []string{"PORCH_KEK=" + strings.TrimSpace(string(EncodeKEK(k)))}
 	if w, err := LoadKEK(Source{Kind: "env", Environ: env}); err != nil || w.ID() != KEKID(k) {
 		t.Fatalf("env: %v", err)
 	}

@@ -264,6 +264,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Applications you can open (launcher) */
+        get: operations["list-my-apps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/backup-credential": {
         parameters: {
             query?: never;
@@ -299,6 +316,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Applications with offline access to your account (refresh tokens) */
+        get: operations["list-my-grants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/grants/{family}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an application's offline access */
+        delete: operations["revoke-my-grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/identities": {
         parameters: {
             query?: never;
@@ -311,6 +362,40 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your active browser sessions */
+        get: operations["list-my-sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sessions/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Sign out one of your sessions */
+        delete: operations["revoke-my-session"];
         options?: never;
         head?: never;
         patch?: never;
@@ -455,6 +540,75 @@ export interface paths {
         put?: never;
         /** Issue a new client secret (needs a recent sign-in; the old secret stops working) */
         post: operations["rotate-client-secret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications/{app}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenants an application is shared with */
+        get: operations["list-application-shares"];
+        put?: never;
+        /** Share an application with another tenant (explicit cross-tenant access) */
+        post: operations["share-application"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications/{app}/shares/{target}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stop sharing an application */
+        delete: operations["unshare-application"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/authz/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide (and explain) whether a user may perform an action */
+        post: operations["authz-check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/authz/check-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Several authorization decisions at once */
+        post: operations["authz-check-batch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -644,13 +798,40 @@ export interface components {
             severity: "info" | "warning" | "critical";
             target_id?: string;
         };
+        AppGrant: {
+            app_id: string;
+            app_name: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            family_id: string;
+        };
+        AppShare: {
+            /** Format: date-time */
+            created_at: string;
+            tenant_id: string;
+            tenant_name: string;
+            tenant_slug: string;
+        };
         Application: {
+            /**
+             * @description all_members: every active member (and shared tenants); assigned: explicit app:access grants only.
+             * @enum {string}
+             */
+            access_mode: "all_members" | "assigned";
             client?: components["schemas"]["OIDCClient"];
             /** Format: date-time */
             created_at: string;
             description: string;
             disclosure: components["schemas"]["Disclosure"];
             enabled: boolean;
+            /** @description Identity headers sent to forward-auth backends (header → sub|email|name|groups|tenant|roles); empty = defaults. */
+            forward_headers: {
+                [key: string]: string;
+            };
+            /** @description Hosts protected by a forward_auth application. */
+            hosts: string[];
             id: string;
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
@@ -672,6 +853,20 @@ export interface components {
             events: number;
             ok: boolean;
             problem?: string;
+        };
+        AuthzBatchRequest: {
+            checks: components["schemas"]["AuthzCheckRequest"][];
+        };
+        AuthzCheckRequest: {
+            /** @description <resource_type>:<action>, e.g. app:access */
+            action: string;
+            context?: components["schemas"]["ContextV1"];
+            resource: components["schemas"]["AuthzCheckRequestResourceStruct"];
+            user_id: string;
+        };
+        AuthzCheckRequestResourceStruct: {
+            id?: string;
+            type: string;
         };
         BackupChallenge: {
             /** Format: date-time */
@@ -739,10 +934,24 @@ export interface components {
             /** @description Shown only in this response. */
             client_secret: string;
         };
+        ContextV1: {
+            /** Format: int64 */
+            hour?: number;
+            ip?: string;
+            network?: string;
+            tenant?: string;
+            weekday?: string;
+        };
         CreateApplicationRequest: {
+            /** @enum {string} */
+            access_mode?: "all_members" | "assigned";
             client?: components["schemas"]["ClientConfig"];
             description?: string;
             disclosure?: components["schemas"]["Disclosure"];
+            forward_headers?: {
+                [key: string]: string;
+            };
+            hosts?: string[];
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
             launch_url?: string;
@@ -788,6 +997,11 @@ export interface components {
             primary_email?: string;
         };
         CreatedApplication: {
+            /**
+             * @description all_members: every active member (and shared tenants); assigned: explicit app:access grants only.
+             * @enum {string}
+             */
+            access_mode: "all_members" | "assigned";
             client?: components["schemas"]["OIDCClient"];
             /** @description Shown only in this response. Store it now. */
             client_secret?: string;
@@ -796,6 +1010,12 @@ export interface components {
             description: string;
             disclosure: components["schemas"]["Disclosure"];
             enabled: boolean;
+            /** @description Identity headers sent to forward-auth backends (header → sub|email|name|groups|tenant|roles); empty = defaults. */
+            forward_headers: {
+                [key: string]: string;
+            };
+            /** @description Hosts protected by a forward_auth application. */
+            hosts: string[];
             id: string;
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
@@ -809,6 +1029,11 @@ export interface components {
             updated_at: string;
             /** Format: int64 */
             version: number;
+        };
+        Decision: {
+            allowed: boolean;
+            reason: string;
+            trace: components["schemas"]["Trace"];
         };
         Disclosure: {
             email: boolean;
@@ -854,6 +1079,19 @@ export interface components {
         FieldError: {
             field: string;
             message: string;
+        };
+        GateTrace: {
+            passed: boolean;
+            via: string;
+        };
+        GrantTrace: {
+            applies: boolean;
+            assignment_id?: string;
+            condition?: components["schemas"]["PolicyTrace"];
+            permission: string;
+            role: string;
+            scope: string;
+            via: string;
         };
         HandleRequest: {
             /** @description Empty removes the handle (email works again). */
@@ -902,6 +1140,18 @@ export interface components {
             expires_at: string;
             id: string;
             tenant_id: string;
+        };
+        LauncherApp: {
+            description: string;
+            id: string;
+            kind: string;
+            launch_url: string;
+            name: string;
+            /** @description Owned by another tenant and shared with yours. */
+            shared: boolean;
+            slug: string;
+            tenant_name: string;
+            tenant_slug: string;
         };
         LinkedIdentity: {
             email?: string;
@@ -965,6 +1215,19 @@ export interface components {
             items: components["schemas"]["Member"][];
             next_cursor?: string;
         };
+        MySession: {
+            /** Format: date-time */
+            created_at: string;
+            current: boolean;
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            ip: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            method: string;
+            user_agent: string;
+        };
         OIDCClient: {
             /** Format: int64 */
             access_token_ttl_seconds: number;
@@ -1005,6 +1268,12 @@ export interface components {
             role: string;
             source: string;
             user_id: string;
+        };
+        PolicyTrace: {
+            error?: string;
+            policy_id: string;
+            result: boolean;
+            slug: string;
         };
         Problem: {
             /** @description Same-origin URL the client should navigate to (re-authentication). */
@@ -1063,6 +1332,10 @@ export interface components {
         SetupStatus: {
             completed: boolean;
         };
+        ShareRequest: {
+            /** @description Target tenant ID or slug. */
+            tenant: string;
+        };
         SigningKey: {
             alg: string;
             /** Format: date-time */
@@ -1109,11 +1382,27 @@ export interface components {
             items: components["schemas"]["Tenant"][];
             next_cursor?: string;
         };
+        Trace: {
+            candidates: components["schemas"]["GrantTrace"][];
+            context: components["schemas"]["ContextV1"];
+            deny_policies: components["schemas"]["PolicyTrace"][];
+            /** Format: int64 */
+            epoch: number;
+            groups: string[];
+            simulated: boolean;
+            tenant_gate: components["schemas"]["GateTrace"];
+        };
         UpdateApplicationRequest: {
+            /** @enum {string} */
+            access_mode?: "all_members" | "assigned";
             client?: components["schemas"]["ClientConfig"];
             description?: string;
             disclosure?: components["schemas"]["Disclosure"];
             enabled?: boolean;
+            forward_headers?: {
+                [key: string]: string;
+            };
+            hosts?: string[];
             launch_url?: string;
             name?: string;
         };
@@ -1733,6 +2022,35 @@ export interface operations {
             };
         };
     };
+    "list-my-apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LauncherApp"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "get-backup-credential": {
         parameters: {
             query?: never;
@@ -1826,6 +2144,64 @@ export interface operations {
             };
         };
     };
+    "list-my-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppGrant"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-my-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                family: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "list-my-identities": {
         parameters: {
             query?: never;
@@ -1843,6 +2219,64 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LinkedIdentity"][];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-my-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MySession"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-my-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -2337,6 +2771,178 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClientSecret"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-application-shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppShare"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "share-application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "unshare-application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+                target: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "authz-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthzCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "authz-check-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthzBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decision"][];
                 };
             };
             /** @description Error */

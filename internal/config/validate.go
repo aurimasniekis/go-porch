@@ -100,6 +100,13 @@ func (c *Config) Validate() error {
 	for _, p := range c.Outbound.AllowCIDRs {
 		v.prefix("outbound.allow_cidrs", p)
 	}
+	for _, p := range c.Authz.TrustedNetworks {
+		v.prefix("authz.trusted_networks", p)
+	}
+	for _, p := range c.Forward.TrustedPeers {
+		v.prefix("forward_auth.trusted_peers", p)
+	}
+	v.durationRange("forward_auth.session_ttl", c.Forward.SessionTTL, time.Minute, 7*24*time.Hour)
 	return v.err()
 }
 

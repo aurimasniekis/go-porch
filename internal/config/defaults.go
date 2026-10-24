@@ -37,7 +37,8 @@ func Default() *Config {
 			UpstreamRecheck: Duration(time.Hour),
 			SetupAbsolute:   Duration(time.Hour),
 		},
-		Setup: SetupConfig{TokenTTL: Duration(time.Hour)},
+		Setup:   SetupConfig{TokenTTL: Duration(time.Hour)},
+		Forward: ForwardAuthConfig{SessionTTL: Duration(12 * time.Hour)},
 		Backup: BackupLoginConfig{Threshold: 1, LockDuration: Duration(6 * time.Hour), MaxLockDuration: Duration(48 * time.Hour),
 			SourceLimit: 10, SourceWindow: Duration(15 * time.Minute), CircuitLimit: 100, CircuitWindow: Duration(time.Minute), MinPairs: 3, MaxPairs: 12},
 	}

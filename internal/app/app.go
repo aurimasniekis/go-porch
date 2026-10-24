@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/netip"
 	"os"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/buildinfo"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
+	"github.com/aurimasniekis/go-porch/internal/forwardauth"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/idp"
@@ -49,6 +51,9 @@ type App struct {
 	Local    *localauth.Service
 	Apps     *apps.Service
 	OP       *oidcop.Provider
+	Engine   *authz.Engine
+	Authz    *authz.Admin
+	Outpost  *forwardauth.Outpost
 	ClientIP *httpx.ClientIPResolver
 
 	auditFile io.Closer
@@ -136,8 +141,23 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	if err := keys.Load(ctx); err != nil {
 		return fmt.Errorf("oidc signing keys: %w", err)
 	}
+	a.Engine = authz.NewEngine(a.Store, a.Clock, a.Metrics, cfg.Authz.TrustedNetworks)
+	a.Authz = authz.NewAdmin(a.Store, a.Audit)
 	a.OP = &oidcop.Provider{Issuer: cfg.PublicOrigin(), Store: a.Store, Keyring: a.Keyring, Audit: a.Audit, Signing: keys, Apps: a.Apps,
-		Sessions: a.Sessions, Tenants: a.Tenants, Clock: a.Clock, Metrics: a.Metrics, Log: a.Log}
+		Sessions: a.Sessions, Tenants: a.Tenants, Engine: a.Engine, Clock: a.Clock, Metrics: a.Metrics, Log: a.Log}
+	peers := cfg.Forward.TrustedPeers
+	if len(peers) == 0 {
+		peers = cfg.Proxy.TrustedProxies
+	}
+	var peerPrefixes []netip.Prefix
+	for _, p := range peers {
+		if pf, err := netip.ParsePrefix(p); err == nil {
+			peerPrefixes = append(peerPrefixes, pf.Masked())
+		}
+	}
+	a.Outpost = &forwardauth.Outpost{Store: a.Store, Keyring: a.Keyring, Audit: a.Audit, Sessions: a.Sessions, Engine: a.Engine, Clock: a.Clock,
+		Metrics: a.Metrics, Log: a.Log, PublicURL: cfg.PublicOrigin(), TrustedPeers: peerPrefixes, AllowHTTP: !cfg.IsProduction(),
+		SessionTTL: cfg.Forward.SessionTTL.D(), ProviderSlug: a.providerSlug}
 	if b.Disabled {
 		a.Log.Warn("backup_login.disabled is set: the local backup login is OFF for every user; if Google is unavailable nobody can sign in except via `porch admin recover`")
 	}
@@ -196,4 +216,13 @@ func (a *App) Close() error {
 		errs = append(errs, a.auditFile.Close())
 	}
 	return errors.Join(errs...)
+}
+
+// providerSlug resolves an identity provider ID to its slug (portal URLs).
+func (a *App) providerSlug(ctx context.Context, providerID string) string {
+	p, err := a.IDP.Provider(ctx, providerID)
+	if err != nil {
+		return ""
+	}
+	return p.Slug
 }

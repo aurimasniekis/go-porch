@@ -14,12 +14,12 @@ func TestLocalFilesystemAccepted(t *testing.T) {
 	}
 }
 
-// HP-DB-007: set HALLPASS_TEST_NETFS_DIR to a directory on a network/FUSE filesystem (make test-netfs runs this in
+// HP-DB-007: set PORCH_TEST_NETFS_DIR to a directory on a network/FUSE filesystem (make test-netfs runs this in
 // Docker, where the bind-mounted source tree is FUSE) to verify the refusal end to end.
 func TestNetworkFilesystemRefused(t *testing.T) {
-	base := os.Getenv("HALLPASS_TEST_NETFS_DIR")
+	base := os.Getenv("PORCH_TEST_NETFS_DIR")
 	if base == "" {
-		t.Skip("HALLPASS_TEST_NETFS_DIR not set")
+		t.Skip("PORCH_TEST_NETFS_DIR not set")
 	}
 	dir, err := os.MkdirTemp(base, "netfs-")
 	if err != nil {

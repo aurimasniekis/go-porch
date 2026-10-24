@@ -8,7 +8,10 @@ free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",
 PUB=$(free_port); MGMT=$(free_port); IDP=$(free_port)
 work=$(mktemp -d)
 chmod 700 "$work"
-cleanup() { [[ -n "${porch_pid:-}" ]] && kill "$porch_pid" 2>/dev/null || true; [[ -n "${idp_pid:-}" ]] && kill "$idp_pid" 2>/dev/null || true; rm -rf "$work"; }
+cleanup() {
+  for p in "${porch_pid:-}" "${idp_pid:-}" "${fwd_pid:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null || true; done
+  rm -rf "$work"
+}
 trap cleanup EXIT
 
 if [[ "${E2E_SKIP_BUILD:-}" != 1 ]]; then
@@ -16,6 +19,7 @@ if [[ "${E2E_SKIP_BUILD:-}" != 1 ]]; then
   CGO_ENABLED=0 go build -o bin/porch ./cmd/porch
   go build -o bin/fakegoogle ./test/fakegoogle
   go build -o bin/demo-app ./examples/demo-app
+  go build -o bin/fwdproxy ./test/fwdproxy
 fi
 
 cat > "$work/porch.yaml" <<YAML
@@ -38,10 +42,13 @@ idp_pid=$!
 token=$(bin/porch admin setup-token -config "$work/porch.yaml" 2>/dev/null | grep -o 'porch_setup_[A-Za-z0-9_-]*')
 bin/porch serve -config "$work/porch.yaml" >"$work/porch.log" 2>&1 &
 porch_pid=$!
+FWD=$(free_port)
+bin/fwdproxy -listen "127.0.0.1:$FWD" -porch "http://127.0.0.1:$PUB" >"$work/fwd.log" 2>&1 &
+fwd_pid=$!
 for _ in $(seq 1 50); do bin/porch healthcheck --url "http://127.0.0.1:$MGMT/readyz" >/dev/null 2>&1 && break; sleep 0.2; done
 
 export PORCH_E2E_URL="http://localhost:$PUB" PORCH_E2E_SETUP_TOKEN="$token" PORCH_E2E_IDP="http://127.0.0.1:$IDP"
-export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json"
+export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json" PORCH_E2E_FWD="http://whoami.localhost:$FWD"
 status=0
 (cd web && pnpm exec playwright test "$@") || status=$?
 if [[ $status -ne 0 ]]; then echo "--- porch log"; tail -50 "$work/porch.log"; echo "--- idp log"; tail -20 "$work/idp.log"; fi

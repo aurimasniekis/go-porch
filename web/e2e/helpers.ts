@@ -1,3 +1,5 @@
+import { spawn, type ChildProcess } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
@@ -45,4 +47,43 @@ export function trackCSP(page: Page): string[] {
     if (/Content Security Policy|Refused to (apply|load|execute)/i.test(m.text())) violations.push(m.text())
   })
   return violations
+}
+
+export interface DemoState {
+  client_id: string
+  client_secret: string
+  demo: string
+}
+
+export function demoState(): DemoState {
+  return JSON.parse(readFileSync(process.env.PORCH_E2E_STATE ?? 'e2e-state.json', 'utf8')) as DemoState
+}
+
+/** Starts the demo relying party registered by m2-login.spec.ts and waits until it is healthy. */
+export async function startDemo(state: DemoState): Promise<ChildProcess> {
+  const port = new URL(state.demo).port
+  const demo = spawn(process.env.PORCH_E2E_DEMO_BIN ?? '../bin/demo-app', [], {
+    env: {
+      ...process.env,
+      PORCH_ISSUER: BASE,
+      DEMO_CLIENT_ID: state.client_id,
+      DEMO_CLIENT_SECRET: state.client_secret,
+      DEMO_REDIRECT_URL: `${state.demo}/callback`,
+      DEMO_POST_LOGOUT_URL: `${state.demo}/`,
+      DEMO_RESOURCE: 'https://api.smith.example',
+      DEMO_LISTEN: `127.0.0.1:${port}`,
+      DEMO_INSECURE_COOKIES: 'true',
+    },
+    stdio: 'ignore',
+  })
+  for (let i = 0; i < 50; i++) {
+    try {
+      if ((await fetch(`${state.demo}/healthz`)).ok) return demo
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  demo.kill()
+  throw new Error('demo app did not start')
 }

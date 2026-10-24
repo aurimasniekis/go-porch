@@ -34,7 +34,7 @@ func (a *App) RunMaintenance(ctx context.Context) {
 		now := tx.NowMicros()
 		for _, f := range []func(context.Context, int64) (int64, error){
 			tx.Q.PurgeAuthRequests, tx.Q.PurgeAuthCodes, tx.Q.PurgeRefreshTokens, tx.Q.PurgeRevokedAccessTokens, tx.Q.PurgeLoginStates,
-			tx.Q.PurgeBackupChallenges,
+			tx.Q.PurgeBackupChallenges, tx.Q.PurgeForwardAuthCodes, tx.Q.PurgeForwardAuthSessions,
 		} {
 			if _, err := f(ctx, now); err != nil {
 				return err

@@ -174,15 +174,15 @@ func LoadKEK(src Source) (*LocalKEK, error) {
 	switch src.Kind {
 	case "env":
 		for _, kv := range src.Environ {
-			if v, ok := strings.CutPrefix(kv, "HALLPASS_KEK="); ok && v != "" {
+			if v, ok := strings.CutPrefix(kv, "PORCH_KEK="); ok && v != "" {
 				k, err := ParseKEK([]byte(v))
 				if err != nil {
-					return nil, fmt.Errorf("HALLPASS_KEK: %w", err)
+					return nil, fmt.Errorf("PORCH_KEK: %w", err)
 				}
 				return NewLocalKEK(k)
 			}
 		}
-		return nil, fmt.Errorf("%w: kek.source is env but HALLPASS_KEK is not set", ErrNoKEK)
+		return nil, fmt.Errorf("%w: kek.source is env but PORCH_KEK is not set", ErrNoKEK)
 	case "file", "":
 	default:
 		return nil, fmt.Errorf("unknown kek source %q", src.Kind)

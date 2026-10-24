@@ -1,0 +1,58 @@
+# Caddy front for the Porch demo stack (deploy/demo). Every site is https with Caddy's internal CA (`local_certs`);
+# *.localhost resolves to 127.0.0.1 in browsers and curl, and to this container inside the compose network (network
+# aliases in compose.yaml), so browser and containers use the SAME URLs (issuer consistency).
+#
+# Caddy listens on {$DEMO_HTTPS_PORT} inside the container too (published 1:1), so https://auth.localhost:<port> is a
+# valid URL both from the host and from inside the network.
+
+{
+	https_port {$DEMO_HTTPS_PORT}
+	auto_https disable_redirects
+	local_certs
+	skip_install_trust
+	admin off
+	# No `servers { trusted_proxies ... }`: clients connect directly, so Caddy replaces any client-supplied
+	# X-Forwarded-For/-Proto/-Host instead of passing them on to Porch.
+}
+
+# Strip identity headers a client might send to impersonate someone at a backend that trusts them. Not used on
+# auth.localhost: Porch's own API needs the client's X-Porch-CSRF header.
+(strip_identity_headers) {
+	request_header -X-Porch-*
+	request_header -Remote-*
+}
+
+# Porch: portal, management API, OIDC provider, forward-auth outpost (/outpost/*).
+auth.localhost {
+	reverse_proxy porch:8080
+}
+
+# Fake Google OpenID provider (test/fakegoogle). TEST ONLY: anyone can sign in as any listed user.
+google.localhost {
+	reverse_proxy fakegoogle:9000
+}
+
+# Demo OIDC relying party (examples/demo-app).
+demo.localhost {
+	import strip_identity_headers
+	reverse_proxy demo-app:9090
+}
+
+# traefik/whoami protected by Porch forward-auth. The whoami echo shows exactly which headers reach the backend.
+whoami.localhost {
+	import strip_identity_headers
+
+	# Porch's per-host endpoints (/.porch/callback, /.porch/logout) must be reached on the protected host itself,
+	# before forward_auth, with the original Host header (reverse_proxy keeps it by default).
+	handle /.porch/* {
+		reverse_proxy porch:8080
+	}
+
+	handle {
+		forward_auth porch:8080 {
+			uri /outpost/auth
+			copy_headers X-Porch-User X-Porch-Email X-Porch-Name X-Porch-Groups X-Porch-Tenant
+		}
+		reverse_proxy whoami:8000
+	}
+}

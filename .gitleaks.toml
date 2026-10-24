@@ -6,7 +6,8 @@ useDefault = true
 [allowlist]
 description = "Placeholder token shapes in docs; gitignored local run artefacts (never committed)"
 paths = [
-  '''test/conformance/\.work/''',
+  '''test/conformance/\.(work|build)/''',
+  '''deploy/(demo/)?\.(state|dev)/''',
   '''(^|/)node_modules/''',
   '''^bin/''',
 ]

@@ -28,16 +28,18 @@ Status legend:
 | Edge | SSRF guard for outbound HTTP (deny loopback/private/link-local/CGNAT/NAT64 unless allowlisted) | tested | — | `internal/netguard` (M2) |
 | Login | Domain rules (validated `hd` / verified email), JIT + invite-only, invites, provenance re-evaluation, email-link-attack resistance | tested | API `/tenants/{t}/domain-rules`, `/invites` | hd missing/mismatch/hint-only/allowlist tests, email-link attack, invite-only, evidence loss on recheck (M2) |
 | Login | Backup login: password → titles → answers; shared reserve-before-hash lockout (1 → 6 h, ×2 to 48 h), per-source + circuit throttles, enumeration resistance, strength gate, random-word suggestion | tested | UI `/login`, `/account`; API `/auth/backup/*`, `/me/backup-credential` | `internal/localauth` (24 parallel → exactly threshold, no extra answer guesses, escalation, throttles), DoS isolation + restart persistence (`internal/app`), Playwright (M2) |
+| Account | Personal sessions list/revoke, app offline grants list/revoke | tested | `/me/sessions`, `/me/grants`; UI account | Playwright `m4-launcher.spec.ts` (M4) |
 | Sessions | Server-side sessions: idle/absolute (+ tenant override), user + installation epochs, CSRF, step-up window, rotation | tested (core) | API cookie auth | `internal/session` tests (M1); login methods arrive in M2 |
 | Sessions | Federated hourly `prompt=none` recheck (API 401 `upstream_recheck_required`, page redirect), Workspace removal ends session; step-up via Google `prompt=login max_age=0` or backup credential; identity linking | tested | portal + API | `TestUpstreamRecheck`, `TestGoogleStepUp`, `TestStepUpRotatesSession` (M2) |
 | OIDC OP | Authorization code + PKCE S256 (required for public clients, default for all), exact redirect URIs, RFC 9207 `iss`, ES256/RS256 ID tokens, RFC 9068 access tokens (`at+jwt`, RFC 8707 audiences), rotating refresh tokens with family reuse detection, code-replay revocation, client credentials, introspection, userinfo, revocation, RP-initiated logout, CORS for registered origins only | tested | `/oauth2/*`, `/.well-known/openid-configuration`, `/jwks`; API `/tenants/{t}/applications` | `internal/app/oidc_test.go` (go-oidc RP; 11 protocol tests) (M3) |
 | OIDC OP | Signing keys: ES256 + RS256 sealed in keyring, rotation with overlap, retirement | tested | API `/installation/signing-keys` | `TestSigningKeyRotationOverlap` (M3) |
 | OIDC OP | prompt=none / prompt=login / max_age, cross-tenant denial | tested | — | `TestPromptAndMaxAge`, `TestCrossTenantAccessDenied` (M3) |
 | OIDC OP | Interop: in-repo demo RP (go-oidc) against a real `porch serve` | tested | `examples/demo-app` | Playwright `m3-demo-app.spec.ts`: sign-in, verified ID + RFC 9068 access token, refresh rotation, RP-initiated logout (M3) |
-| OIDC OP | OpenID conformance suite (Basic/Config OP) | in progress | — | `test/conformance` (results pending) |
-| Apps | Applications, shares, launcher | planned | — | M4 |
-| Apps | Forward-auth outpost | planned | — | M4 |
-| AuthZ | RBAC + expr policies + explain | planned | — | M5 |
+| OIDC OP | OpenID conformance suite (Basic/Config OP), local Docker run | tested | — | `test/conformance/run.sh`: Basic 21 passed / 6 warning (diagnosed) / 3 review / 4 skipped / 1 failed → fixed and re-run as REVIEW; Config 1 passed. Not an official certification (M4) |
+| Apps | Applications (OIDC, forward-auth), access modes, explicit cross-tenant shares, launcher | tested | API `/tenants/{t}/applications{,/shares}`, `/me/apps`; UI home | `internal/authz` share tests, `TestAuthzCheckAndSharesAPI`, Playwright `m4-launcher.spec.ts` (M4) |
+| Apps | Forward-auth outpost (Caddy/Traefik/nginx contract, per-host cookies, host-bound single-use codes, trusted peers) | tested | `/outpost/*`, `/.porch/*` | `internal/app/forwardauth_test.go` (spoofing, open redirect, host binding, logout), Playwright via `test/fwdproxy` (M4); real Caddy 2.11.7 in `deploy/demo`: curl sign-in, header-spoof stripping, 302/401 (M4) |
+| AuthZ | Engine: roles, bundles, nested groups (DAG ≤ 5), resource hierarchy scopes, expiry, expr conditions + deny policies (sandboxed, fuzzed), tenant gate, explain trace, epoch cache; decision API | tested | API `/tenants/{t}/authz/check{,-batch}` | `internal/authz` (decisions, cycles/depth, random-DAG property, stale-policy fail-closed, fuzz) (M4) |
+| AuthZ | Admin UI, effective permissions, simulator UI, tenant-admin delegation with escalation checks | planned | — | M5 |
 | Admin | Full admin UI | planned | — | M5 |
 | Automation | Automation tokens, Terraform provider | planned | — | M6 |
 | Events | Outbox → pulse | planned | — | M6 |
@@ -45,6 +47,7 @@ Status legend:
 | Backups | Real S3 providers | not verified | — | — |
 | Edge | Trusted-proxy client IP (right-to-left XFF), Cloudflare `CF-Connecting-IP` only from CF ranges, security headers + CSP nonce | tested | — | `internal/httpx` spoofing table (16 cases), audit records trusted IP (M1) |
 | Edge | Real Cloudflare | not verified | — | — |
+| Deploy | Container image (distroless, nonroot, 29 MB), production compose (read-only rootfs, cap_drop ALL), systemd unit, demo stack (Caddy + fake Google + demo-app + whoami) | tested (manual) | `deploy/` | `docker build`, compose `up --wait` healthy, demo `up.sh` sign-in via curl, systemd 257 in a container (`systemd-analyze security` 1.4) (M4); not on a bare Linux host |
 | Release | Acceptance script, release workflow | planned | — | M7 |
 | API | Management API conventions: RFC 9457 problems with stable codes, cursor pagination, ETag/If-Match, provenance headers, OpenAPI 3.1 committed | tested | `/api/v1` | path-param binding + auth-required spec tests (M1) |
 | API | `Idempotency-Key` on creates | planned | — | M6 (with automation tokens) |

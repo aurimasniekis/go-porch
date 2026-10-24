@@ -37,3 +37,6 @@ node_modules/
 
 # Conformance-suite run artefacts (generated client secrets, TLS keys)
 /test/conformance/.work/
+/deploy/secrets/
+/deploy/.env
+/deploy/demo/.env

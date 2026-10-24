@@ -52,9 +52,72 @@
         ],
         "type": "object"
       },
+      "AppGrant": {
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "type": "string"
+          },
+          "app_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "family_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "family_id",
+          "app_id",
+          "app_name",
+          "created_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "AppShare": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "tenant_name": {
+            "type": "string"
+          },
+          "tenant_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_slug",
+          "tenant_name",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "Application": {
         "additionalProperties": false,
         "properties": {
+          "access_mode": {
+            "description": "all_members: every active member (and shared tenants); assigned: explicit app:access grants only.",
+            "enum": [
+              "all_members",
+              "assigned"
+            ],
+            "type": "string"
+          },
           "client": {
             "$ref": "#/components/schemas/OIDCClient"
           },
@@ -70,6 +133,20 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "forward_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Identity headers sent to forward-auth backends (header → sub|email|name|groups|tenant|roles); empty = defaults.",
+            "type": "object"
+          },
+          "hosts": {
+            "description": "Hosts protected by a forward_auth application.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "id": {
             "type": "string"
@@ -118,6 +195,9 @@
           "launch_url",
           "enabled",
           "disclosure",
+          "access_mode",
+          "hosts",
+          "forward_headers",
           "version",
           "managed_by",
           "created_at",
@@ -146,6 +226,68 @@
         "required": [
           "events",
           "ok"
+        ],
+        "type": "object"
+      },
+      "AuthzBatchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/AuthzCheckRequest"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "checks"
+        ],
+        "type": "object"
+      },
+      "AuthzCheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "\u003cresource_type\u003e:\u003caction\u003e, e.g. app:access",
+            "maxLength": 65,
+            "minLength": 3,
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ContextV1"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/AuthzCheckRequestResourceStruct"
+          },
+          "user_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "action",
+          "resource"
+        ],
+        "type": "object"
+      },
+      "AuthzCheckRequestResourceStruct": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "type": {
+            "maxLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
         ],
         "type": "object"
       },
@@ -370,9 +512,38 @@
         ],
         "type": "object"
       },
+      "ContextV1": {
+        "additionalProperties": false,
+        "properties": {
+          "hour": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "network": {
+            "type": "string"
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "weekday": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CreateApplicationRequest": {
         "additionalProperties": false,
         "properties": {
+          "access_mode": {
+            "enum": [
+              "all_members",
+              "assigned"
+            ],
+            "type": "string"
+          },
           "client": {
             "$ref": "#/components/schemas/ClientConfig"
           },
@@ -382,6 +553,19 @@
           },
           "disclosure": {
             "$ref": "#/components/schemas/Disclosure"
+          },
+          "forward_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
           },
           "kind": {
             "enum": [
@@ -571,6 +755,14 @@
       "CreatedApplication": {
         "additionalProperties": false,
         "properties": {
+          "access_mode": {
+            "description": "all_members: every active member (and shared tenants); assigned: explicit app:access grants only.",
+            "enum": [
+              "all_members",
+              "assigned"
+            ],
+            "type": "string"
+          },
           "client": {
             "$ref": "#/components/schemas/OIDCClient"
           },
@@ -590,6 +782,20 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "forward_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Identity headers sent to forward-auth backends (header → sub|email|name|groups|tenant|roles); empty = defaults.",
+            "type": "object"
+          },
+          "hosts": {
+            "description": "Hosts protected by a forward_auth application.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "id": {
             "type": "string"
@@ -638,10 +844,33 @@
           "launch_url",
           "enabled",
           "disclosure",
+          "access_mode",
+          "hosts",
+          "forward_headers",
           "version",
           "managed_by",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "Decision": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/Trace"
+          }
+        },
+        "required": [
+          "allowed",
+          "reason",
+          "trace"
         ],
         "type": "object"
       },
@@ -795,6 +1024,56 @@
         "required": [
           "field",
           "message"
+        ],
+        "type": "object"
+      },
+      "GateTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "passed": {
+            "type": "boolean"
+          },
+          "via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "passed",
+          "via"
+        ],
+        "type": "object"
+      },
+      "GrantTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "applies": {
+            "type": "boolean"
+          },
+          "assignment_id": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/components/schemas/PolicyTrace"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "via",
+          "scope",
+          "permission",
+          "applies"
         ],
         "type": "object"
       },
@@ -952,6 +1231,51 @@
           "email",
           "created_at",
           "expires_at"
+        ],
+        "type": "object"
+      },
+      "LauncherApp": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "launch_url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shared": {
+            "description": "Owned by another tenant and shared with yours.",
+            "type": "boolean"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "tenant_name": {
+            "type": "string"
+          },
+          "tenant_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "kind",
+          "launch_url",
+          "tenant_slug",
+          "tenant_name",
+          "shared"
         ],
         "type": "object"
       },
@@ -1186,6 +1510,49 @@
         ],
         "type": "object"
       },
+      "MySession": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "method",
+          "created_at",
+          "last_seen_at",
+          "expires_at",
+          "ip",
+          "user_agent",
+          "current"
+        ],
+        "type": "object"
+      },
       "OIDCClient": {
         "additionalProperties": false,
         "properties": {
@@ -1337,6 +1704,29 @@
           "role",
           "source",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "PolicyTrace": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "policy_id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "boolean"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "policy_id",
+          "slug",
+          "result"
         ],
         "type": "object"
       },
@@ -1515,6 +1905,21 @@
         ],
         "type": "object"
       },
+      "ShareRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "tenant": {
+            "description": "Target tenant ID or slug.",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant"
+        ],
+        "type": "object"
+      },
       "SigningKey": {
         "additionalProperties": false,
         "properties": {
@@ -1649,9 +2054,62 @@
         ],
         "type": "object"
       },
+      "Trace": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/GrantTrace"
+            },
+            "type": "array"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ContextV1"
+          },
+          "deny_policies": {
+            "items": {
+              "$ref": "#/components/schemas/PolicyTrace"
+            },
+            "type": "array"
+          },
+          "epoch": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "simulated": {
+            "type": "boolean"
+          },
+          "tenant_gate": {
+            "$ref": "#/components/schemas/GateTrace"
+          }
+        },
+        "required": [
+          "tenant_gate",
+          "groups",
+          "candidates",
+          "deny_policies",
+          "context",
+          "simulated",
+          "epoch"
+        ],
+        "type": "object"
+      },
       "UpdateApplicationRequest": {
         "additionalProperties": false,
         "properties": {
+          "access_mode": {
+            "enum": [
+              "all_members",
+              "assigned"
+            ],
+            "type": "string"
+          },
           "client": {
             "$ref": "#/components/schemas/ClientConfig"
           },
@@ -1664,6 +2122,19 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "forward_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
           },
           "launch_url": {
             "maxLength": 2048,
@@ -2745,6 +3216,45 @@
         ]
       }
     },
+    "/me/apps": {
+      "get": {
+        "operationId": "list-my-apps",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LauncherApp"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Applications you can open (launcher)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/me/backup-credential": {
       "get": {
         "operationId": "get-backup-credential",
@@ -2864,6 +3374,85 @@
         ]
       }
     },
+    "/me/grants": {
+      "get": {
+        "operationId": "list-my-grants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AppGrant"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Applications with offline access to your account (refresh tokens)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/grants/{family}": {
+      "delete": {
+        "operationId": "revoke-my-grant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Revoke an application's offline access",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/me/identities": {
       "get": {
         "operationId": "list-my-identities",
@@ -2898,6 +3487,85 @@
           }
         ],
         "summary": "Upstream accounts linked to you",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/sessions": {
+      "get": {
+        "operationId": "list-my-sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MySession"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Your active browser sessions",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/sessions/{session}": {
+      "delete": {
+        "operationId": "revoke-my-session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Sign out one of your sessions",
         "tags": [
           "account"
         ]
@@ -3799,6 +4467,307 @@
         "summary": "Issue a new client secret (needs a recent sign-in; the old secret stops working)",
         "tags": [
           "applications"
+        ]
+      }
+    },
+    "/tenants/{tenant}/applications/{app}/shares": {
+      "get": {
+        "operationId": "list-application-shares",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AppShare"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Tenants an application is shared with",
+        "tags": [
+          "applications"
+        ]
+      },
+      "post": {
+        "operationId": "share-application",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Share an application with another tenant (explicit cross-tenant access)",
+        "tags": [
+          "applications"
+        ]
+      }
+    },
+    "/tenants/{tenant}/applications/{app}/shares/{target}": {
+      "delete": {
+        "operationId": "unshare-application",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "app",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Stop sharing an application",
+        "tags": [
+          "applications"
+        ]
+      }
+    },
+    "/tenants/{tenant}/authz/check": {
+      "post": {
+        "operationId": "authz-check",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthzCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Decide (and explain) whether a user may perform an action",
+        "tags": [
+          "authorization"
+        ]
+      }
+    },
+    "/tenants/{tenant}/authz/check-batch": {
+      "post": {
+        "operationId": "authz-check-batch",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthzBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Decision"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Several authorization decisions at once",
+        "tags": [
+          "authorization"
         ]
       }
     },

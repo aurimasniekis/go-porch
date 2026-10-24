@@ -408,3 +408,43 @@ func TestApplicationsAPI(t *testing.T) {
 		t.Fatalf("keys %s", keys.Body.String())
 	}
 }
+
+// The authorization decision API explains decisions; shares grant cross-tenant access explicitly.
+func TestAuthzCheckAndSharesAPI(t *testing.T) {
+	a := newApp(t)
+	c := setupOwner(t, a)
+	for _, slug := range []string{"smith", "jones"} {
+		expect(t, c.do(http.MethodPost, "/api/v1/tenants", map[string]string{"slug": slug, "name": slug}, nil), http.StatusCreated)
+	}
+	u := decode[map[string]any](t, c.do(http.MethodPost, "/api/v1/users", map[string]string{"display_name": "Carol"}, nil))
+	expect(t, c.do(http.MethodPost, "/api/v1/tenants/jones/members", map[string]string{"user_id": u["id"].(string)}, nil), http.StatusCreated)
+	app := decode[map[string]any](t, c.do(http.MethodPost, "/api/v1/tenants/smith/applications", map[string]any{"slug": "jellyfin", "name": "Jellyfin",
+		"kind": "forward_auth", "hosts": []string{"jellyfin.smith.example"}}, nil))
+	req := map[string]any{"user_id": u["id"], "action": "app:access", "resource": map[string]string{"type": "app", "id": app["id"].(string)}}
+	d := decode[map[string]any](t, c.do(http.MethodPost, "/api/v1/tenants/smith/authz/check", req, nil))
+	if d["allowed"] != false || d["reason"] != "tenant_gate" {
+		t.Fatalf("before share %v", d)
+	}
+	expect(t, c.do(http.MethodPost, "/api/v1/tenants/smith/applications/"+app["id"].(string)+"/shares", map[string]string{"tenant": "jones"}, nil),
+		http.StatusNoContent)
+	rec0 := c.do(http.MethodPost, "/api/v1/tenants/smith/authz/check", req, nil)
+	d = decode[map[string]any](t, rec0)
+	trace, ok := d["trace"].(map[string]any)
+	if !ok {
+		t.Fatalf("no trace: %s", rec0.Body.String())
+	}
+	if d["allowed"] != true || trace["tenant_gate"].(map[string]any)["via"] != "share:jones" {
+		t.Fatalf("after share %v", d)
+	}
+	// Simulated context is flagged.
+	req["context"] = map[string]any{"ip": "10.0.0.1", "network": "trusted", "hour": 3}
+	rec1 := c.do(http.MethodPost, "/api/v1/tenants/smith/authz/check", req, nil)
+	d = decode[map[string]any](t, rec1)
+	if tr, _ := d["trace"].(map[string]any); tr == nil || tr["simulated"] != true {
+		t.Fatalf("simulation not flagged %v", d)
+	}
+	// Hosts are unique installation-wide.
+	rec := c.do(http.MethodPost, "/api/v1/tenants/jones/applications", map[string]any{"slug": "x", "name": "x", "kind": "forward_auth",
+		"hosts": []string{"jellyfin.smith.example"}}, nil)
+	expect(t, rec, http.StatusConflict)
+}

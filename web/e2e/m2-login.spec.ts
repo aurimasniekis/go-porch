@@ -50,6 +50,15 @@ test.describe.serial('M2: setup, Google login, backup login', () => {
       },
       disclosure: { email: true, groups: true, roles: true, entitlements: false },
     })
+    // A forward-auth application behind the test proxy (whoami.localhost → bin/fwdproxy).
+    await apiCall(page.request, 'POST', '/tenants/smith/applications', {
+      slug: 'whoami',
+      name: 'Whoami',
+      kind: 'forward_auth',
+      description: 'Shows the identity headers Porch sends',
+      hosts: ['whoami.localhost'],
+      launch_url: `${process.env.PORCH_E2E_FWD ?? 'http://whoami.localhost:9998'}/`,
+    })
     const client = app?.client as { client_id: string }
     writeFileSync(
       process.env.PORCH_E2E_STATE ?? 'e2e-state.json',
@@ -60,7 +69,7 @@ test.describe.serial('M2: setup, Google login, backup login', () => {
   test('a Workspace user signs in with Google and is enrolled', async ({ page }) => {
     await googleLogin(page, 'Ada Smith')
     await expect(page.getByRole('heading', { name: 'Hello, Ada Smith' })).toBeVisible()
-    await expect(page.getByText('Smith family')).toBeVisible()
+    await expect(page.getByText('Smith family').first()).toBeVisible()
     await expectAccessible(page)
   })
 

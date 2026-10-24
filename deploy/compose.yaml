@@ -1,0 +1,114 @@
+# Porch on Docker Compose (production-style). Adapted from HallPass deploy/compose.yaml (Apache-2.0, same author).
+# Single instance: exactly one Porch per data volume (SQLite + a data-directory lock), no replicas. See deploy/README.md.
+#
+# Quick start, from this directory:
+#
+#   1. Configuration: copy .env.example to .env and set PD_PUBLIC_URL (the https origin users see; also the OIDC
+#      issuer). porch.container.yaml is mounted as /etc/porch/porch.yaml; edit it (or PD_CONFIG_FILE) for anything else.
+#   2. KEK, once (outside the data volume, owned by the container user UID 65532, mode 0400):
+#        install -d -m 0700 secrets && sudo chown 65532:65532 secrets        # Docker Desktop: chown not needed
+#        docker compose --profile init run --rm keygen
+#      Back secrets/porch.kek up offline, separately from data backups. Losing it makes the database unreadable.
+#   3. Setup token for the first owner (needs the data-directory lock, so Porch must NOT be running):
+#        docker compose run --rm --no-deps porch admin setup-token
+#   4. docker compose up -d && docker compose ps            # waits for the HEALTHCHECK to report healthy
+#      Open PD_PUBLIC_URL/setup and paste the token.
+#
+# Interpolation variables use the PD_ prefix on purpose: the porch binary rejects unknown PORCH_* variables, so a
+# PORCH_IMAGE exported in your shell would break a host-side `porch` run.
+#   PD_PUBLIC_URL (required)  PD_IMAGE  PD_VERSION  PD_CONFIG_FILE  PD_KEK_FILE  PD_HTTP_BIND  PD_HTTP_PORT
+#   PD_SUBNET  PD_TRUSTED_PROXIES
+#
+# The image runs as UID/GID 65532 with no shell. Compose `secrets:` with `file:` is a bind mount, so the host file's
+# owner and mode are what the container sees: Porch refuses a KEK readable by group/others or owned by another UID.
+
+name: porch
+
+x-porch: &porch
+  image: ${PD_IMAGE:-porch}:${PD_VERSION:-local}
+  user: "65532:65532"
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  porch:
+    <<: *porch
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${PD_BUILD_VERSION:-dev}       # e.g. PD_BUILD_VERSION=$(git describe --tags --always --dirty)
+        COMMIT: ${PD_BUILD_COMMIT:-}
+    command: ["serve"]
+    restart: unless-stopped
+    # Longer than the HTTP drain so in-flight requests finish and SQLite closes cleanly.
+    stop_grace_period: 30s
+    environment:
+      PORCH_CONFIG: /etc/porch/porch.yaml
+      PORCH_PUBLIC_URL: ${PD_PUBLIC_URL:?set PD_PUBLIC_URL to the https origin users reach Porch at}
+      # The reverse proxy's addresses (X-Forwarded-For is believed only from these). A proxy on the Docker host reaches
+      # the published port through the network gateway, which is inside PD_SUBNET.
+      PORCH_PROXY_TRUSTED_PROXIES: ${PD_TRUSTED_PROXIES:-172.30.214.0/24}
+    ports:
+      # Plain HTTP: expose it only to a TLS-terminating reverse proxy (default: host loopback).
+      - "${PD_HTTP_BIND:-127.0.0.1}:${PD_HTTP_PORT:-28080}:8080"
+    volumes:
+      - type: volume
+        source: porch-data
+        target: /var/lib/porch
+      - type: bind
+        source: ${PD_CONFIG_FILE:-./porch.container.yaml}
+        target: /etc/porch/porch.yaml
+        read_only: true
+    secrets:
+      - source: porch_kek
+        target: porch_kek     # -> /run/secrets/porch_kek (kek.file in porch.container.yaml)
+    # Same probe as the image HEALTHCHECK, faster at start-up. The management listener stays on container loopback.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/porch", "healthcheck", "--url", "http://127.0.0.1:9464/readyz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 2s
+      retries: 3
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks: [porch]
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # One-shot: generate the KEK into ./secrets (refuses to overwrite an existing file).
+  #   docker compose --profile init run --rm keygen
+  keygen:
+    <<: *porch
+    profiles: [init]
+    command: ["keys", "init", "--out", "/out/porch.kek"]
+    restart: "no"
+    network_mode: none
+    volumes:
+      - type: bind
+        source: ${PD_KEK_DIR:-./secrets}
+        target: /out
+
+volumes:
+  # Local named volume. Do not back it with NFS/SMB/FUSE: Porch refuses network filesystems.
+  porch-data: {}
+
+networks:
+  porch:
+    ipam:
+      config:
+        - subnet: ${PD_SUBNET:-172.30.214.0/24}
+
+secrets:
+  porch_kek:
+    file: ${PD_KEK_FILE:-./secrets/porch.kek}

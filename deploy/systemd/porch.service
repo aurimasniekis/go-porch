@@ -1,0 +1,80 @@
+# Porch standalone deployment (systemd). Adapted from HallPass deploy/systemd/hallpass.service (Apache-2.0, same author).
+# Install: deploy/systemd/README.md.
+#
+#   /usr/local/bin/porch          binary, root-owned 0755
+#   /etc/porch/porch.yaml         configuration (secret-free), root:porch 0640
+#   /etc/porch/kek                KEK, porch:porch 0400 (`porch keys init --out /etc/porch/kek`); never inside data_dir
+#   /var/lib/porch                data dir, porch:porch 0700 (StateDirectory)
+#
+# The KEK is read directly from /etc/porch/kek by a dedicated user. LoadCredential= is not used yet: on ACL-capable
+# credential filesystems systemd hands a non-root service a root-owned 0400 file plus a user ACL, whose mask shows as
+# group bits (0440), and Porch refuses a KEK with group bits (README.md, "LoadCredential").
+# Check the sandbox on the target host with: systemd-analyze security porch.service
+
+[Unit]
+Description=Porch identity provider and single sign-on
+Documentation=https://github.com/aurimasniekis/go-porch/tree/main/deploy/systemd
+After=network-online.target
+Wants=network-online.target
+# Refuse to start when the KEK or config is absent (Porch would refuse too; this gives a clearer status).
+AssertPathExists=/etc/porch/kek
+AssertPathExists=/etc/porch/porch.yaml
+
+[Service]
+Type=simple
+User=porch
+Group=porch
+Environment=PORCH_CONFIG=/etc/porch/porch.yaml
+ExecStart=/usr/local/bin/porch serve
+# Pending database migrations run at startup after a pre-migration snapshot.
+Restart=on-failure
+RestartSec=5s
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=30s
+TimeoutStartSec=120s
+LimitNOFILE=65536
+UMask=0077
+
+# Data directory: /var/lib/porch, owned by User=, mode 0700 (data_dir in porch.yaml must match).
+StateDirectory=porch
+StateDirectoryMode=0700
+
+# ---- Sandboxing -----------------------------------------------------------------------------------------------------
+NoNewPrivileges=yes
+# Listening on 8080/9464 needs no capabilities. To bind 443 directly (native TLS), add
+#   AmbientCapabilities=CAP_NET_BIND_SERVICE
+#   CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/porch
+# log.audit_file outside data_dir needs a writable path too, e.g. LogsDirectory=porch (-> /var/log/porch).
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateIPC=yes
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @swap @reboot @raw-io @module @debug @cpu-emulation @obsolete
+SystemCallErrorNumber=EPERM
+DevicePolicy=closed
+KeyringMode=private
+
+[Install]
+WantedBy=multi-user.target

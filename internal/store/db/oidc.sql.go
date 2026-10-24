@@ -689,6 +689,51 @@ func (q *Queries) ListSigningKeys(ctx context.Context) ([]SigningKey, error) {
 	return items, nil
 }
 
+const listUserFamiliesWithApps = `-- name: ListUserFamiliesWithApps :many
+SELECT r.family_id, r.client_id, a.id AS app_id, a.name AS app_name, min(r.created_at) AS created_at, max(r.idle_expires_at) AS idle_expires_at
+FROM refresh_tokens r JOIN oauth_clients c ON c.id = r.client_id JOIN applications a ON a.id = c.app_id
+WHERE r.user_id = ? AND r.state = 'active' GROUP BY r.family_id, r.client_id, a.id, a.name ORDER BY created_at DESC
+`
+
+type ListUserFamiliesWithAppsRow struct {
+	FamilyID      string
+	ClientID      string
+	AppID         string
+	AppName       string
+	CreatedAt     interface{}
+	IdleExpiresAt interface{}
+}
+
+func (q *Queries) ListUserFamiliesWithApps(ctx context.Context, userID string) ([]ListUserFamiliesWithAppsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUserFamiliesWithApps, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserFamiliesWithAppsRow{}
+	for rows.Next() {
+		var i ListUserFamiliesWithAppsRow
+		if err := rows.Scan(
+			&i.FamilyID,
+			&i.ClientID,
+			&i.AppID,
+			&i.AppName,
+			&i.CreatedAt,
+			&i.IdleExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserGroupSlugs = `-- name: ListUserGroupSlugs :many
 SELECT g.slug FROM group_members m JOIN groups g ON g.tenant_id = m.tenant_id AND g.id = m.group_id
 WHERE m.tenant_id = ? AND m.user_id = ? ORDER BY g.slug
@@ -877,6 +922,30 @@ func (q *Queries) RevokeUserClientRefresh(ctx context.Context, arg RevokeUserCli
 		arg.RevokeReason,
 		arg.UserID,
 		arg.ClientID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const revokeUserFamily = `-- name: RevokeUserFamily :execrows
+UPDATE refresh_tokens SET state = 'revoked', revoked_at = ?, revoke_reason = ? WHERE user_id = ? AND family_id = ? AND state != 'revoked'
+`
+
+type RevokeUserFamilyParams struct {
+	RevokedAt    sql.NullInt64
+	RevokeReason sql.NullString
+	UserID       string
+	FamilyID     string
+}
+
+func (q *Queries) RevokeUserFamily(ctx context.Context, arg RevokeUserFamilyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeUserFamily,
+		arg.RevokedAt,
+		arg.RevokeReason,
+		arg.UserID,
+		arg.FamilyID,
 	)
 	if err != nil {
 		return 0, err

@@ -1,0 +1,5 @@
+[
+  {"subject": "ada", "email": "ada@smith.example", "email_verified": true, "name": "Ada Smith", "hd": "smith.example"},
+  {"subject": "bob", "email": "bob@smith.example", "email_verified": true, "name": "Bob Smith", "hd": "smith.example"},
+  {"subject": "carol", "email": "carol@gmail.example", "email_verified": true, "name": "Carol (consumer, not enrolled)"}
+]

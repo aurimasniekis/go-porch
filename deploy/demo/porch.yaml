@@ -1,0 +1,29 @@
+# Porch configuration for the demo stack (deploy/demo). NOT a production configuration.
+#
+# mode: development is required because the demo registers test/fakegoogle as a `kind: google` provider: production
+# mode only accepts https://accounts.google.com for Google providers. Everything else is production-like: https
+# public URL behind Caddy, a real KEK file outside data_dir, __Host- cookies.
+#
+# Values that depend on .env (port, network subnet) are set by compose.yaml through PORCH_* overrides:
+#   PORCH_PUBLIC_URL             https://auth.localhost:${DEMO_HTTPS_PORT}
+#   PORCH_PROXY_TRUSTED_PROXIES  ${DEMO_SUBNET}   (Caddy; X-Forwarded-For is believed only from it)
+#   PORCH_OUTBOUND_ALLOW_CIDRS   ${DEMO_SUBNET}   (the SSRF guard otherwise refuses the fake Google behind Caddy)
+
+mode: development
+data_dir: /var/lib/porch
+
+kek:
+  source: file
+  file: /var/lib/porch-kek/porch.kek    # named volume porch-kek, created by `porch keys init` (up.sh)
+
+http:
+  listen: 0.0.0.0:8080                  # only Caddy reaches it (not published on the host)
+
+management:
+  listen: 127.0.0.1:9464                # container loopback; the HEALTHCHECK runs inside the container
+
+# forward_auth.trusted_peers defaults to proxy.trusted_proxies plus loopback, which is Caddy here.
+
+log:
+  level: info
+  format: text

@@ -21,6 +21,7 @@ import (
 
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/ids"
@@ -64,6 +65,7 @@ type Provider struct {
 	Apps     *apps.Service
 	Sessions *session.Manager
 	Tenants  *tenancy.Service
+	Engine   *authz.Engine
 	Clock    clock.Clock
 	Metrics  *metrics.Metrics
 	Log      *slog.Logger
@@ -153,10 +155,9 @@ func (p *Provider) Discovery(context.Context, *op.Request[struct{}]) (*op.Respon
 		IntrospectionEndpointAuthMethodsSupported: []oidc.AuthMethod{oidc.AuthMethodBasic, oidc.AuthMethodPost},
 		RevocationEndpointAuthMethodsSupported:    []oidc.AuthMethod{oidc.AuthMethodBasic, oidc.AuthMethodPost, oidc.AuthMethodNone},
 		CodeChallengeMethodsSupported:             []oidc.CodeChallengeMethod{oidc.CodeChallengeMethodS256},
-		ClaimsSupported: []string{"iss", "sub", "aud", "exp", "iat", "auth_time", "nonce", "amr", "azp", "at_hash", "name",
-			"preferred_username", "email", "email_verified", "porch"},
-		RequestParameterSupported:    false,
-		RequestURIParameterSupported: false,
+		ClaimsSupported:                           []string{"iss", "sub", "aud", "exp", "iat", "auth_time", "nonce", "amr", "azp", "at_hash", "name", "email", "email_verified", "porch"},
+		RequestParameterSupported:                 false,
+		RequestURIParameterSupported:              false,
 	}, ISSParameterSupported: true}), nil
 }
 
@@ -352,7 +353,7 @@ func (p *Provider) CodeExchange(ctx context.Context, r *op.ClientRequest[oidc.Ac
 	}
 	g := grant{clientID: c.row.ID, tenantID: code.TenantID, userID: code.UserID, scopes: jsonList(code.Scopes), resources: jsonList(code.Resources),
 		authTime: domain.FromMicros(code.AuthTime), amr: jsonList(code.Amr), nonce: code.Nonce}
-	if err := p.checkStillAllowed(ctx, g); err != nil {
+	if err := p.checkStillAllowed(ctx, c, g); err != nil {
 		return nil, err
 	}
 	resp, family, jti, err := p.issue(ctx, c, g, true, "")
@@ -365,13 +366,20 @@ func (p *Provider) CodeExchange(ctx context.Context, r *op.ClientRequest[oidc.Ac
 	return op.NewResponse(resp), nil
 }
 
-// checkStillAllowed re-validates the user and tenant access at every token issuance.
-func (p *Provider) checkStillAllowed(ctx context.Context, g grant) error {
+// checkStillAllowed re-runs the access decision at every token issuance (app:access on the client's application). Token
+// requests come from the application's server, so there is no browser context: conditions that depend on the network
+// evaluate against an empty client address and fail closed.
+func (p *Provider) checkStillAllowed(ctx context.Context, c *client, g grant) error {
 	u, err := p.Store.R().GetUser(ctx, g.userID)
 	if err != nil || u.Status != "active" {
 		return oidc.ErrInvalidGrant().WithDescription("user is not active")
 	}
-	if _, err := p.Tenants.ResolveForMember(ctx, g.userID, g.tenantID); err != nil {
+	d, err := p.Engine.Check(ctx, authz.Request{TenantID: c.row.TenantID, Subject: authz.Subject{Type: "user", ID: g.userID, AuthTime: g.authTime},
+		Action: authz.PermAppAccess, Resource: authz.Resource{Type: "app", ID: c.row.AppID}})
+	if err != nil {
+		return oidc.ErrServerError().WithParent(err)
+	}
+	if !d.Allowed {
 		return oidc.ErrInvalidGrant().WithDescription("user no longer has access to this application")
 	}
 	return nil
@@ -450,7 +458,7 @@ func (p *Provider) RefreshToken(ctx context.Context, r *op.ClientRequest[oidc.Re
 		}
 		g.resources = res
 	}
-	if err := p.checkStillAllowed(ctx, g); err != nil {
+	if err := p.checkStillAllowed(ctx, c, g); err != nil {
 		return nil, err
 	}
 	resp, _, _, err := p.issue(ctx, c, g, slices.Contains(scopes, oidc.ScopeOpenID), rt.ID)

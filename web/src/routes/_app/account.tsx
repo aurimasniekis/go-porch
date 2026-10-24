@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { actionUrl, api, ApiError, check, unwrap } from '@/api/client'
-import { backupStatusQuery, identitiesQuery, loginOptionsQuery } from '@/api/queries'
+import { backupStatusQuery, identitiesQuery, loginOptionsQuery, myGrantsQuery, mySessionsQuery } from '@/api/queries'
 
 export const Route = createFileRoute('/_app/account')({
   component: function Account() {
@@ -16,6 +16,8 @@ export const Route = createFileRoute('/_app/account')({
         </Title>
         <Identities />
         <BackupCredential />
+        <Sessions />
+        <Grants />
       </Stack>
     )
   },
@@ -277,6 +279,97 @@ function BackupCredential() {
           </Button>
         </Group>
       </form>
+    </Card>
+  )
+}
+
+function Sessions() {
+  const qc = useQueryClient()
+  const sessions = useQuery(mySessionsQuery)
+  const revoke = async (id: string) => {
+    check(await api.DELETE('/me/sessions/{session}', { params: { path: { session: id } } }))
+    await qc.invalidateQueries({ queryKey: ['my-sessions'] })
+  }
+  return (
+    <Card>
+      <Title order={2} size="h4" mb="sm">
+        Signed-in browsers
+      </Title>
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Method</Table.Th>
+            <Table.Th>Last active</Table.Th>
+            <Table.Th>Address</Table.Th>
+            <Table.Th>
+              <span className="visually-hidden">Actions</span>
+            </Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {sessions.data?.map((s) => (
+            <Table.Tr key={s.id}>
+              <Table.Td>
+                {s.method}
+                {s.current ? ' (this browser)' : ''}
+              </Table.Td>
+              <Table.Td>{new Date(s.last_seen_at).toLocaleString()}</Table.Td>
+              <Table.Td>{s.ip}</Table.Td>
+              <Table.Td>
+                {s.current ? null : (
+                  <Button size="xs" variant="subtle" onClick={() => void revoke(s.id)}>
+                    Sign out
+                  </Button>
+                )}
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
+    </Card>
+  )
+}
+
+function Grants() {
+  const qc = useQueryClient()
+  const grants = useQuery(myGrantsQuery)
+  const revoke = async (family: string) => {
+    check(await api.DELETE('/me/grants/{family}', { params: { path: { family } } }))
+    await qc.invalidateQueries({ queryKey: ['my-grants'] })
+  }
+  return (
+    <Card>
+      <Title order={2} size="h4" mb="sm">
+        Applications with offline access
+      </Title>
+      {grants.data?.length ? (
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Application</Table.Th>
+              <Table.Th>Since</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {grants.data.map((g) => (
+              <Table.Tr key={g.family_id}>
+                <Table.Td>{g.app_name}</Table.Td>
+                <Table.Td>{new Date(g.created_at).toLocaleString()}</Table.Td>
+                <Table.Td>
+                  <Button size="xs" variant="subtle" onClick={() => void revoke(g.family_id)}>
+                    Revoke
+                  </Button>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      ) : (
+        <Text c="dimmed">No application keeps you signed in in the background.</Text>
+      )}
     </Card>
   )
 }

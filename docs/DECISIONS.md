@@ -284,7 +284,11 @@ flow, token exchange (they return the library's "unsupported" errors).
 
 ## ADR-0031 — Re-authentication for `prompt=login` and `max_age`
 
-**Decision.** `max_age` compares the session's `auth_time`. `prompt=login` records which session was sent to
+**Decision.** `max_age` is satisfied by any authentication after the authorization request (OIDC Core §3.1.2.1): a
+session created — by login or step-up rotation, on Porch's clock — after the request, or an `auth_time` no older than
+`max_age` seconds before the request (whole seconds; upstream `auth_time` may be skewed). zitadel turns `prompt=login`
+into `max_age=0`; an earlier "now − auth_time ≤ max_age" check looped forever for real clients (found by the OpenID
+conformance suite, `oidcc-prompt-login`). `prompt=login` additionally records which session was sent to
 re-authenticate; the request continues only when that session came back *rotated* (a step-up always rotates) with an
 `auth_time` inside the step-up window. Federated sessions re-authenticate upstream with `prompt=login&max_age=0`;
 backup sessions repeat the two-step backup login. `prompt=none` never shows UI: no session, a due upstream recheck or a
@@ -303,3 +307,36 @@ disclosure settings and the client's allowed scopes. Setup and recovery-link ses
 adds the `jti` to a denylist honoured by Porch's own userinfo and introspection endpoints. Resource servers that verify
 JWTs offline do not see the denylist; they bound exposure by the token lifetime or use introspection. Refresh-token
 revocation is immediate.
+
+## ADR-0034 — Application access modes and cross-tenant shares
+
+**Decision.** Every application has an `access_mode`: `all_members` (default; every active member of the owning tenant,
+and of tenants it is explicitly shared with, receives an implicit `app:access` grant shown as `implicit:all_members` /
+`share` in the explain trace) or `assigned` (only explicit `app:access` grants: a role on the app, on the `app` resource
+type or at tenant scope). A share (`app_shares`) is the only way a member of another tenant passes the tenant gate for an
+app; it never confers anything else. Tokens and forward-auth headers name the tenant through which access was granted
+(`porch.tenant`), so a shared Jellyfin knows which family a viewer belongs to. Deny policies of the owning tenant still
+apply to shared access.
+
+## ADR-0035 — The authorization engine ships in M4, its admin tooling in M5
+
+**Context.** Application access (M4) needs `app:access` decisions with conditions and deny policies; building a
+temporary rule system would be thrown away.
+**Decision.** The engine (ADR-0011/0012) is complete in M4 and used by OIDC authorize, every token issuance, forward-auth,
+the launcher and `POST /tenants/{t}/authz/check`. M5 adds the admin UI, effective-permission views, the policy simulator
+UI and delegation to tenant admins (with escalation checks: a tenant admin may grant only what they hold). Until then
+model changes are made by installation operators through services and tests (ADR-0026).
+
+## ADR-0036 — Forward-auth details
+
+**Decision.**
+- `/outpost/auth` answers only peers in `forward_auth.trusted_peers` (default: `proxy.trusted_proxies`) or loopback.
+- Unauthenticated GET/HEAD → 302 to `<porch>/outpost/start?rd=<original>`; other methods and JSON requests → 401.
+- `rd` must be an absolute https (http only in development) URL on a host registered to an enabled forward-auth app.
+- The one-time code (60 s) is bound to the host and is burned by any redemption attempt, even on the wrong host.
+- The host-only `__Host-porch_fa` cookie lives at most `forward_auth.session_ttl` (12 h) and never longer than the Porch
+  session; every request re-checks the Porch session (revocation, epochs, hourly upstream recheck) and `app:access`.
+- Identity headers default to `X-Porch-User` (sub), `X-Porch-Email`, `X-Porch-Name`, `X-Porch-Groups`, `X-Porch-Tenant`;
+  values are single-line. Proxies must strip client-supplied `X-Porch-*`/`Remote-*`; Porch overwrites the headers it
+  sends, but headers it does not send are the proxy's responsibility.
+- Backends reachable without the proxy bypass all of this (documented).

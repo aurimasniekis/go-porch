@@ -23,6 +23,8 @@ func main() {
 	secret := flag.String("client-secret", "porch-dev-secret", "OAuth client secret")
 	redirects := flag.String("redirect-uris", "http://localhost:8080/login/google/callback", "comma-separated redirect URIs")
 	users := flag.String("users", "", "JSON file with users [{subject,email,email_verified,name,hd,disabled}]")
+	autoLogin := flag.String("auto-login", "", "subject signed in automatically on every authorize request, without the picker "+
+		"(non-interactive scripted runs); empty shows the picker")
 	flag.Parse()
 
 	idp, err := fakeidp.New(strings.TrimSuffix(*issuer, "/"))
@@ -32,6 +34,9 @@ func main() {
 	idp.AddClient(fakeidp.Client{ID: *clientID, Secret: *secret, RedirectURIs: strings.Split(*redirects, ",")})
 	if err := loadUsers(idp, *users); err != nil {
 		log.Fatal(err)
+	}
+	if *autoLogin != "" {
+		idp.Set(func(i *fakeidp.IdP) { i.Current = *autoLogin })
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", idp.Handler())

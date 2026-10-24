@@ -79,9 +79,11 @@ type Principal struct {
 	AuthTime          time.Time
 	UpstreamCheckedAt *time.Time
 	ExpiresAt         time.Time
-	OperatorRoles     []string
-	CSRFToken         string
-	csrfSecret        []byte
+	// CreatedAt is when this session (or its latest rotation) was created by Porch: a login or step-up.
+	CreatedAt     time.Time
+	OperatorRoles []string
+	CSRFToken     string
+	csrfSecret    []byte
 }
 
 // IsOperator reports whether the principal holds one of the given installation roles.
@@ -236,6 +238,20 @@ func (m *Manager) authenticate(ctx context.Context, token string, touch bool) (*
 	if !found {
 		return nil, ErrUnauthorized
 	}
+	return m.principal(ctx, row, touch)
+}
+
+// ByID validates the session with this ID (without touching its idle timer). Forward-auth sessions use it to check that
+// the Porch session behind them is still valid.
+func (m *Manager) ByID(ctx context.Context, id string) (*Principal, error) {
+	row, err := m.s.R().GetSession(ctx, id)
+	if err != nil {
+		return nil, ErrUnauthorized
+	}
+	return m.principal(ctx, row, false)
+}
+
+func (m *Manager) principal(ctx context.Context, row db.Session, touch bool) (*Principal, error) {
 	now := m.opts.Clock.Now()
 	if row.RevokedAt.Valid || !now.Before(domain.FromMicros(row.AbsoluteExpiresAt)) ||
 		now.Sub(domain.FromMicros(row.LastSeenAt)) > time.Duration(row.IdleSecs)*time.Second {
@@ -255,7 +271,7 @@ func (m *Manager) authenticate(ctx context.Context, token string, touch bool) (*
 	}
 	p := &Principal{SessionID: row.ID, UserID: u.ID, PublicID: u.PublicID, DisplayName: u.DisplayName, Email: u.PrimaryEmail.String,
 		TenantID: row.TenantID.String, Method: row.Method, ProviderID: row.ProviderID.String, AuthTime: domain.FromMicros(row.AuthTime),
-		UpstreamCheckedAt: domain.OptMicros(row.UpstreamCheckedAt), ExpiresAt: domain.FromMicros(row.AbsoluteExpiresAt),
+		UpstreamCheckedAt: domain.OptMicros(row.UpstreamCheckedAt), ExpiresAt: domain.FromMicros(row.AbsoluteExpiresAt), CreatedAt: domain.FromMicros(row.CreatedAt),
 		OperatorRoles: roles, csrfSecret: row.CsrfSecret}
 	p.CSRFToken = csrfToken(row.CsrfSecret, row.ID)
 	if touch && now.Sub(domain.FromMicros(row.LastSeenAt)) > time.Minute {

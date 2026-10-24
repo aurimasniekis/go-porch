@@ -42,20 +42,25 @@ type Disclosure struct {
 
 // Application is something users open.
 type Application struct {
-	ID            string     `json:"id"`
-	TenantID      string     `json:"tenant_id"`
-	Slug          string     `json:"slug"`
-	Name          string     `json:"name"`
-	Kind          string     `json:"kind"`
-	Description   string     `json:"description"`
-	LaunchURL     string     `json:"launch_url"`
-	Enabled       bool       `json:"enabled"`
-	Disclosure    Disclosure `json:"disclosure"`
-	Version       int64      `json:"version"`
-	ManagedBy     string     `json:"managed_by"`
-	LastChangedBy string     `json:"last_changed_by,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID          string     `json:"id"`
+	TenantID    string     `json:"tenant_id"`
+	Slug        string     `json:"slug"`
+	Name        string     `json:"name"`
+	Kind        string     `json:"kind"`
+	Description string     `json:"description"`
+	LaunchURL   string     `json:"launch_url"`
+	Enabled     bool       `json:"enabled"`
+	Disclosure  Disclosure `json:"disclosure"`
+	AccessMode  string     `json:"access_mode"`
+	// Hosts protected by a forward_auth application.
+	Hosts []string `json:"hosts"`
+	// ForwardHeaders maps identity header names to claims (sub, email, name, groups, tenant, roles).
+	ForwardHeaders map[string]string `json:"forward_headers"`
+	Version        int64             `json:"version"`
+	ManagedBy      string            `json:"managed_by"`
+	LastChangedBy  string            `json:"last_changed_by,omitempty"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 // Client is an OAuth client (secret never included).
@@ -99,8 +104,10 @@ func mustJSON(v any) string {
 func AppFromRow(r db.Application) Application {
 	var d Disclosure
 	_ = json.Unmarshal([]byte(r.DisclosureJson), &d)
+	fh := map[string]string{}
+	_ = json.Unmarshal([]byte(r.ForwardHeaders), &fh)
 	return Application{ID: r.ID, TenantID: r.TenantID, Slug: r.Slug, Name: r.Name, Kind: r.Kind, Description: r.Description, LaunchURL: r.LaunchUrl,
-		Enabled: r.Enabled == 1, Disclosure: d, Version: r.Version, ManagedBy: r.ManagedBy, LastChangedBy: r.LastChangedBy.String,
+		Enabled: r.Enabled == 1, Disclosure: d, AccessMode: r.AccessMode, Hosts: []string{}, ForwardHeaders: fh, Version: r.Version, ManagedBy: r.ManagedBy, LastChangedBy: r.LastChangedBy.String,
 		CreatedAt: domain.FromMicros(r.CreatedAt), UpdatedAt: domain.FromMicros(r.UpdatedAt)}
 }
 
@@ -257,6 +264,10 @@ type CreateParams struct {
 	LaunchURL   string
 	Disclosure  *Disclosure
 	Client      *ClientParams // required for kind oidc
+	AccessMode  string        // all_members (default) | assigned
+	Hosts       []string      // forward_auth: protected hosts (required)
+	// ForwardHeaders overrides the default identity headers of forward_auth apps.
+	ForwardHeaders map[string]string
 }
 
 // Created is a new application; Secret is set (once) for confidential clients.
@@ -312,6 +323,23 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, sc tenancy.Sco
 			v.Add("launch_url", "must be an http(s) URL")
 		}
 	}
+	if p.AccessMode == "" {
+		p.AccessMode = AccessAllMembers
+	}
+	validateAccess(p.AccessMode, &v)
+	validateHeaders(p.ForwardHeaders, &v)
+	if p.Kind == KindForwardAuth && len(p.Hosts) == 0 {
+		v.Add("hosts", "forward_auth applications protect at least one host")
+	}
+	if p.Kind != KindForwardAuth && len(p.Hosts) > 0 {
+		v.Add("hosts", "only forward_auth applications have hosts")
+	}
+	for i, h := range p.Hosts {
+		p.Hosts[i] = strings.ToLower(strings.TrimSpace(h))
+		if !validHost(p.Hosts[i]) {
+			v.Add("hosts", "%q is not a host name", h)
+		}
+	}
 	if p.Kind == KindOIDC {
 		if p.Client == nil {
 			v.Add("client", "is required for oidc applications")
@@ -344,6 +372,9 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, sc tenancy.Sco
 			return apperr.New(apperr.CodeAlreadyExists, "application slug %q is taken in this tenant", p.Slug)
 		}
 		if err != nil {
+			return err
+		}
+		if err := svc.setAccessTx(ctx, tx, sc.TenantID(), id, p.AccessMode, p.ForwardHeaders, p.Hosts); err != nil {
 			return err
 		}
 		if p.Client != nil {
@@ -415,7 +446,11 @@ func (svc *Service) Get(ctx context.Context, sc tenancy.Scope, id string) (Appli
 		x := ClientFromRow(c)
 		cl = &x
 	}
-	return AppFromRow(r), cl, nil
+	a := AppFromRow(r)
+	if a.Hosts, err = svc.s.R().ListAppHosts(ctx, id); err != nil {
+		return Application{}, nil, err
+	}
+	return a, cl, nil
 }
 
 // List returns the scoped tenant's applications.
@@ -429,20 +464,27 @@ func (svc *Service) List(ctx context.Context, sc tenancy.Scope) ([]Application, 
 	}
 	out := make([]Application, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, AppFromRow(r))
+		a := AppFromRow(r)
+		if a.Hosts, err = svc.s.R().ListAppHosts(ctx, r.ID); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
 	}
 	return out, nil
 }
 
 // UpdateParams change an application; nil fields are unchanged.
 type UpdateParams struct {
-	Name        *string
-	Description *string
-	LaunchURL   *string
-	Enabled     *bool
-	Disclosure  *Disclosure
-	Client      *ClientParams // replaces the client configuration (type cannot change)
-	IfVersion   int64
+	Name           *string
+	Description    *string
+	LaunchURL      *string
+	Enabled        *bool
+	Disclosure     *Disclosure
+	Client         *ClientParams // replaces the client configuration (type cannot change)
+	AccessMode     *string
+	Hosts          []string          // nil = unchanged (forward_auth)
+	ForwardHeaders map[string]string // nil = unchanged
+	IfVersion      int64
 }
 
 // Update modifies an application and its client.
@@ -487,16 +529,48 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Sco
 			p.Client.ApplicationType = cr.ApplicationType
 			svc.validateClient(p.Client, &v)
 		}
+		mode, headers, hosts := a.AccessMode, a.ForwardHeaders, []string(nil)
+		if p.AccessMode != nil {
+			mode = *p.AccessMode
+			validateAccess(mode, &v)
+		}
+		if p.ForwardHeaders != nil {
+			headers = p.ForwardHeaders
+			validateHeaders(headers, &v)
+		}
+		if p.Hosts != nil {
+			if a.Kind != KindForwardAuth {
+				v.Add("hosts", "only forward_auth applications have hosts")
+			} else if len(p.Hosts) == 0 {
+				v.Add("hosts", "forward_auth applications protect at least one host")
+			}
+			for _, h := range p.Hosts {
+				h = strings.ToLower(strings.TrimSpace(h))
+				if !validHost(h) {
+					v.Add("hosts", "%q is not a host name", h)
+				}
+				hosts = append(hosts, h)
+			}
+		}
 		if err := v.Err(); err != nil {
 			return err
+		}
+		if p.AccessMode != nil || p.ForwardHeaders != nil || p.Hosts != nil {
+			if err := svc.setAccessTx(ctx, tx, sc.TenantID(), id, mode, headers, hosts); err != nil {
+				return err
+			}
 		}
 		enabled := int64(0)
 		if a.Enabled {
 			enabled = 1
 		}
+		cur, err := tx.Q.GetApplication(ctx, db.GetApplicationParams{TenantID: sc.TenantID(), ID: id})
+		if err != nil {
+			return err
+		}
 		if _, err := tx.Q.UpdateApplication(ctx, db.UpdateApplicationParams{Name: a.Name, Description: a.Description, LaunchUrl: a.LaunchURL, Enabled: enabled,
 			DisclosureJson: mustJSON(a.Disclosure), ManagedBy: ch.Managed(), LastChangedBy: domain.NullStr(ch.ChangedBy()), UpdatedAt: tx.NowMicros(),
-			TenantID: sc.TenantID(), ID: id, Version: r.Version}); err != nil {
+			TenantID: sc.TenantID(), ID: id, Version: cur.Version}); err != nil {
 			return err
 		}
 		if p.Client != nil {
@@ -580,6 +654,170 @@ func (svc *Service) Delete(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		}
 		_, err = svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, TenantID: sc.TenantID(), Action: "application.deleted",
 			Target: audit.Target{Type: "application", ID: id}, Details: map[string]any{"slug": r.Slug}})
+		return err
+	})
+}
+
+// Access modes (ADR-0034).
+const (
+	AccessAllMembers = "all_members"
+	AccessAssigned   = "assigned"
+)
+
+// DefaultForwardHeaders are the identity headers sent to forward-auth backends.
+var DefaultForwardHeaders = map[string]string{"X-Porch-User": "sub", "X-Porch-Email": "email", "X-Porch-Name": "name",
+	"X-Porch-Groups": "groups", "X-Porch-Tenant": "tenant"}
+
+var forwardClaims = []string{"sub", "email", "name", "groups", "tenant", "roles"}
+
+func validateAccess(mode string, v *apperr.Validation) {
+	if mode != AccessAllMembers && mode != AccessAssigned {
+		v.Add("access_mode", "must be all_members or assigned")
+	}
+}
+
+func validateHeaders(h map[string]string, v *apperr.Validation) {
+	for name, claim := range h {
+		if !headerName(name) {
+			v.Add("forward_headers", "%q is not a valid header name", name)
+		}
+		lower := strings.ToLower(name)
+		if lower == "host" || lower == "cookie" || lower == "authorization" || strings.HasPrefix(lower, "x-forwarded-") || lower == "set-cookie" {
+			v.Add("forward_headers", "%q cannot carry identity", name)
+		}
+		if !slices.Contains(forwardClaims, claim) {
+			v.Add("forward_headers", "unknown claim %q (use sub, email, name, groups, tenant or roles)", claim)
+		}
+	}
+}
+
+func headerName(s string) bool {
+	if s == "" || len(s) > 64 {
+		return false
+	}
+	for _, r := range s {
+		if r != '-' && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func validHost(h string) bool {
+	if h == "" || len(h) > 253 || strings.ContainsAny(h, "/:@ *") {
+		return false
+	}
+	for label := range strings.SplitSeq(h, ".") {
+		if !domain.ValidSlug(label) {
+			return false
+		}
+	}
+	return true
+}
+
+// setAccessTx stores access mode, header mapping and (when hosts != nil) the protected hosts.
+func (svc *Service) setAccessTx(ctx context.Context, tx *store.Tx, tenantID, appID, mode string, headers map[string]string, hosts []string) error {
+	if headers == nil {
+		headers = map[string]string{}
+	}
+	if _, err := tx.Q.SetApplicationAccess(ctx, db.SetApplicationAccessParams{AccessMode: mode, ForwardHeaders: mustJSON(headers),
+		UpdatedAt: tx.NowMicros(), TenantID: tenantID, ID: appID}); err != nil {
+		return err
+	}
+	if hosts == nil {
+		return nil
+	}
+	if err := tx.Q.DeleteAppHosts(ctx, db.DeleteAppHostsParams{TenantID: tenantID, AppID: appID}); err != nil {
+		return err
+	}
+	for _, h := range hosts {
+		err := tx.Q.InsertAppHost(ctx, db.InsertAppHostParams{Host: h, TenantID: tenantID, AppID: appID})
+		if store.IsConstraint(err) {
+			return apperr.New(apperr.CodeAlreadyExists, "host %s is already protected by another application", h)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	// Access changes affect decisions: invalidate cached authorization models.
+	return tx.Q.BumpAuthzEpoch(ctx, tenantID)
+}
+
+// Share is an explicit cross-tenant grant of an application (ADR-0004).
+type Share struct {
+	TenantID   string    `json:"tenant_id"`
+	TenantSlug string    `json:"tenant_slug"`
+	TenantName string    `json:"tenant_name"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// Shares lists the tenants an application is shared with.
+func (svc *Service) Shares(ctx context.Context, sc tenancy.Scope, appID string) ([]Share, error) {
+	if !sc.Valid() {
+		return nil, tenancy.ErrNoAccess
+	}
+	rows, err := svc.s.R().ListAppShares(ctx, db.ListAppSharesParams{TenantID: sc.TenantID(), AppID: appID})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Share, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, Share{TenantID: r.TargetTenantID, TenantSlug: r.TargetSlug, TenantName: r.TargetName, CreatedAt: domain.FromMicros(r.CreatedAt)})
+	}
+	return out, nil
+}
+
+// ShareWith lets members of target use the application (subject to the app's access mode).
+func (svc *Service) ShareWith(ctx context.Context, ch domain.Change, sc tenancy.Scope, appID, targetTenantID string) error {
+	if !sc.Valid() {
+		return tenancy.ErrNoAccess
+	}
+	return svc.s.W().TxNamed(ctx, "apps.share", func(tx *store.Tx) error {
+		if _, err := tx.Q.GetApplication(ctx, db.GetApplicationParams{TenantID: sc.TenantID(), ID: appID}); err != nil {
+			return ErrAppNotFound
+		}
+		if _, err := tx.Q.GetTenant(ctx, targetTenantID); err != nil {
+			return apperr.New(apperr.CodeInvalid, "target tenant not found")
+		}
+		err := tx.Q.InsertAppShare(ctx, db.InsertAppShareParams{TenantID: sc.TenantID(), AppID: appID, TargetTenantID: targetTenantID,
+			GrantedBy: domain.NullStr(ch.ChangedBy()), CreatedAt: tx.NowMicros()})
+		if store.IsConstraint(err) {
+			return apperr.New(apperr.CodeConflict, "already shared with that tenant (or it is the owning tenant)")
+		}
+		if err != nil {
+			return err
+		}
+		if err := tx.Q.BumpAuthzEpoch(ctx, sc.TenantID()); err != nil {
+			return err
+		}
+		if _, err := svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, TenantID: sc.TenantID(), Action: "application.shared",
+			Target: audit.Target{Type: "application", ID: appID}, Details: map[string]any{"target_tenant_id": targetTenantID}}); err != nil {
+			return err
+		}
+		_, err = outbox.Enqueue(ctx, tx, outbox.Event{Area: "apps", Entity: "share", Action: "created", TenantID: sc.TenantID(),
+			Payload: map[string]any{"app_id": appID, "target_tenant_id": targetTenantID}})
+		return err
+	})
+}
+
+// Unshare removes a share.
+func (svc *Service) Unshare(ctx context.Context, ch domain.Change, sc tenancy.Scope, appID, targetTenantID string) error {
+	if !sc.Valid() {
+		return tenancy.ErrNoAccess
+	}
+	return svc.s.W().TxNamed(ctx, "apps.unshare", func(tx *store.Tx) error {
+		n, err := tx.Q.DeleteAppShare(ctx, db.DeleteAppShareParams{TenantID: sc.TenantID(), AppID: appID, TargetTenantID: targetTenantID})
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return apperr.New(apperr.CodeNotFound, "share not found")
+		}
+		if err := tx.Q.BumpAuthzEpoch(ctx, sc.TenantID()); err != nil {
+			return err
+		}
+		_, err = svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, TenantID: sc.TenantID(), Action: "application.unshared",
+			Target: audit.Target{Type: "application", ID: appID}, Details: map[string]any{"target_tenant_id": targetTenantID}})
 		return err
 	})
 }

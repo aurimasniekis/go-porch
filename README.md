@@ -20,8 +20,8 @@ Self-hosted identity and single sign-on for families, friend groups and homelabs
 | M0 | Foundations, design docs | done |
 | M1 | Store, keyring, tenancy, audit, bootstrap | done |
 | M2 | Google login, sessions, backup login | done (fake Google only) |
-| M3 | OIDC provider, demo app | done (conformance run pending) |
-| M4 | Applications, portal, forward-auth | planned |
+| M3 | OIDC provider, demo app | done (OpenID conformance Basic/Config run locally, see `test/conformance`) |
+| M4 | Applications, portal, forward-auth | done |
 | M5 | Admin UI, policy tooling | planned |
 | M6 | Terraform, pulse, backups, hardening | planned |
 | M7 | Interop, release prep | planned |

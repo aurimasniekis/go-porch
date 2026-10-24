@@ -1,46 +1,16 @@
-import { spawn, type ChildProcess } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { type ChildProcess } from 'node:child_process'
 import { expect, test } from '@playwright/test'
-import { BASE } from './helpers'
-
-interface State {
-  client_id: string
-  client_secret: string
-  demo: string
-}
+import { BASE, demoState, startDemo, type DemoState } from './helpers'
 
 // M3 interop: the in-repo demo relying party (go-oidc) signs in through Porch and verifies what Porch issued.
 // Runs after m2-login.spec.ts, which registered the demo app and enrolled Ada through the Google domain rule.
 test.describe.serial('M3: demo app through Porch', () => {
   let demo: ChildProcess | undefined
-  let state: State
+  let state: DemoState
 
   test.beforeAll(async () => {
-    state = JSON.parse(readFileSync(process.env.PORCH_E2E_STATE ?? 'e2e-state.json', 'utf8')) as State
-    const port = new URL(state.demo).port
-    demo = spawn(process.env.PORCH_E2E_DEMO_BIN ?? '../bin/demo-app', [], {
-      env: {
-        ...process.env,
-        PORCH_ISSUER: BASE,
-        DEMO_CLIENT_ID: state.client_id,
-        DEMO_CLIENT_SECRET: state.client_secret,
-        DEMO_REDIRECT_URL: `${state.demo}/callback`,
-        DEMO_POST_LOGOUT_URL: `${state.demo}/`,
-        DEMO_RESOURCE: 'https://api.smith.example',
-        DEMO_LISTEN: `127.0.0.1:${port}`,
-        DEMO_INSECURE_COOKIES: 'true',
-      },
-      stdio: 'ignore',
-    })
-    for (let i = 0; i < 50; i++) {
-      try {
-        if ((await fetch(`${state.demo}/healthz`)).ok) return
-      } catch {
-        // not up yet
-      }
-      await new Promise((r) => setTimeout(r, 200))
-    }
-    throw new Error('demo app did not start')
+    state = demoState()
+    demo = await startDemo(state)
   })
 
   test.afterAll(() => {

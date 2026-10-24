@@ -1,0 +1,43 @@
+# TLS front for Porch inside the conformance compose network (rendered by run.sh into the work dir).
+#
+# Everything is proxied to Porch unchanged, with one exception (the "login shim"): a plain sign-in page request
+# `GET /login?return_to=<path>` (no `stepup`/`error` parameter) is answered with a redirect to
+# `/login/google?return_to=<path>` — exactly the link behind the SPA's "Continue with Google" button. This stands in
+# for the user clicking that button, because the suite's HtmlUnit browser does not execute Porch's ES-module SPA.
+# Porch's own authorization, session, step-up and error handling are untouched.
+
+map $args $porch_login_shim {
+    default                       0;
+    "~(^|&)(stepup|error)="       0;
+    "~(^|&)return_to=/"           __LOGIN_SHIM__;
+    "~(^|&)return_to=%2F"         __LOGIN_SHIM__;
+}
+
+server {
+    listen 8443 ssl;
+    server_name porch;
+    ssl_certificate     /etc/porch-tls/cert.pem;
+    ssl_certificate_key /etc/porch-tls/key.pem;
+    absolute_redirect off;
+    access_log /dev/stdout;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_ssl_server_name on;
+    proxy_ssl_name porch;
+    proxy_ssl_verify off;
+    proxy_read_timeout 120s;
+    proxy_buffer_size 32k;
+    proxy_buffers 8 32k;
+
+    location = /login {
+        if ($porch_login_shim) {
+            return 302 /login/google?return_to=$arg_return_to;
+        }
+        proxy_pass https://porch-backend:8443;
+    }
+
+    location / {
+        proxy_pass https://porch-backend:8443;
+    }
+}

@@ -26,3 +26,18 @@ export const identitiesQuery = queryOptions({
   queryKey: ['identities'],
   queryFn: async () => unwrap(await api.GET('/me/identities')),
 })
+
+export const myAppsQuery = queryOptions({
+  queryKey: ['my-apps'],
+  queryFn: async () => unwrap(await api.GET('/me/apps')),
+})
+
+export const mySessionsQuery = queryOptions({
+  queryKey: ['my-sessions'],
+  queryFn: async () => unwrap(await api.GET('/me/sessions')),
+})
+
+export const myGrantsQuery = queryOptions({
+  queryKey: ['my-grants'],
+  queryFn: async () => unwrap(await api.GET('/me/grants')),
+})

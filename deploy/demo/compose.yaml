@@ -1,0 +1,192 @@
+# Porch demo stack: Porch + Caddy (internal CA, *.localhost) + fake Google + demo OIDC app + whoami behind forward-auth.
+# DEMO ONLY: the fake Google provider signs in whoever clicks a name. Use deploy/demo/up.sh and down.sh; see
+# deploy/README.md. All host ports bind to 127.0.0.1.
+#
+#   https://auth.localhost:${DEMO_HTTPS_PORT}     Porch (issuer)
+#   https://google.localhost:${DEMO_HTTPS_PORT}   fake Google (TEST ONLY)
+#   https://demo.localhost:${DEMO_HTTPS_PORT}     demo OIDC relying party (profile demo-app; started once registered)
+#   https://whoami.localhost:${DEMO_HTTPS_PORT}   traefik/whoami protected by Porch forward-auth
+#
+# Variables (.env next to this file, see .env.example): DEMO_HTTPS_PORT (28443), DEMO_SUBNET (172.30.213.0/24),
+# DEMO_GOOGLE_CLIENT_SECRET.
+
+name: porch-demo
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "2" }
+
+x-porch-env: &porch-env
+  PORCH_CONFIG: /etc/porch/porch.yaml
+  PORCH_PUBLIC_URL: https://auth.localhost:${DEMO_HTTPS_PORT:-28443}
+  PORCH_PROXY_TRUSTED_PROXIES: ${DEMO_SUBNET:-172.30.213.0/24}
+  PORCH_OUTBOUND_ALLOW_CIDRS: ${DEMO_SUBNET:-172.30.213.0/24}
+
+services:
+  caddy:
+    image: docker.io/library/caddy:2.11.7-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+    restart: unless-stopped
+    environment:
+      DEMO_HTTPS_PORT: ${DEMO_HTTPS_PORT:-28443}
+    ports:
+      # Same port inside and outside, so https://<name>.localhost:<port> works from the host and the network alike.
+      - "127.0.0.1:${DEMO_HTTPS_PORT:-28443}:${DEMO_HTTPS_PORT:-28443}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # internal CA (pki/authorities/local/root.crt) and issued certificates
+      - caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    # The caddy binary carries the cap_net_bind_service file capability; exec fails if it is not in the bounding set.
+    cap_add: [NET_BIND_SERVICE]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      demo:
+        aliases: [auth.localhost, google.localhost, demo.localhost, whoami.localhost]
+    logging: *logging
+
+  porch:
+    <<: *hardening
+    image: porch:local
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${DEMO_BUILD_VERSION:-dev}     # up.sh sets these from git
+        COMMIT: ${DEMO_BUILD_COMMIT:-}
+    command: ["serve"]
+    restart: unless-stopped
+    environment:
+      <<: *porch-env
+      # Trust Caddy's internal root in addition to the system roots, for back-channel calls to
+      # https://google.localhost (discovery, token, JWKS). Go adds every file in SSL_CERT_DIR to SSL_CERT_FILE's bundle.
+      SSL_CERT_DIR: /etc/porch/extra-ca
+    volumes:
+      - porch-data:/var/lib/porch
+      - porch-kek:/var/lib/porch-kek:ro
+      - ./porch.yaml:/etc/porch/porch.yaml:ro
+      - ./.state/ca:/etc/porch/extra-ca:ro
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/porch", "healthcheck", "--url", "http://127.0.0.1:9464/readyz"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 1s
+      retries: 3
+    networks: [demo]
+    logging: *logging
+
+  # One-shot admin commands that need the data-directory lock (Porch must be stopped) or write the KEK volume:
+  #   docker compose run --rm porch-init keys init --out /var/lib/porch-kek/porch.kek
+  #   docker compose run --rm porch-init admin setup-token
+  porch-init:
+    <<: *hardening
+    image: porch:local
+    profiles: [init]
+    restart: "no"
+    network_mode: none
+    environment: *porch-env
+    volumes:
+      - porch-data:/var/lib/porch
+      - porch-kek:/var/lib/porch-kek
+      - ./porch.yaml:/etc/porch/porch.yaml:ro
+
+  fakegoogle:
+    <<: *hardening
+    image: porch-demo-fakegoogle:local
+    build:
+      context: ../..
+      dockerfile: deploy/demo/tools.Dockerfile
+      target: fakegoogle
+    restart: unless-stopped
+    command:
+      - -listen=0.0.0.0:9000
+      - -issuer=https://google.localhost:${DEMO_HTTPS_PORT:-28443}
+      - -client-id=porch
+      - -client-secret=${DEMO_GOOGLE_CLIENT_SECRET:-porch-demo-upstream-secret}
+      - -redirect-uris=https://auth.localhost:${DEMO_HTTPS_PORT:-28443}/login/google/callback
+      - -users=/etc/fakegoogle/users.json
+    volumes:
+      - ./google-users.json:/etc/fakegoogle/users.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      start_interval: 1s
+      retries: 3
+    networks: [demo]
+    logging: *logging
+
+  # Started by up.sh after it registered the app in Porch (client credentials in .state/demo-app.env).
+  demo-app:
+    <<: *hardening
+    image: porch-demo-app:local
+    build:
+      context: ../..
+      dockerfile: deploy/demo/tools.Dockerfile
+      target: demo-app
+    profiles: [demo-app]
+    restart: unless-stopped
+    env_file:
+      - path: ./.state/demo-app.env    # DEMO_CLIENT_ID, DEMO_CLIENT_SECRET
+        required: false
+    environment:
+      PORCH_ISSUER: https://auth.localhost:${DEMO_HTTPS_PORT:-28443}
+      DEMO_REDIRECT_URL: https://demo.localhost:${DEMO_HTTPS_PORT:-28443}/callback
+      DEMO_POST_LOGOUT_URL: https://demo.localhost:${DEMO_HTTPS_PORT:-28443}/
+      DEMO_RESOURCE: https://api.smith.example
+      DEMO_LISTEN: 0.0.0.0:9090
+      DEMO_CA_FILE: /etc/demo/ca/root.crt
+    volumes:
+      - ./.state/ca:/etc/demo/ca:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/healthz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s     # the app retries OIDC discovery for about a minute at start
+      start_interval: 1s
+      retries: 3
+    networks: [demo]
+    logging: *logging
+
+  whoami:
+    <<: *hardening
+    image: docker.io/traefik/whoami:v1.12.0@sha256:c4717a8d1f0134a7444e24f881160e033991f23027c6c5a9a3f8fd22e70d1d44
+    user: "65532:65532"
+    restart: unless-stopped
+    command: ["--port", "8000"]
+    networks: [demo]
+    logging: *logging
+
+  # ---- TODO (later milestone): event delivery to pulse ----------------------------------------------------------
+  # pulsed + NATS JetStream arrive with the pulse integration (M6). Add them here on the demo network and point
+  # Porch's (future) events configuration at pulsed; see https://github.com/aurimasniekis/go-pulse deploy/examples.
+
+  # ---- TODO (later milestone): encrypted S3 backups -------------------------------------------------------------
+  # MinIO arrives with encrypted backups (M6). Add a MinIO service (pinned by digest, read-only rootfs, a bucket
+  # created by a one-shot `mc` job) and Porch's (future) backup configuration; MinIO lives on DEMO_SUBNET, which is
+  # already in outbound.allow_cidrs.
+
+volumes:
+  porch-data: {}
+  porch-kek: {}        # the KEK lives here, outside porch-data (data_dir); removed by `down.sh` together with the data
+  caddy-data: {}
+  caddy-config: {}
+
+networks:
+  demo:
+    ipam:
+      config:
+        - subnet: ${DEMO_SUBNET:-172.30.213.0/24}

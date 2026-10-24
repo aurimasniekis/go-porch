@@ -44,7 +44,7 @@ flowchart LR
 | ID | STRIDE | Threat | Mitigation | Coverage |
 |---|---|---|---|---|
 | T-B2-1 | S | Spoofed client IP via `X-Forwarded-For` to dodge throttles or forge audit IPs | Trusted-proxy CIDR list; right-to-left walk; Cloudflare mode trusts `CF-Connecting-IP` only from configured CF ranges with AOP | `httpx` spoofing tests |
-| T-B2-2 | S | Spoofed identity headers (`X-Porch-*`, `Remote-*`) reaching a forward-auth backend | Porch never trusts inbound identity headers; docs require proxies to strip them; outpost tests | forwardauth tests, docs |
+| T-B2-2 | S | Spoofed identity headers (`X-Porch-*`, `Remote-*`) reaching a forward-auth backend | Porch never reads inbound identity headers and overwrites the ones it sends; proxies must strip the rest (docs, Caddyfile); `/outpost/auth` only from trusted peers | `TestForwardAuthFlow`, `TestForwardAuthMisconfiguredProxyOverwrite`, `TestForwardAuthOutpostHardening` |
 | T-B2-3 | T | CSRF on state-changing endpoints | `__Host-` SameSite=Lax cookies + Origin check + HMAC CSRF token (header) on every mutation | httpx/mgmtapi tests |
 | T-B2-4 | T | Clickjacking of consent/login | `frame-ancestors 'none'`, `X-Frame-Options: DENY` | header tests |
 | T-B2-5 | I | XSS leading to token theft | React escaping; strict CSP with per-request nonce, no inline scripts; HttpOnly cookies; no tokens in localStorage | CSP tests, e2e |

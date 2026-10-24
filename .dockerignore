@@ -1,0 +1,37 @@
+# Build context for the root Dockerfile and deploy/demo/tools.Dockerfile.
+# Adapted from HallPass .dockerignore (Apache-2.0). Allowlist: everything is excluded unless re-included below, so
+# local secrets, databases, KEK files, conformance work dirs and VCS metadata never reach an image layer or the cache.
+*
+
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!web/
+!LICENSE
+!NOTICE
+!deploy/porch.container.yaml
+# Demo-only binaries (deploy/demo/tools.Dockerfile); the porch image never copies them.
+!examples/demo-app/
+!test/fakegoogle/
+
+# Frontend: dependencies and build output are produced inside the build, never copied from the host.
+web/node_modules/
+web/test-results/
+web/playwright-report/
+web/blob-report/
+internal/webui/dist/
+
+# Never part of an image, even if they end up inside an allowlisted directory.
+bin/
+data/
+.git/
+test/conformance/
+**/*.kek
+**/kek
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*_test.go
+**/testdata/
+**/.DS_Store

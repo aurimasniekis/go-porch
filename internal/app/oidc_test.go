@@ -19,6 +19,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/idp"
+	"github.com/aurimasniekis/go-porch/internal/idp/fakeidp"
 	"github.com/aurimasniekis/go-porch/internal/tenancy"
 )
 
@@ -426,7 +427,10 @@ func TestPromptAndMaxAge(t *testing.T) {
 	if q := b.authorize(t, r.authParams(c, map[string]string{"prompt": "none"})); q.Get("code") == "" {
 		t.Fatalf("prompt=none with session: %v", q)
 	}
-	// prompt=login forces a fresh upstream sign-in (Google prompt=login max_age=0) before the code.
+	// prompt=login forces a fresh upstream sign-in (Google prompt=login max_age=0) before the code. Time moves on between
+	// the original login and this request, as it does for real (the conformance suite caught a max_age=0 loop here).
+	st.clk.Advance(3 * time.Second)
+	st.google.Set(func(i *fakeidp.IdP) { i.Now = st.clk.Now })
 	q := b.authorize(t, r.authParams(c, map[string]string{"prompt": "login"}))
 	if q.Get("code") == "" {
 		t.Fatalf("prompt=login: %v", q)
@@ -537,5 +541,19 @@ func TestDisabledUserLosesTokens(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("userinfo for disabled user %d", resp.StatusCode)
+	}
+}
+
+// max_age=0 (what zitadel derives from prompt=login) is satisfied by an authentication made after the request.
+func TestMaxAgeZeroNoLoop(t *testing.T) {
+	st, tn, b := oidcStack(t)
+	r := st.newRP(t, tn, "app", apps.ClientParams{})
+	_, c := pkce()
+	st.clk.Advance(30 * time.Second)
+	// The upstream's clock runs 2 s behind Porch's: its auth_time predates the authorization request.
+	st.google.Set(func(i *fakeidp.IdP) { i.Now = func() time.Time { return st.clk.Now().Add(-2 * time.Second) } })
+	q := b.authorize(t, r.authParams(c, map[string]string{"max_age": "0"}))
+	if q.Get("code") == "" {
+		t.Fatalf("max_age=0 did not complete: %v", q)
 	}
 }

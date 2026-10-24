@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"time"
+	"strings"
 
 	"github.com/aurimasniekis/go-porch/internal/audit"
+	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/domain"
+	"github.com/aurimasniekis/go-porch/internal/httpx"
 	"github.com/aurimasniekis/go-porch/internal/ids"
 	"github.com/aurimasniekis/go-porch/internal/keyring"
 	"github.com/aurimasniekis/go-porch/internal/session"
@@ -73,21 +75,38 @@ func (p *Provider) Continue(slug ProviderSlug) http.Handler {
 			p.redirectError(w, r, ar, "access_denied", "setup and recovery sessions cannot sign in to applications")
 			return
 		}
-		// Access decision (M3: an active membership in the application's tenant; M4/M5 add shares and app:access rules).
-		if _, err := p.Tenants.ResolveForMember(ctx, sess.UserID, ar.TenantID); err != nil {
+		// Access decision: app:access on the client's application (tenant gate, shares, roles, policies; ADR-0011).
+		cl, err := p.Store.R().GetClient(ctx, ar.ClientID)
+		if err != nil {
+			p.redirectError(w, r, ar, "server_error", "")
+			return
+		}
+		d, err := p.Engine.Check(ctx, authz.Request{TenantID: ar.TenantID, Subject: authz.Subject{Type: "user", ID: sess.UserID, AuthMethod: sess.Method,
+			AuthTime: sess.AuthTime}, Action: authz.PermAppAccess, Resource: authz.Resource{Type: "app", ID: cl.AppID}, ClientIP: httpx.ClientIP(ctx)})
+		if err != nil || !d.Allowed {
+			reason := d.Reason
+			if err != nil {
+				reason = "error"
+			}
 			p.auditTx(ctx, audit.Event{Actor: audit.Actor{Type: audit.ActorUser, ID: sess.UserID}, TenantID: ar.TenantID, Action: "oidc.authorize",
-				Outcome: audit.OutcomeDenied, ReasonCode: "tenant_gate", Target: audit.Target{Type: "oauth_client", ID: ar.ClientID}})
-			p.Metrics.AuthzDecision(false, "tenant_gate")
+				Outcome: audit.OutcomeDenied, ReasonCode: reason, Target: audit.Target{Type: "oauth_client", ID: ar.ClientID}})
 			p.redirectError(w, r, ar, "access_denied", "you do not have access to this application")
 			return
 		}
+		// The token names the tenant through which the user has access: the owner, or the tenant the app is shared with.
+		claimTenant := ar.TenantID
+		if via := d.Trace.TenantGate.Via; strings.HasPrefix(via, "share:") {
+			if t, err := p.Store.R().GetTenantBySlug(ctx, strings.TrimPrefix(via, "share:")); err == nil {
+				claimTenant = t.ID
+			}
+		}
+		ar.TenantID = claimTenant
 		code, err := p.newCode(ctx, ar, sess)
 		if err != nil {
 			p.Log.Error("issue code", "err", err)
 			p.redirectError(w, r, ar, "server_error", "")
 			return
 		}
-		p.Metrics.AuthzDecision(true, "member")
 		p.Metrics.TokenIssued("code")
 		u, _ := url.Parse(ar.RedirectUri)
 		q := u.Query()
@@ -102,7 +121,10 @@ func (p *Provider) Continue(slug ProviderSlug) http.Handler {
 }
 
 // needsReauth applies prompt=login and max_age. prompt=login is satisfied once the session that was sent to
-// re-authenticate comes back rotated (step-up issues a new session) with a fresh auth_time; max_age compares auth_time.
+// re-authenticate comes back rotated (step-up issues a new session) with a fresh auth_time. max_age (zitadel sets 0 for
+// prompt=login) is satisfied by any authentication after the request (OIDC Core 3.1.2.1): a session created — by login
+// or step-up rotation, on Porch's own clock — after the request was made, or an auth_time no older than max_age
+// seconds before it (whole seconds; upstream auth_time may be slightly skewed).
 func (p *Provider) needsReauth(sess *session.Principal, ar db.AuthRequest, prompt []string) bool {
 	if slices.Contains(prompt, "login") {
 		fresh := p.now().Sub(sess.AuthTime) <= p.Sessions.Options().StepUpWindow
@@ -110,8 +132,12 @@ func (p *Provider) needsReauth(sess *session.Principal, ar db.AuthRequest, promp
 			return true
 		}
 	}
-	if ar.MaxAge.Valid && p.now().Sub(sess.AuthTime) > time.Duration(ar.MaxAge.Int64)*time.Second {
-		return true
+	if ar.MaxAge.Valid {
+		created := domain.FromMicros(ar.CreatedAt)
+		freshSession := !sess.CreatedAt.Before(created)
+		if !freshSession && sess.AuthTime.Unix() < created.Unix()-ar.MaxAge.Int64 {
+			return true
+		}
 	}
 	return false
 }

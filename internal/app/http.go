@@ -76,13 +76,8 @@ func (a *App) PublicHandler() http.Handler {
 	mux.Handle("/.well-known/openid-configuration", op)
 	mux.Handle("/jwks", op)
 	mux.Handle("/oauth2/", op)
-	mux.Handle("GET /oauth2/continue", a.OP.Continue(func(ctx context.Context, providerID string) string {
-		p, err := a.IDP.Provider(ctx, providerID)
-		if err != nil {
-			return ""
-		}
-		return p.Slug
-	}))
+	mux.Handle("GET /oauth2/continue", a.OP.Continue(a.providerSlug))
+	a.Outpost.Register(mux)
 	mux.Handle("/", webui.Handler(webui.Dist(), a.recheckHook))
 	var h http.Handler = mux
 	h = httpx.LimitBody(a.Cfg.HTTP.MaxBodyBytes, h)
@@ -103,18 +98,20 @@ func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
 	if err != nil || !a.Sessions.NeedsUpstreamRecheck(p) || p.ProviderID == "" {
 		return false
 	}
-	prov, err := a.IDP.Provider(r.Context(), p.ProviderID)
-	if err != nil {
+	slug := a.providerSlug(r.Context(), p.ProviderID)
+	if slug == "" {
 		return false
 	}
-	http.Redirect(w, r, "/login/"+prov.Slug+"?intent=recheck&return_to="+url.QueryEscape(httpx.SafeReturnTo(r.URL.RequestURI(), "/")), http.StatusFound)
+	// The target is a fixed same-origin path; return_to is validated by SafeReturnTo and escaped.
+	http.Redirect(w, r, "/login/"+slug+"?intent=recheck&return_to="+url.QueryEscape(httpx.SafeReturnTo(r.URL.RequestURI(), "/")), http.StatusFound) //nolint:gosec // see above
 	return true
 }
 
 // APIDeps returns the management API dependencies.
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
-		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP, Metrics: a.Metrics,
+		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP,
+		Engine: a.Engine, Authz: a.Authz, Metrics: a.Metrics,
 		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 

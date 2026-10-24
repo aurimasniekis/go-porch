@@ -135,3 +135,11 @@ DELETE FROM revoked_access_tokens WHERE expires_at < ?;
 -- name: ListUserGroupSlugs :many
 SELECT g.slug FROM group_members m JOIN groups g ON g.tenant_id = m.tenant_id AND g.id = m.group_id
 WHERE m.tenant_id = ? AND m.user_id = ? ORDER BY g.slug;
+
+-- name: ListUserFamiliesWithApps :many
+SELECT r.family_id, r.client_id, a.id AS app_id, a.name AS app_name, min(r.created_at) AS created_at, max(r.idle_expires_at) AS idle_expires_at
+FROM refresh_tokens r JOIN oauth_clients c ON c.id = r.client_id JOIN applications a ON a.id = c.app_id
+WHERE r.user_id = ? AND r.state = 'active' GROUP BY r.family_id, r.client_id, a.id, a.name ORDER BY created_at DESC;
+
+-- name: RevokeUserFamily :execrows
+UPDATE refresh_tokens SET state = 'revoked', revoked_at = ?, revoke_reason = ? WHERE user_id = ? AND family_id = ? AND state != 'revoked';

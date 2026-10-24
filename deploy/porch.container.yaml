@@ -1,0 +1,29 @@
+# Porch configuration for the container image. Baked into the image as /etc/porch/porch.yaml (PORCH_CONFIG points
+# there); mount your own copy read-only over it to change anything, or override single keys with PORCH_<PATH>
+# environment variables (e.g. PORCH_PUBLIC_URL, PORCH_PROXY_TRUSTED_PROXIES=172.30.0.0/24,10.0.0.0/8).
+# Unknown keys and unknown PORCH_* variables are rejected. Reference: internal/config/config.go, defaults.go.
+#
+# Secret-free: the KEK is mounted separately (compose secret) and never lives in this file or in the data volume.
+
+mode: production
+data_dir: /var/lib/porch                # the data volume; 0700, owned by UID 65532
+# public_url is required and has no default: the externally reachable https origin, which is also the OIDC issuer.
+# Set it here or with PORCH_PUBLIC_URL=https://auth.example.com
+# public_url: https://auth.example.com
+
+kek:
+  source: file
+  file: /run/secrets/porch_kek          # compose secret; outside data_dir (enforced in production)
+
+http:
+  listen: 0.0.0.0:8080                  # plain HTTP behind a TLS-terminating reverse proxy (or set tls_cert_file/tls_key_file)
+
+management:
+  listen: 127.0.0.1:9464                # metrics + /healthz + /readyz; loopback inside the container (HEALTHCHECK uses it)
+
+proxy:
+  trusted_proxies: []                   # CIDR(s) of the reverse proxy, e.g. the compose network range
+
+log:
+  level: info
+  format: json                          # stdout; collect with `docker logs` or your log driver

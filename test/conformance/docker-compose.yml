@@ -1,0 +1,100 @@
+# OpenID Foundation conformance suite + a freshly started Porch, for test/conformance/run.sh.
+#
+# Everything talks over the compose network, so Porch's issuer (https://porch:8443) is the same URL for the suite's
+# back-channel HTTP client and for its headless browser. The host only reaches Porch (bootstrap API calls) and the
+# suite (REST API) through the loopback ports published below; run.sh picks free ports.
+#
+# Required environment (run.sh exports these):
+#   CONF_WORK        absolute path of the per-run work dir (porch.yaml, TLS cert/key, setup token, front.conf)
+#   CONF_BIN         absolute path of the dir holding linux builds of `porch` and `fakegoogle`
+#   CONF_SUITE_PORT  host loopback port for the suite UI/API (nginx :8443)
+#   CONF_PORCH_PORT  host loopback port for Porch's public listener (via the front proxy)
+name: porch-conformance
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "5m", max-file: "2" }
+
+services:
+  # ---- OpenID Foundation conformance suite (published images, unmodified) --------------------------------------
+  mongodb:
+    image: mongo:6.0.13
+    tmpfs: [/data/db]
+    logging: *logging
+
+  server:
+    image: registry.gitlab.com/openid/conformance-suite:${CONF_SUITE_TAG:-latest}
+    environment:
+      BASE_URL: https://localhost.emobix.co.uk:8443
+      BASE_MTLS_URL: https://localhost.emobix.co.uk:8444
+      MONGODB_HOST: mongodb
+      SPRING_PROFILES_ACTIVE: dev
+      OIDC_GOOGLE_CLIENTID: unused
+      OIDC_GOOGLE_SECRET: unused
+      OIDC_GITLAB_CLIENTID: unused
+      OIDC_GITLAB_SECRET: unused
+    depends_on: [mongodb]
+    logging: *logging
+
+  nginx:
+    image: registry.gitlab.com/openid/conformance-suite/nginx:${CONF_SUITE_TAG:-latest}
+    ports: ["127.0.0.1:${CONF_SUITE_PORT}:8443"]
+    networks:
+      default:
+        # the suite's redirect_uri host; inside the network it must resolve to nginx, not 127.0.0.1
+        aliases: [localhost.emobix.co.uk]
+    depends_on: [server]
+    logging: *logging
+
+  # ---- System under test ---------------------------------------------------------------------------------------
+  # Fake Google upstream (test/fakegoogle). It shows its plain-HTML account picker, which the suite's browser clicks
+  # (config/porch-oidcc.json), so the prompt=login / max_age tests get a real sign-in page to screenshot. Pass
+  # -auto-login=ada instead to skip the picker entirely.
+  fakegoogle:
+    image: alpine:3.20
+    command:
+      - /bin/fakegoogle
+      - -listen=0.0.0.0:9000
+      - -issuer=http://fakegoogle:9000
+      - -client-id=porch
+      - -client-secret=porch-conformance-upstream-secret
+      - -redirect-uris=https://porch:8443/login/google/callback
+    volumes: ["${CONF_BIN}/fakegoogle:/bin/fakegoogle:ro"]
+    logging: *logging
+
+  porch-backend:
+    image: alpine:3.20
+    # The setup token must be issued before `porch serve` starts; it lands in the bind-mounted work dir (run.sh fails
+    # when it is missing). On a container restart after setup, issuing fails harmlessly and porch still starts.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - porch admin setup-token -config /work/porch.yaml > /work/setup-token.out 2>&1; exec porch serve -config /work/porch.yaml
+    volumes:
+      - "${CONF_BIN}/porch:/usr/local/bin/porch:ro"
+      - "${CONF_WORK}:/work"
+      - porch-data:/data
+    healthcheck:
+      test: ["CMD", "porch", "healthcheck", "--url", "http://127.0.0.1:9090/readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 2s
+    depends_on: [fakegoogle]
+    logging: *logging
+
+  # TLS front for Porch, reachable as https://porch:8443 (Porch's issuer). It proxies everything to Porch unchanged,
+  # except that it stands in for the human clicking "Continue with Google" on the JavaScript sign-in page, which the
+  # suite's HtmlUnit browser cannot render (see README.md "Login automation").
+  porch:
+    image: nginx:1.27.3
+    ports: ["127.0.0.1:${CONF_PORCH_PORT}:8443"]
+    volumes:
+      - "${CONF_WORK}/front.conf:/etc/nginx/conf.d/default.conf:ro"
+      - "${CONF_WORK}/tls:/etc/porch-tls:ro"
+    depends_on:
+      porch-backend: { condition: service_healthy }
+    logging: *logging
+
+volumes:
+  porch-data: {}

@@ -62,6 +62,22 @@ type Config struct {
 	Setup      SetupConfig       `yaml:"setup"`
 	Backup     BackupLoginConfig `yaml:"backup_login"`
 	Outbound   OutboundConfig    `yaml:"outbound"`
+	Authz      AuthzConfig       `yaml:"authz"`
+	Forward    ForwardAuthConfig `yaml:"forward_auth"`
+}
+
+// AuthzConfig configures the authorization engine (ADR-0011).
+type AuthzConfig struct {
+	// TrustedNetworks are CIDRs reported to policies as context.network == "trusted" (e.g. the home LAN).
+	TrustedNetworks []string `yaml:"trusted_networks"`
+}
+
+// ForwardAuthConfig configures the forward-auth outpost (ADR-0015).
+type ForwardAuthConfig struct {
+	// TrustedPeers may call /outpost/auth (the reverse proxies). Empty means proxy.trusted_proxies plus loopback.
+	TrustedPeers []string `yaml:"trusted_peers"`
+	// SessionTTL bounds a per-application forward-auth session (it also never outlives the Porch session).
+	SessionTTL Duration `yaml:"session_ttl"`
 }
 
 // BackupLoginConfig configures the local backup login (ADR-0008).
