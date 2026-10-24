@@ -154,3 +154,6 @@ UPDATE auth_codes SET replayed_at = ? WHERE mac = ?;
 
 -- name: GetApplicationIDBySlug :one
 SELECT id FROM applications WHERE tenant_id = ? AND slug = ?;
+
+-- name: SetApplicationPresentation :exec
+UPDATE applications SET group_name = ?, icon_source = ?, icon_ref = ?, icon_media_id = ? WHERE tenant_id = ? AND id = ?;

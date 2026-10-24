@@ -475,8 +475,8 @@ goroutine polls due outbox rows every 2 s (draining backlogs without waiting), p
 dead-lettered (`porch_outbox_events{state="dead"}`, alert `PorchOutboxDeadLetters`). Connection failures retry every 30 s;
 requests never wait for pulse. Published rows are purged after 7 days.
 **Consequences.** Delivery is at-least-once: JetStream de-duplicates retries within its window (2 min in pulse) and
-consumers must de-duplicate on the event ID beyond it. Verified against an embedded NATS JetStream through the SDK;
-not verified against a running pulsed (creds issuance).
+consumers must de-duplicate on the event ID beyond it. Verified against an embedded NATS JetStream through the SDK and
+against a running pulsed (`test/pulse/verify.sh`).
 
 ## ADR-0044 — Changes from the M7 security review (security-relevant change)
 
@@ -497,4 +497,34 @@ not verified against a running pulsed (creds issuance).
   callback is throttled; a provider that omits `auth_time` never satisfies step-up or linking; delegated application
   managers register forward-auth hosts only inside the tenant's domain-rule domains and need `app:access` to open an
   application to all members.
+
+## ADR-0045 — Appearance: login backgrounds and application icons
+
+**Context.** The user-facing pages (sign-in, launcher, account) should look like a finished product: a landscape
+background on the sign-in page and logos for applications, as Authentik offers. Images come from the internet, which
+adds outbound requests and content that browsers render.
+**Decision.**
+- Porch fetches every image itself, through the outbound guard (public addresses only, every redirect hop checked),
+  with size limits (icons 2 MiB, backgrounds 25 MiB) and a 64-megapixel header check before decoding. It decodes and
+  re-encodes the image (raster icons: PNG ≤ 256×256; backgrounds: landscape JPEG ≤ 2560×1600) and stores only the
+  re-encoded bytes in the `media` table, keyed by their SHA-256. SVG icons stay SVG (they scale cleanly) but are parsed
+  and rewritten from an allowlist: shapes, paint servers, clipping, masks, text, styles and filters are kept; scripts,
+  `foreignObject`, images, links, animation, event-handler attributes, `href`s outside the document and
+  `javascript:`/`data:`/external `url()` values are removed, and documents with a DOCTYPE are refused (no entity
+  expansion). `GET /media/{id}` serves everything from Porch's origin with `nosniff`,
+  `Content-Security-Policy: default-src 'none'; sandbox` (scripts cannot run even when an SVG is opened directly) and
+  immutable caching; the UI shows icons only through `<img>`. Browsers never contact a third party (no visitor IPs
+  leak to image hosts) and the page CSP stays `img-src 'self'`.
+- Background sources (installation setting, `PUT /installation/appearance`, owner/admin): `none` (default: no outbound
+  requests until an operator opts in), `wikimedia` (Wikimedia Commons: a category, default "Featured pictures of
+  landscapes", or named files; openly licensed with author and licence metadata, shown as a credit), `picsum` (Lorem
+  Picsum photos from Unsplash: random, or by ID; no categories). Porch keeps a pool of 1–12 images, renews it daily,
+  weekly or never, and shows a random one per visit or one per day. Commons metadata is stripped to plain text.
+- Application icons (`app:manage`): upload (≤ 512 KiB), an https URL, a brand logo from theSVG (glincker/thesvg, MIT
+  code; each logo keeps its brand's licence and trademark), or a name from the dashboard-icons set (homarr-labs,
+  Apache-2.0; SVG, else PNG), both via jsDelivr. Applications also get a launcher `group`.
+- `GET /api/v1/appearance` is public (title and current background with its credit).
+**Consequences.** Tenant application managers can make Porch fetch public URLs (bounded by the guard, size and type
+limits). Icons and backgrounds are part of database backups. Picsum and Commons availability affect only refreshes;
+the stored pool keeps working offline.
 

@@ -71,3 +71,49 @@ html:not(.dark) .pc-shot .pc-dark {
   margin-top: 48px;
   border-top: 0;
 }
+
+/* Home hero background (HeroBackground.vue): the photo fades into the page so the hero text stays readable. */
+.VPHome {
+  position: relative;
+}
+
+.pc-hero-bg {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 620px;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+
+.pc-hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--vp-c-bg) 62%, transparent) 0%,
+      color-mix(in srgb, var(--vp-c-bg) 78%, transparent) 70%, var(--vp-c-bg) 100%);
+}
+
+.VPHome .VPHero,
+.VPHome .VPFeatures {
+  position: relative;
+  z-index: 1;
+}
+
+.pc-hero-credit {
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  z-index: 2;
+  max-width: min(60ch, 80%);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+}
+
+.pc-hero-credit:hover {
+  color: var(--vp-c-text-1);
+}

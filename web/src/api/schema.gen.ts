@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Title and background for the sign-in page */
+        get: operations["get-public-appearance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -174,6 +191,41 @@ export interface paths {
         put?: never;
         /** Acknowledge an alert */
         post: operations["acknowledge-alert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation/appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Appearance settings and the current background images */
+        get: operations["get-appearance"];
+        /** Change the appearance; a changed background source fetches new images */
+        put: operations["update-appearance"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation/appearance/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fetch a new selection of background images now */
+        post: operations["refresh-appearance"];
         delete?: never;
         options?: never;
         head?: never;
@@ -684,6 +736,23 @@ export interface paths {
         head?: never;
         /** Update an application */
         patch: operations["update-application"];
+        trace?: never;
+    };
+    "/tenants/{tenant}/applications/{app}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload an application icon */
+        put: operations["upload-application-icon"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/tenants/{tenant}/applications/{app}/rotate-secret": {
@@ -1405,6 +1474,13 @@ export interface components {
             tenant_name: string;
             tenant_slug: string;
         };
+        AppearanceSettings: {
+            background: components["schemas"]["BackgroundSettings"];
+            /** @description The background images Porch currently holds. */
+            readonly images?: components["schemas"]["Image"][];
+            /** @description Shown on the sign-in page ("Welcome to …"). */
+            title: string;
+        };
         Application: {
             /**
              * @description all_members: every active member (and shared tenants); assigned: explicit app:access grants only.
@@ -1421,8 +1497,19 @@ export interface components {
             forward_headers: {
                 [key: string]: string;
             };
+            /** @description Launcher section the application appears in (empty = none). */
+            group: string;
             /** @description Hosts protected by a forward_auth application. */
             hosts: string[];
+            /** @description The icon URL or dashboard-icons name the icon was taken from. */
+            icon_ref: string;
+            /**
+             * @description How the icon was set (empty = no icon: a letter tile).
+             * @enum {string}
+             */
+            icon_source: "" | "url" | "dashboard_icons" | "thesvg" | "upload";
+            /** @description Where Porch serves the stored icon (empty = none). */
+            icon_url: string;
             id: string;
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
@@ -1517,6 +1604,32 @@ export interface components {
         AuthzCheckRequestResourceStruct: {
             id?: string;
             type: string;
+        };
+        BackgroundSettings: {
+            /** @description wikimedia: Commons category, e.g. "Featured pictures of landscapes". */
+            category?: string;
+            /**
+             * Format: int64
+             * @description How many images to keep.
+             */
+            count: number;
+            /** @description wikimedia: file names (File:…); picsum: photo IDs. Empty = a random selection. */
+            files: string[];
+            /**
+             * @description How often Porch picks a new random selection.
+             * @enum {string}
+             */
+            refresh: "never" | "daily" | "weekly";
+            /**
+             * @description visit: a random image on every page load; daily: one image per day.
+             * @enum {string}
+             */
+            rotation: "visit" | "daily";
+            /**
+             * @description wikimedia: Wikimedia Commons (pick a category or files); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs).
+             * @enum {string}
+             */
+            source: "none" | "wikimedia" | "picsum";
         };
         BackupChallenge: {
             /** Format: date-time */
@@ -1625,7 +1738,9 @@ export interface components {
             forward_headers?: {
                 [key: string]: string;
             };
+            group?: string;
             hosts?: string[];
+            icon?: components["schemas"]["IconRequest"];
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
             launch_url?: string;
@@ -1688,8 +1803,19 @@ export interface components {
             forward_headers: {
                 [key: string]: string;
             };
+            /** @description Launcher section the application appears in (empty = none). */
+            group: string;
             /** @description Hosts protected by a forward_auth application. */
             hosts: string[];
+            /** @description The icon URL or dashboard-icons name the icon was taken from. */
+            icon_ref: string;
+            /**
+             * @description How the icon was set (empty = no icon: a letter tile).
+             * @enum {string}
+             */
+            icon_source: "" | "url" | "dashboard_icons" | "thesvg" | "upload";
+            /** @description Where Porch serves the stored icon (empty = none). */
+            icon_url: string;
             id: string;
             /** @enum {string} */
             kind: "oidc" | "forward_auth";
@@ -1857,6 +1983,18 @@ export interface components {
             since: string;
             state: string;
         };
+        IconRequest: {
+            ref?: string;
+            /**
+             * @description url: an https image URL (SVG, PNG, JPEG, GIF or WebP); dashboard_icons: a name from the dashboard-icons set (e.g. grafana); thesvg: a theSVG brand logo, slug or slug/variant (e.g. github/mono); empty removes the icon.
+             * @enum {string}
+             */
+            source: "" | "url" | "dashboard_icons" | "thesvg";
+        };
+        IconUpload: {
+            /** @description SVG, PNG, JPEG, GIF or WebP, at most 512 KiB. SVG is sanitized and kept as SVG; other formats are scaled to 256×256 PNG. */
+            content_base64: string;
+        };
         IdentityProvider: {
             /** @description Google Workspace domains this provider accepts (empty = any account). */
             allowed_hds: string[];
@@ -1879,6 +2017,21 @@ export interface components {
             updated_at: string;
             /** Format: int64 */
             version: number;
+        };
+        Image: {
+            author: string;
+            /** Format: date-time */
+            fetched_at: string;
+            /** Format: int64 */
+            height: number;
+            id: string;
+            license: string;
+            license_url: string;
+            source_url: string;
+            title: string;
+            url: string;
+            /** Format: int64 */
+            width: number;
         };
         InstallationInfo: {
             /** Format: date-time */
@@ -1913,6 +2066,10 @@ export interface components {
         };
         LauncherApp: {
             description: string;
+            /** @description Launcher section (empty = none). */
+            group: string;
+            /** @description The application's icon served by Porch (empty = show a letter tile). */
+            icon_url: string;
             id: string;
             kind: string;
             launch_url: string;
@@ -2112,6 +2269,11 @@ export interface components {
             title?: string;
             /** @description URI reference identifying the problem type. */
             type?: string;
+        };
+        PublicAppearance: {
+            /** @description The background to show now, with its credit; null when backgrounds are off or not fetched yet. */
+            background: components["schemas"]["Image"];
+            title: string;
         };
         PurposeStatus: {
             /** Format: int32 */
@@ -2408,7 +2570,10 @@ export interface components {
             forward_headers?: {
                 [key: string]: string;
             };
+            group?: string;
             hosts?: string[];
+            /** @description Replaces the icon; source empty removes it. */
+            icon?: components["schemas"]["IconRequest"];
             launch_url?: string;
             name?: string;
         };
@@ -2474,6 +2639,35 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "get-public-appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicAppearance"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "search-audit": {
         parameters: {
             query?: {
@@ -2919,6 +3113,97 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppearanceSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppearanceSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppearanceSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "refresh-appearance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppearanceSettings"];
+                };
             };
             /** @description Error */
             default: {
@@ -4143,6 +4428,49 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateApplicationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "upload-application-icon": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Provenance of the change (informational). */
+                "X-Porch-Managed-By"?: "ui" | "api" | "terraform";
+                /** @description ETag (resource version) the change is based on; mismatches fail with 412. */
+                "If-Match"?: string;
+            };
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                app: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IconUpload"];
             };
         };
         responses: {

@@ -29,6 +29,8 @@ type LauncherApp struct {
 	TenantSlug  string `json:"tenant_slug"`
 	TenantName  string `json:"tenant_name"`
 	Shared      bool   `json:"shared" doc:"Owned by another tenant and shared with yours."`
+	Group       string `json:"group" doc:"Launcher section (empty = none)."`
+	IconURL     string `json:"icon_url" doc:"The application's icon served by Porch (empty = show a letter tile)."`
 }
 
 // MySession is one of the caller's browser sessions.
@@ -102,7 +104,7 @@ func registerPortal(api huma.API, d *Deps) {
 					}
 				}
 				out = append(out, LauncherApp{ID: a.ID, Slug: a.Slug, Name: a.Name, Description: a.Description, Kind: a.Kind, LaunchURL: launch,
-					TenantSlug: t.TenantSlug, TenantName: t.TenantName, Shared: shared})
+					TenantSlug: t.TenantSlug, TenantName: t.TenantName, Shared: shared, Group: a.GroupName, IconURL: apps.AppFromRow(a).IconURL})
 				return nil
 			}
 			for _, m := range ms {

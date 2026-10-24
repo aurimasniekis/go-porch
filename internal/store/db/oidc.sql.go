@@ -58,7 +58,7 @@ func (q *Queries) GetActiveSigningKey(ctx context.Context, alg string) (SigningK
 }
 
 const getApplication = `-- name: GetApplication :one
-SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers FROM applications WHERE tenant_id = ? AND id = ?
+SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers, group_name, icon_source, icon_ref, icon_media_id FROM applications WHERE tenant_id = ? AND id = ?
 `
 
 type GetApplicationParams struct {
@@ -86,12 +86,16 @@ func (q *Queries) GetApplication(ctx context.Context, arg GetApplicationParams) 
 		&i.UpdatedAt,
 		&i.AccessMode,
 		&i.ForwardHeaders,
+		&i.GroupName,
+		&i.IconSource,
+		&i.IconRef,
+		&i.IconMediaID,
 	)
 	return i, err
 }
 
 const getApplicationByID = `-- name: GetApplicationByID :one
-SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers FROM applications WHERE id = ?
+SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers, group_name, icon_source, icon_ref, icon_media_id FROM applications WHERE id = ?
 `
 
 func (q *Queries) GetApplicationByID(ctx context.Context, id string) (Application, error) {
@@ -114,6 +118,10 @@ func (q *Queries) GetApplicationByID(ctx context.Context, id string) (Applicatio
 		&i.UpdatedAt,
 		&i.AccessMode,
 		&i.ForwardHeaders,
+		&i.GroupName,
+		&i.IconSource,
+		&i.IconRef,
+		&i.IconMediaID,
 	)
 	return i, err
 }
@@ -633,7 +641,7 @@ func (q *Queries) ListAllowedOrigins(ctx context.Context) ([]string, error) {
 }
 
 const listApplications = `-- name: ListApplications :many
-SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers FROM applications WHERE tenant_id = ? ORDER BY slug
+SELECT id, tenant_id, slug, name, kind, description, launch_url, enabled, disclosure_json, version, managed_by, last_changed_by, created_at, updated_at, access_mode, forward_headers, group_name, icon_source, icon_ref, icon_media_id FROM applications WHERE tenant_id = ? ORDER BY slug
 `
 
 func (q *Queries) ListApplications(ctx context.Context, tenantID string) ([]Application, error) {
@@ -662,6 +670,10 @@ func (q *Queries) ListApplications(ctx context.Context, tenantID string) ([]Appl
 			&i.UpdatedAt,
 			&i.AccessMode,
 			&i.ForwardHeaders,
+			&i.GroupName,
+			&i.IconSource,
+			&i.IconRef,
+			&i.IconMediaID,
 		); err != nil {
 			return nil, err
 		}
@@ -1057,6 +1069,31 @@ func (q *Queries) RotateRefreshToken(ctx context.Context, arg RotateRefreshToken
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const setApplicationPresentation = `-- name: SetApplicationPresentation :exec
+UPDATE applications SET group_name = ?, icon_source = ?, icon_ref = ?, icon_media_id = ? WHERE tenant_id = ? AND id = ?
+`
+
+type SetApplicationPresentationParams struct {
+	GroupName   string
+	IconSource  string
+	IconRef     string
+	IconMediaID sql.NullString
+	TenantID    string
+	ID          string
+}
+
+func (q *Queries) SetApplicationPresentation(ctx context.Context, arg SetApplicationPresentationParams) error {
+	_, err := q.db.ExecContext(ctx, setApplicationPresentation,
+		arg.GroupName,
+		arg.IconSource,
+		arg.IconRef,
+		arg.IconMediaID,
+		arg.TenantID,
+		arg.ID,
+	)
+	return err
 }
 
 const setAuthCodeTokens = `-- name: SetAuthCodeTokens :exec

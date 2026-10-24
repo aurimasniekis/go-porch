@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/aurimasniekis/go-porch/internal/appearance"
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
@@ -55,11 +56,13 @@ type App struct {
 	SAs      *serviceacct.Service
 	Tokens   *automation.Service
 	Backups  *backup.Service
-	OP       *oidcop.Provider
-	Engine   *authz.Engine
-	Authz    *authz.Admin
-	Outpost  *forwardauth.Outpost
-	ClientIP *httpx.ClientIPResolver
+	// Appearance: sign-in page title, backgrounds and application icons (ADR-0045).
+	Appearance *appearance.Service
+	OP         *oidcop.Provider
+	Engine     *authz.Engine
+	Authz      *authz.Admin
+	Outpost    *forwardauth.Outpost
+	ClientIP   *httpx.ClientIPResolver
 
 	auditFile io.Closer
 }
@@ -143,6 +146,8 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	}
 	a.Local = localauth.New(a.Store, a.Keyring, a.Audit, a.Sessions, a.Clock, a.Metrics, pol)
 	a.Apps = apps.New(a.Store, a.Keyring, a.Audit)
+	a.Appearance = appearance.New(a.Store, a.Audit, &appearance.Fetcher{Client: guard.Client(30 * time.Second),
+		UserAgent: "Porch/" + buildinfo.Get().Version + " (+https://github.com/aurimasniekis/go-porch)"}, a.Clock, a.Log)
 	a.Apps.AllowInsecureRedirects = !cfg.IsProduction()
 	a.SAs = serviceacct.New(a.Store, a.Keyring, a.Audit)
 	a.Tokens = automation.New(a.Store, a.Keyring, a.Audit, a.Clock)

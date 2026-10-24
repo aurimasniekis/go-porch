@@ -88,7 +88,4 @@ flowchart LR
 <Shot name="health" alt="System health: checks, keyring and storage" caption="System health" />
 </div>
 
-Everything in these screenshots is fictional: they come from a throwaway server with a fake Google provider
-(`make screenshots`).
-
 </div>

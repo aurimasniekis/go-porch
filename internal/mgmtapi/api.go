@@ -16,6 +16,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
+	"github.com/aurimasniekis/go-porch/internal/appearance"
 	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
@@ -64,6 +65,8 @@ type Deps struct {
 	SAs      *serviceacct.Service
 	Tokens   *automation.Service
 	Backups  *backup.Service
+	// Appearance holds the sign-in page look, backgrounds and application icons (ADR-0045).
+	Appearance *appearance.Service
 	// BackupEnabled and BackupInterval come from the configuration (health checks).
 	BackupEnabled  bool
 	BackupInterval time.Duration
@@ -138,6 +141,7 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerApplications(api, d)
 	registerSigningKeys(api, d)
 	registerPortal(api, d)
+	registerAppearance(api, d)
 	registerAuthzAdmin(api, d)
 	registerServiceAccounts(api, d)
 	registerAdminCapabilities(api, d)

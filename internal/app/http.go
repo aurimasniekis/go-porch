@@ -79,6 +79,7 @@ func (a *App) PublicHandler() http.Handler {
 	mux.Handle("/oauth2/", op)
 	mux.Handle("GET /oauth2/continue", a.OP.Continue(a.providerSlug))
 	a.Outpost.Register(mux)
+	mux.HandleFunc("GET /media/{id}", a.serveMedia)
 	mux.Handle("/", webui.Handler(webui.Dist(), a.recheckHook))
 	var h http.Handler = mux
 	h = httpx.LimitBody(a.Cfg.HTTP.MaxBodyBytes, h)
@@ -112,7 +113,7 @@ func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
 		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP,
-		SAs: a.SAs, Tokens: a.Tokens, Backups: a.Backups, BackupInterval: a.Cfg.Backup.Interval.D(), TokenUpstreamMaxAge: a.Cfg.Automation.UpstreamMaxAge.D(), BackupEnabled: a.Cfg.Backup.Enabled, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
+		SAs: a.SAs, Tokens: a.Tokens, Backups: a.Backups, Appearance: a.Appearance, BackupInterval: a.Cfg.Backup.Interval.D(), TokenUpstreamMaxAge: a.Cfg.Automation.UpstreamMaxAge.D(), BackupEnabled: a.Cfg.Backup.Enabled, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
 		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 
@@ -238,6 +239,10 @@ func (a *App) Serve(ctx context.Context, ls *Listeners) error {
 	})
 	g.Go(func() error {
 		a.relayLoop(gctx)
+		return nil
+	})
+	g.Go(func() error {
+		a.appearanceLoop(gctx)
 		return nil
 	})
 	g.Go(func() error {

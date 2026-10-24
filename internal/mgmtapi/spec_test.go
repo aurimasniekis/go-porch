@@ -36,7 +36,7 @@ func TestPathParamsBound(t *testing.T) {
 // Every operation except the explicitly public ones requires the session scheme.
 func TestOperationsRequireAuth(t *testing.T) {
 	public := map[string]bool{"get-setup-status": true, "complete-setup": true, "get-login-options": true, "backup-login-start": true,
-		"backup-login-finish": true, "use-recovery-link": true}
+		"backup-login-finish": true, "use-recovery-link": true, "get-public-appearance": true}
 	api := New(http.NewServeMux(), &Deps{Version: "test"})
 	for path, item := range api.OpenAPI().Paths {
 		for _, op := range []*huma.Operation{item.Get, item.Post, item.Put, item.Patch, item.Delete} {

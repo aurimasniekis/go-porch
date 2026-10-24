@@ -87,7 +87,8 @@ erDiagram
 ### Applications and OIDC
 | Table | Purpose |
 |---|---|
-| `applications` | Tenant app: kind (`oidc` / `forward_auth`), launcher info, hosts (forward-auth), disclosure config |
+| `applications` | Tenant app: kind (`oidc` / `forward_auth`), launcher info (group, icon source and media, migration 0011), hosts (forward-auth), disclosure config |
+| `media` | Re-encoded icons and background images keyed by SHA-256, with background credits (migration 0011, ADR-0045) |
 | `oauth_clients` | client_id, type (confidential/public), sealed secret hash, allowed grants, signing alg, audiences, token lifetimes |
 | `client_redirect_uris` | Exact redirect URIs and post-logout URIs |
 | `app_shares` | (app, target tenant, granted_by) |

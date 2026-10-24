@@ -810,7 +810,7 @@ func (q *Queries) ListAppShares(ctx context.Context, arg ListAppSharesParams) ([
 }
 
 const listAppsSharedTo = `-- name: ListAppsSharedTo :many
-SELECT a.id, a.tenant_id, a.slug, a.name, a.kind, a.description, a.launch_url, a.enabled, a.disclosure_json, a.version, a.managed_by, a.last_changed_by, a.created_at, a.updated_at, a.access_mode, a.forward_headers FROM applications a JOIN app_shares s ON s.app_id = a.id WHERE s.target_tenant_id = ? ORDER BY a.slug
+SELECT a.id, a.tenant_id, a.slug, a.name, a.kind, a.description, a.launch_url, a.enabled, a.disclosure_json, a.version, a.managed_by, a.last_changed_by, a.created_at, a.updated_at, a.access_mode, a.forward_headers, a.group_name, a.icon_source, a.icon_ref, a.icon_media_id FROM applications a JOIN app_shares s ON s.app_id = a.id WHERE s.target_tenant_id = ? ORDER BY a.slug
 `
 
 func (q *Queries) ListAppsSharedTo(ctx context.Context, targetTenantID string) ([]Application, error) {
@@ -839,6 +839,10 @@ func (q *Queries) ListAppsSharedTo(ctx context.Context, targetTenantID string) (
 			&i.UpdatedAt,
 			&i.AccessMode,
 			&i.ForwardHeaders,
+			&i.GroupName,
+			&i.IconSource,
+			&i.IconRef,
+			&i.IconMediaID,
 		); err != nil {
 			return nil, err
 		}

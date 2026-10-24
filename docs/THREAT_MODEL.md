@@ -65,6 +65,7 @@ flowchart LR
 | T-B3-4 | E | Account takeover by matching email of an existing local user | Identity keyed by `(issuer, subject)`; no auto-link on email; linking needs step-up + fresh upstream auth | email-link-attack test |
 | T-B3-5 | E | Workspace user removed upstream keeps access | Hourly `prompt=none` recheck; derived grants removed on evidence loss; optional Directory API sync | recheck tests (fake), real Google **not verified** |
 | T-B3-6 | I | SSRF through provider discovery URL | Outbound guard denies private/loopback/link-local/CGNAT/NAT64 at dial time unless allowlisted (`outbound.allow_cidrs`) | `internal/netguard` tests |
+| T-B3-7 | T/I | Fetched or uploaded images: SSRF through icon URLs, script content served as an image, decompression bombs, third-party tracking of visitors | Outbound guard on every fetch and redirect; size and pixel limits before decoding; raster images decoded and re-encoded to PNG/JPEG; SVG rewritten from an element allowlist without scripts, handlers, external references or DOCTYPEs; served from Porch's origin with `nosniff` and a sandboxing CSP, shown only via `<img>` (ADR-0045) | `internal/appearance` tests, `TestApplicationIconsAndLauncherGroups` |
 
 ## B4 — Downstream apps (RPs) ↔ Porch OP
 

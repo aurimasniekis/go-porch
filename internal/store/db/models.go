@@ -50,6 +50,10 @@ type Application struct {
 	UpdatedAt      int64
 	AccessMode     string
 	ForwardHeaders string
+	GroupName      string
+	IconSource     string
+	IconRef        string
+	IconMediaID    sql.NullString
 }
 
 type AuditEvent struct {
@@ -346,6 +350,21 @@ type KeyringKey struct {
 	State     string
 	CreatedAt int64
 	UpdatedAt int64
+}
+
+type Medium struct {
+	ID          string
+	Kind        string
+	ContentType string
+	Data        []byte
+	Width       int64
+	Height      int64
+	Title       string
+	Author      string
+	License     string
+	LicenseUrl  string
+	SourceUrl   string
+	CreatedAt   int64
 }
 
 type Membership struct {

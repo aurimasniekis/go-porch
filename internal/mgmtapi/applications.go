@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/aurimasniekis/go-porch/internal/appearance"
 	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/authz"
@@ -61,6 +62,10 @@ type Application struct {
 	Hosts          []string          `json:"hosts" doc:"Hosts protected by a forward_auth application."`
 	ForwardHeaders map[string]string `json:"forward_headers" doc:"Identity headers sent to forward-auth backends (header → sub|email|name|groups|tenant|roles); empty = defaults."`
 	Client         *OIDCClient       `json:"client,omitempty"`
+	Group          string            `json:"group" doc:"Launcher section the application appears in (empty = none)."`
+	IconSource     string            `json:"icon_source" enum:",url,dashboard_icons,thesvg,upload" doc:"How the icon was set (empty = no icon: a letter tile)."`
+	IconRef        string            `json:"icon_ref" doc:"The icon URL or dashboard-icons name the icon was taken from."`
+	IconURL        string            `json:"icon_url" doc:"Where Porch serves the stored icon (empty = none)."`
 	Version        int64             `json:"version"`
 	ManagedBy      string            `json:"managed_by"`
 	LastChangedBy  string            `json:"last_changed_by,omitempty"`
@@ -71,6 +76,7 @@ type Application struct {
 func (d *Deps) appDTO(a apps.Application, c *apps.Client) Application {
 	out := Application{ID: a.ID, TenantID: a.TenantID, Slug: a.Slug, Name: a.Name, Kind: a.Kind, Description: a.Description, LaunchURL: a.LaunchURL,
 		Enabled: a.Enabled, Disclosure: Disclosure(a.Disclosure), AccessMode: a.AccessMode, Hosts: a.Hosts, ForwardHeaders: a.ForwardHeaders,
+		Group: a.Group, IconSource: a.IconSource, IconRef: a.IconRef, IconURL: a.IconURL,
 		Version: a.Version, ManagedBy: a.ManagedBy, LastChangedBy: a.LastChangedBy,
 		CreatedAt: a.CreatedAt, UpdatedAt: a.UpdatedAt}
 	if c != nil {
@@ -128,6 +134,38 @@ type CreateApplicationRequest struct {
 	AccessMode     string            `json:"access_mode,omitempty" enum:"all_members,assigned"`
 	Hosts          []string          `json:"hosts,omitempty" maxItems:"20"`
 	ForwardHeaders map[string]string `json:"forward_headers,omitempty"`
+	Group          string            `json:"group,omitempty" maxLength:"64"`
+	Icon           *IconRequest      `json:"icon,omitempty"`
+}
+
+// IconRequest sets an application icon that Porch downloads, re-encodes and serves itself (ADR-0045). Upload an image
+// with PUT .../icon instead.
+type IconRequest struct {
+	Source string `json:"source" enum:",url,dashboard_icons,thesvg" doc:"url: an https image URL (SVG, PNG, JPEG, GIF or WebP); dashboard_icons: a name from the dashboard-icons set (e.g. grafana); thesvg: a theSVG brand logo, slug or slug/variant (e.g. github/mono); empty removes the icon."`
+	Ref    string `json:"ref,omitempty" maxLength:"512"`
+}
+
+// IconUpload is an uploaded icon image.
+type IconUpload struct {
+	ContentBase64 string `json:"content_base64" minLength:"8" maxLength:"700000" doc:"SVG, PNG, JPEG, GIF or WebP, at most 512 KiB. SVG is sanitized and kept as SVG; other formats are scaled to 256×256 PNG."`
+}
+
+// icon resolves an icon request: downloads happen here, before and outside any write transaction.
+func (d *Deps) icon(ctx context.Context, r *IconRequest) (*apps.Icon, error) {
+	if r == nil {
+		return nil, nil
+	}
+	if r.Source == "" {
+		return &apps.Icon{}, nil
+	}
+	if d.Appearance == nil {
+		return nil, d.fail("app-icon", appearance.ErrNoFetcher)
+	}
+	e, err := d.Appearance.FetchIcon(ctx, r.Source, r.Ref)
+	if err != nil {
+		return nil, d.fail("app-icon", err)
+	}
+	return &apps.Icon{Source: r.Source, Ref: r.Ref, Image: &e}, nil
 }
 
 // CreatedApplication includes the client secret exactly once.
@@ -147,6 +185,8 @@ type UpdateApplicationRequest struct {
 	AccessMode     *string           `json:"access_mode,omitempty" enum:"all_members,assigned"`
 	Hosts          []string          `json:"hosts,omitempty" maxItems:"20"`
 	ForwardHeaders map[string]string `json:"forward_headers,omitempty"`
+	Group          *string           `json:"group,omitempty" maxLength:"64"`
+	Icon           *IconRequest      `json:"icon,omitempty" doc:"Replaces the icon; source empty removes it."`
 }
 
 // ClientSecret is a newly issued client secret.
@@ -291,9 +331,13 @@ func registerApplications(api huma.API, d *Deps) {
 				x := apps.Disclosure(*b.Disclosure)
 				disc = &x
 			}
+			icon, err := d.icon(ctx, b.Icon)
+			if err != nil {
+				return nil, err
+			}
 			cr, err := d.Apps.Create(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, apps.CreateParams{Slug: b.Slug, Name: b.Name, Kind: b.Kind,
 				Description: b.Description, LaunchURL: b.LaunchURL, Disclosure: disc, Client: b.Client.params(), AccessMode: b.AccessMode, Hosts: b.Hosts,
-				ForwardHeaders: b.ForwardHeaders})
+				ForwardHeaders: b.ForwardHeaders, Group: b.Group, Icon: icon})
 			if err != nil {
 				return nil, d.fail("create-app", err)
 			}
@@ -360,9 +404,13 @@ func registerApplications(api huma.API, d *Deps) {
 				x := apps.Disclosure(*b.Disclosure)
 				disc = &x
 			}
+			icon, err := d.icon(ctx, b.Icon)
+			if err != nil {
+				return nil, err
+			}
 			a, c, err := d.Apps.Update(ctx, change(ctx, in.ManagedBy.ManagedBy), sc, in.App, apps.UpdateParams{Name: b.Name, Description: b.Description,
 				LaunchURL: b.LaunchURL, Enabled: b.Enabled, Disclosure: disc, Client: b.Client.params(), AccessMode: b.AccessMode, Hosts: b.Hosts,
-				ForwardHeaders: b.ForwardHeaders, IfVersion: v})
+				ForwardHeaders: b.ForwardHeaders, Group: b.Group, Icon: icon, IfVersion: v})
 			if err != nil {
 				return nil, d.fail("update-app", err)
 			}

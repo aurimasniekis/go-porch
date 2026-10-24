@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aurimasniekis/go-porch/internal/appearance"
 	"github.com/aurimasniekis/go-porch/internal/apperr"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/domain"
@@ -56,11 +57,18 @@ type Application struct {
 	Hosts []string `json:"hosts"`
 	// ForwardHeaders maps identity header names to claims (sub, email, name, groups, tenant, roles).
 	ForwardHeaders map[string]string `json:"forward_headers"`
-	Version        int64             `json:"version"`
-	ManagedBy      string            `json:"managed_by"`
-	LastChangedBy  string            `json:"last_changed_by,omitempty"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
+	// Group names the launcher section the application appears in ("" = none).
+	Group string `json:"group"`
+	// IconSource is how the icon was set ("" = none, url, dashboard_icons, upload); IconRef is the URL or icon name.
+	IconSource string `json:"icon_source"`
+	IconRef    string `json:"icon_ref"`
+	// IconURL serves the stored icon from Porch ("" = none).
+	IconURL       string    `json:"icon_url"`
+	Version       int64     `json:"version"`
+	ManagedBy     string    `json:"managed_by"`
+	LastChangedBy string    `json:"last_changed_by,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Client is an OAuth client (secret never included).
@@ -107,8 +115,56 @@ func AppFromRow(r db.Application) Application {
 	fh := map[string]string{}
 	_ = json.Unmarshal([]byte(r.ForwardHeaders), &fh)
 	return Application{ID: r.ID, TenantID: r.TenantID, Slug: r.Slug, Name: r.Name, Kind: r.Kind, Description: r.Description, LaunchURL: r.LaunchUrl,
-		Enabled: r.Enabled == 1, Disclosure: d, AccessMode: r.AccessMode, Hosts: []string{}, ForwardHeaders: fh, Version: r.Version, ManagedBy: r.ManagedBy, LastChangedBy: r.LastChangedBy.String,
-		CreatedAt: domain.FromMicros(r.CreatedAt), UpdatedAt: domain.FromMicros(r.UpdatedAt)}
+		Enabled: r.Enabled == 1, Disclosure: d, AccessMode: r.AccessMode, Hosts: []string{}, ForwardHeaders: fh, Group: r.GroupName,
+		IconSource: r.IconSource, IconRef: r.IconRef, IconURL: iconURL(r.IconMediaID), Version: r.Version, ManagedBy: r.ManagedBy,
+		LastChangedBy: r.LastChangedBy.String, CreatedAt: domain.FromMicros(r.CreatedAt), UpdatedAt: domain.FromMicros(r.UpdatedAt)}
+}
+
+func iconURL(id sql.NullString) string {
+	if !id.Valid {
+		return ""
+	}
+	return appearance.MediaURL(id.String)
+}
+
+// Icon sets an application's icon. Source is "" (remove), url, dashboard_icons or upload; Image is the icon Porch
+// downloaded or received and re-encoded (ADR-0045), nil when removing.
+type Icon struct {
+	Source string
+	Ref    string
+	Image  *appearance.Encoded
+}
+
+// setPresentationTx stores the launcher group and icon.
+func setPresentationTx(ctx context.Context, tx *store.Tx, tenantID, id, group string, icon Icon) error {
+	media := sql.NullString{}
+	if icon.Image != nil {
+		if len(icon.Image.Data) > 0 { // a new image; an existing one is referenced by ID only
+			if err := appearance.StoreIconTx(ctx, tx, *icon.Image, domain.FromMicros(tx.NowMicros())); err != nil {
+				return err
+			}
+		}
+		media = sql.NullString{String: icon.Image.ID, Valid: true}
+	} else {
+		icon.Source, icon.Ref = "", ""
+	}
+	return tx.Q.SetApplicationPresentation(ctx, db.SetApplicationPresentationParams{GroupName: group, IconSource: icon.Source,
+		IconRef: icon.Ref, IconMediaID: media, TenantID: tenantID, ID: id})
+}
+
+// cleanGroup validates a launcher group name.
+func cleanGroup(g string, v *apperr.Validation) string {
+	g = strings.TrimSpace(g)
+	if len([]rune(g)) > 64 {
+		v.Add("group", "must be at most 64 characters")
+	}
+	for _, r := range g {
+		if r < 0x20 || r == 0x7f {
+			v.Add("group", "must not contain control characters")
+			break
+		}
+	}
+	return g
 }
 
 // ClientFromRow converts a row.
@@ -268,6 +324,8 @@ type CreateParams struct {
 	Hosts       []string      // forward_auth: protected hosts (required)
 	// ForwardHeaders overrides the default identity headers of forward_auth apps.
 	ForwardHeaders map[string]string
+	Group          string
+	Icon           *Icon
 }
 
 // Created is a new application; Secret is set (once) for confidential clients.
@@ -401,6 +459,20 @@ func (svc *Service) Create(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		if err := svc.setAccessTx(ctx, tx, sc.TenantID(), id, p.AccessMode, p.ForwardHeaders, p.Hosts); err != nil {
 			return err
 		}
+		var gv apperr.Validation
+		group := cleanGroup(p.Group, &gv)
+		if err := gv.Err(); err != nil {
+			return err
+		}
+		if group != "" || p.Icon != nil {
+			icon := Icon{}
+			if p.Icon != nil {
+				icon = *p.Icon
+			}
+			if err := setPresentationTx(ctx, tx, sc.TenantID(), id, group, icon); err != nil {
+				return err
+			}
+		}
 		if p.Client != nil {
 			c := p.Client
 			cid := ids.New(ids.OAuthClient)
@@ -516,6 +588,8 @@ type UpdateParams struct {
 	AccessMode     *string
 	Hosts          []string          // nil = unchanged (forward_auth)
 	ForwardHeaders map[string]string // nil = unchanged
+	Group          *string
+	Icon           *Icon // nil = unchanged
 	IfVersion      int64
 }
 
@@ -556,6 +630,10 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		if p.Disclosure != nil {
 			a.Disclosure = *p.Disclosure
 		}
+		group := r.GroupName
+		if p.Group != nil {
+			group = cleanGroup(*p.Group, &v)
+		}
 		var cr db.OauthClient
 		if p.Client != nil {
 			if cr, err = tx.Q.GetClientByApp(ctx, id); err != nil {
@@ -593,6 +671,18 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, sc tenancy.Sco
 		}
 		if p.AccessMode != nil || p.ForwardHeaders != nil || p.Hosts != nil {
 			if err := svc.setAccessTx(ctx, tx, sc.TenantID(), id, mode, headers, hosts); err != nil {
+				return err
+			}
+		}
+		if p.Group != nil || p.Icon != nil {
+			icon := Icon{Source: r.IconSource, Ref: r.IconRef}
+			if r.IconMediaID.Valid {
+				icon.Image = &appearance.Encoded{ID: r.IconMediaID.String}
+			}
+			if p.Icon != nil {
+				icon = *p.Icon
+			}
+			if err := setPresentationTx(ctx, tx, sc.TenantID(), id, group, icon); err != nil {
 				return err
 			}
 		}

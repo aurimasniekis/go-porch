@@ -26,6 +26,9 @@ No version has been released yet. This section summarizes milestones M0–M7 ([d
 
 ### Added
 
+- **Appearance.** Sign-in backgrounds from Wikimedia Commons (a category or named files, credited) or Lorem Picsum,
+  fetched and re-encoded by Porch and served from its own origin; application icons (upload, image URL, theSVG brand logos
+  or the dashboard-icons set; SVG is sanitized and kept as SVG) and launcher groups (ADR-0045).
 - **Foundations (M0).** Go module `github.com/aurimasniekis/go-porch`, Makefile `check` target (gofmt, vet, a custom
   transaction-scope analyzer, golangci-lint, race tests, sqlc and OpenAPI drift checks, govulncheck, gitleaks, docs
   site), a SHA-pinned CI workflow, design documents (architecture, STRIDE threat model, schema, flows, API, ADRs) and
