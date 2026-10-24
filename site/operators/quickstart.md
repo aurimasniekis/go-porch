@@ -4,7 +4,7 @@ Porch is one binary with an embedded web UI and one SQLite database. Run **exact
 behind a TLS reverse proxy (or with Porch's own TLS). The key-encryption key (KEK) lives outside the data directory:
 without it the database cannot be read, so back it up offline as soon as you create it.
 
-::: warning Pre-alpha, no release yet
+::: tip No release yet
 No version has been published. Build the image or binary from source as shown below. The release pipeline
 ([RELEASING.md](https://github.com/aurimasniekis/go-porch/blob/main/docs/RELEASING.md)) will publish
 `ghcr.io/aurimasniekis/go-porch` images and archives with `SHA256SUMS`, SBOMs and build provenance.

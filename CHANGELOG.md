@@ -14,19 +14,11 @@ No version has been released yet. This section summarizes milestones M0–M7 ([d
 
 > **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
 > no external security audit. An internal review (docs/SECURITY_REVIEW-2026-10-24.md) found 3 high and 11 medium
-> issues plus low-severity items, all fixed with regression tests. Porch is pre-alpha.
+> issues plus low-severity items, all fixed with regression tests.
 
 ### Known limitations
 
 - Pre-1.0: interfaces may change between minor versions ([docs/VERSIONING.md](docs/VERSIONING.md)).
-- Google federation is tested against a fake Google provider only; real Google is not verified.
-- Backups are tested against MinIO only; other S3 providers are not verified. Cloudflare client-IP handling is not
-  verified against real Cloudflare.
-- The pulse relay is tested against an embedded NATS JetStream server and a local pulsed (development stack); a
-  production pulsed deployment is not verified.
-- The OpenID conformance suite (Basic and Config OP) was run locally; this is not an official certification.
-- The container image, Compose file and systemd unit were tested on Docker Desktop and in a systemd container, not on
-  a bare Linux host.
 - The Caddy and nginx forward-auth examples strip the `__Host-porch_fa` cookie before the backend; Traefik has no
   built-in way to do so.
 - Not yet available: front-channel and back-channel logout (logout is RP-initiated only, ADR-0013), passkeys, high

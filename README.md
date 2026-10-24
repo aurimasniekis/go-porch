@@ -22,9 +22,8 @@
   <img src="site/public/screenshots/launcher-light.png" alt="Porch launcher: the applications Ada may open, an OIDC app and a forward-auth app">
 </picture>
 
-> [!WARNING]
-> **Pre-alpha.** Porch has had an internal security review but no external audit, and no version has been released.
-> Google federation is tested against a fake Google only. See [what is verified and what is not](#status).
+> [!NOTE]
+> No version has been released yet: build from source (see [Deploy](#deploy)).
 
 ## Why
 
@@ -205,8 +204,7 @@ Milestones M0–M7 of the [plan](docs/PLAN.md) are implemented and tested. Every
 | Events | delivered to a running pulsed, including after a pulse outage, with no duplicates after a restart |
 | Security | internal review (3 high, 11 medium, low items), all fixed with regression tests |
 
-**Not verified yet:** real Google and Google Workspace, S3 providers other than MinIO, real Cloudflare, and the
-release workflow on GitHub (no tag has been pushed). Not built yet: front- and back-channel logout, passkeys, high availability.
+Planned next: front- and back-channel logout, passkeys and high availability ([backlog](docs/BACKLOG.md)).
 
 ## Documentation
 

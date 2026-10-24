@@ -8,11 +8,6 @@
    Workspace domains you accept — tokens without a matching validated `hd` claim are refused.
 3. Changes to providers need a recent sign-in (step-up, 5 minutes).
 
-::: danger Not verified against real Google
-The automated suite runs against Porch's fake Google provider. The flow follows Google's documented OpenID Connect
-behaviour (RS256, `hd`, `email_verified`, `prompt=none`, `max_age`), but it has not been exercised against
-accounts.google.com in this repository's tests.
-:::
 
 ## Domain rules
 

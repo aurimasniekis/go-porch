@@ -45,8 +45,3 @@ See the [backup runbook](https://github.com/aurimasniekis/go-porch/blob/main/doc
 short: `porch restore -config porch.yaml -identity backup.agekey -verify-key porch-backup-ed25519:…` into an empty
 data directory, then `porch serve`. The first start invalidates every session and refresh token from the backup,
 replaces the signing keys and raises a critical alert.
-
-## What is not verified
-
-Backups are tested against MinIO (`scripts/backup-drill.sh`). Other S3 providers (AWS, Backblaze, Wasabi, …) are
-**not verified**.

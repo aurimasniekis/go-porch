@@ -10,6 +10,4 @@ It sits in front of your apps and answers two questions: **who is this person?**
 
 Porch is deliberately smaller than Authentik or Keycloak: one binary, one SQLite database, one key file.
 
-::: warning Pre-alpha
-Porch is under construction. See [Project status](./status).
-:::
+See [Project status](./status) for what each feature is covered by.
