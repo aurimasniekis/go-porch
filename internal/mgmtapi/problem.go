@@ -1,0 +1,80 @@
+package mgmtapi
+
+import (
+	"net/http"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/aurimasniekis/go-porch/internal/apperr"
+)
+
+// Problem is an RFC 9457 problem document with a stable machine-readable code.
+type Problem struct {
+	Type     string              `json:"type,omitempty" doc:"URI reference identifying the problem type."`
+	Title    string              `json:"title,omitempty" doc:"Short summary of the problem type."`
+	Status   int                 `json:"status,omitempty" doc:"HTTP status code."`
+	Detail   string              `json:"detail,omitempty" doc:"Explanation of this occurrence."`
+	Code     string              `json:"code" doc:"Stable error code, e.g. validation_failed, not_found, precondition_failed, reauth_required."`
+	Fields   []apperr.FieldError `json:"fields,omitempty" doc:"Per-field validation problems."`
+	Errors   []*huma.ErrorDetail `json:"errors,omitempty" doc:"Request-schema validation details."`
+	Instance string              `json:"instance,omitempty"`
+}
+
+func (p *Problem) Error() string  { return p.Detail }
+func (p *Problem) GetStatus() int { return p.Status }
+
+// ContentType makes JSON problems application/problem+json.
+func (p *Problem) ContentType(ct string) string {
+	if ct == "application/json" {
+		return "application/problem+json"
+	}
+	return ct
+}
+
+func problem(status int, code apperr.Code, detail string, fields []apperr.FieldError) *Problem {
+	return &Problem{Type: "about:blank", Title: http.StatusText(status), Status: status, Detail: detail, Code: string(code), Fields: fields}
+}
+
+func defaultCode(status int) apperr.Code {
+	switch status {
+	case http.StatusUnprocessableEntity, http.StatusBadRequest:
+		return apperr.CodeInvalid
+	case http.StatusUnauthorized:
+		return apperr.CodeUnauthorized
+	case http.StatusForbidden:
+		return apperr.CodeForbidden
+	case http.StatusNotFound:
+		return apperr.CodeNotFound
+	case http.StatusConflict:
+		return apperr.CodeConflict
+	case http.StatusPreconditionFailed:
+		return apperr.CodePrecondition
+	case http.StatusTooManyRequests:
+		return apperr.CodeRateLimited
+	case http.StatusServiceUnavailable:
+		return apperr.CodeUnavailable
+	case http.StatusRequestEntityTooLarge:
+		return "payload_too_large"
+	}
+	if status >= 500 {
+		return "internal"
+	}
+	return apperr.Code(http.StatusText(status))
+}
+
+func init() {
+	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
+		p := problem(status, defaultCode(status), msg, nil)
+		for _, e := range errs {
+			if e == nil {
+				continue
+			}
+			if d, ok := e.(huma.ErrorDetailer); ok {
+				p.Errors = append(p.Errors, d.ErrorDetail())
+			} else {
+				p.Errors = append(p.Errors, &huma.ErrorDetail{Message: e.Error()})
+			}
+		}
+		return p
+	}
+}

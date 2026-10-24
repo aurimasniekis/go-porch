@@ -64,7 +64,10 @@ export default withMermaid(
         },
         {
           text: 'Operators',
-          items: [{ text: 'Overview', link: '/operators/' }],
+          items: [
+            { text: 'Overview', link: '/operators/' },
+            { text: 'Quickstart', link: '/operators/quickstart' },
+          ],
         },
         {
           text: 'Security',

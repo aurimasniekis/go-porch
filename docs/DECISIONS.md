@@ -223,3 +223,21 @@ attributes), per-request nonce injected into `index.html`.
 
 **Decision.** `/metrics`, `/healthz`, `/readyz`, pprof (off by default) only on `127.0.0.1:9464`. The public listener
 defaults to `127.0.0.1:8080`.
+
+## ADR-0025 — Setup tokens are issued on the host while Porch is stopped
+
+**Context.** The first owner must not be creatable remotely without host access, and no default credentials may exist.
+**Decision.** `porch admin setup-token` opens the data directory (taking its `flock`) and the KEK, so it runs before the
+first `porch serve` or while the server is stopped. Tokens are single-use, expire (default 1 h), are stored as HMACs, and
+can only be consumed while no installation operator exists, inside one `BEGIN IMMEDIATE` transaction. Consuming creates a
+setup session capped at 1 h whose purpose is to enroll a real login method.
+**Consequences.** One short stop of the service on first install (or `docker compose run porch admin setup-token` before
+`up`). No setup URL is ever printed to server logs.
+
+## ADR-0026 — Until M5, tenants are managed by installation operators only
+
+**Context.** Tenant-level admin roles need the authorization engine (M5).
+**Decision.** In M1–M4 the management API resolves tenant scopes only for installation owners/admins
+(`tenancy.ResolveForOperator`, recorded as `via: operator` in audit details). Tenant members get a `ViaMembership` scope
+for their own data (portal, OIDC) but no management rights.
+**Consequences.** Temporary; replaced by `authz` checks (`tenant:manage`, `member:manage`, …) in M5 without API changes.

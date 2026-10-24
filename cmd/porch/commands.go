@@ -28,6 +28,25 @@ type command struct {
 func rootCommands() []*command {
 	return []*command{
 		{name: "version", summary: "print version information", run: runVersion},
+		{name: "serve", summary: "run the Porch server", run: runServe},
+		{name: "migrate", summary: "apply pending database migrations (takes the data-directory lock)", run: runMigrate},
+		{name: "openapi", summary: "print the management API OpenAPI 3.1 document", run: runOpenAPI},
+		{name: "healthcheck", summary: "probe the management listener's /readyz (for container health checks)", run: runHealthcheck},
+		{name: "config", summary: "configuration tools", sub: []*command{
+			{name: "check", summary: "validate the configuration and print the effective settings", run: runConfigCheck},
+		}},
+		{name: "keys", summary: "key management", sub: []*command{
+			{name: "init", summary: "generate a new KEK file (mode 0400)", run: runKeysInit},
+			{name: "status", summary: "show keyring purposes and versions", run: runKeysStatus},
+			{name: "rotate", summary: "rotate a purpose key (old version stays decrypt-only)", run: runKeysRotate},
+			{name: "retire", summary: "retire a decrypt-only purpose key version once nothing uses it", run: runKeysRetire},
+		}},
+		{name: "admin", summary: "host-side administration (needs the data-directory lock and the KEK)", sub: []*command{
+			{name: "setup-token", summary: "issue a single-use setup token for the first owner", run: runSetupToken},
+		}},
+		{name: "audit", summary: "audit log tools", sub: []*command{
+			{name: "verify", summary: "verify the audit hash chain", run: runAuditVerify},
+		}},
 	}
 }
 
