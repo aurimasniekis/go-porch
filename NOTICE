@@ -1,0 +1,13 @@
+Porch
+Copyright 2026 Aurimas Niekis
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Portions of this product are adapted from HallPass (github.com/aurimasniekis/go-hallpass) and Pulse
+(github.com/aurimasniekis/go-pulse), both Copyright 2026 Aurimas Niekis and licensed under the Apache License,
+Version 2.0. Adapted files carry a provenance comment naming their origin.
+
+This product includes the EFF Large Wordlist for Passphrases (internal/localauth/wordlist/eff_large_wordlist.txt),
+Copyright Electronic Frontier Foundation, licensed under the Creative Commons Attribution 3.0 United States License
+(https://creativecommons.org/licenses/by/3.0/us/). Source:
+https://www.eff.org/deeplinks/2016/07/new-wordlists-random-passphrases

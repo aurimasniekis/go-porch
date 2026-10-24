@@ -1,0 +1,11 @@
+title = "porch gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures generated at test time only; documentation shows placeholder token shapes"
+regexes = [
+  '''porch_at_EXAMPLE[A-Za-z0-9_]*''',
+  '''porch_setup_EXAMPLE[A-Za-z0-9_]*''',
+]
