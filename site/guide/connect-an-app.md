@@ -18,7 +18,7 @@ sequenceDiagram
 
 ## 1. Register
 
-As an installation admin (UI coming in M5; API today):
+In the admin UI (tenant → **Applications** → **New application**), or through the API:
 
 ```http
 POST /api/v1/tenants/smith/applications

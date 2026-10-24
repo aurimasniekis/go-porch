@@ -10,7 +10,7 @@ GOVULNCHECK  ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 .DEFAULT_GOAL := help
 .PHONY: help build build-go test race vet custom-vet lint fmt-check tools-test fuzz-smoke vuln secrets check clean \
-        sqlc sqlc-check api api-check web web-check site e2e test-oidc-interop test-fault
+        sqlc sqlc-check api api-check web web-check site screenshots e2e test-oidc-interop test-fault
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -27,6 +27,9 @@ web: ## Build the web UI into internal/webui/dist (embedded into the binary)
 
 site: ## Build the VitePress docs site and check every Mermaid diagram parses
 	cd site && pnpm install --frozen-lockfile && pnpm check:mermaid && pnpm build
+
+screenshots: ## Regenerate site/public/screenshots from a throwaway e2e server (review before committing)
+	scripts/screenshots.sh
 
 # ---- checks ------------------------------------------------------------------
 

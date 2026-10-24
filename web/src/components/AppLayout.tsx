@@ -1,4 +1,13 @@
-import { ActionIcon, AppShell, Anchor, Group, Text, Tooltip, useMantineColorScheme } from '@mantine/core'
+import {
+  ActionIcon,
+  AppShell,
+  Anchor,
+  Group,
+  Text,
+  Tooltip,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from '@mantine/core'
 import { IconLogout, IconMoon, IconSun } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -9,7 +18,12 @@ import { api, check, type Me } from '@/api/client'
 export function AppLayout({ me, children }: { me: Me; children: ReactNode }) {
   const qc = useQueryClient()
   const admin = useQuery(adminQuery)
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme()
+  // The stored scheme can be 'auto'; the icon and the toggle follow the scheme actually shown.
+  const { setColorScheme } = useMantineColorScheme()
+  const colorScheme = useComputedColorScheme('light')
+  const toggleColorScheme = () => {
+    setColorScheme(colorScheme === 'dark' ? 'light' : 'dark')
+  }
   const logout = async () => {
     check(await api.POST('/logout'))
     qc.clear()

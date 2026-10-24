@@ -11,8 +11,8 @@ Open items not yet scheduled into a milestone, plus known limitations. Items mov
 - Real Google Directory API sync verification (fake-tested only).
 - Test-only custom-issuer Google provider so the demo stack can run in production mode.
 - Traefik example: no built-in single-cookie removal; the backend still receives `__Host-porch_fa`.
-- Assignment listings could carry display names for subjects, conditions and scopes so delegated admins with only
-  `role:manage` do not see raw IDs.
+- Assignment listings and explain traces (candidate grant scopes such as `album:res_…`) could carry display names for
+  subjects, conditions and scopes so delegated admins with only `role:manage` do not see raw IDs.
 - Re-enable dialog scroll locking once `react-remove-scroll` can be given the CSP nonce (ADR-0040).
 - Jellyfin integration beyond the documented matrix (third-party SSO plugin; mobile/TV clients lack OIDC).
 

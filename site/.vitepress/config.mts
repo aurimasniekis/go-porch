@@ -58,10 +58,12 @@ export default withMermaid(
           text: 'Guide',
           items: [
             { text: 'What is Porch?', link: '/guide/what-is-porch' },
+            { text: 'Try it locally', link: '/guide/try-locally' },
             { text: 'Concepts', link: '/guide/concepts' },
             { text: 'Signing in', link: '/guide/signing-in' },
             { text: 'Connect an application', link: '/guide/connect-an-app' },
             { text: 'Administer a tenant', link: '/guide/administration' },
+            { text: 'API and Terraform', link: '/guide/automation' },
             { text: 'Integration matrix', link: '/guide/integrations' },
             { text: 'Project status', link: '/guide/status' },
           ],
@@ -70,7 +72,7 @@ export default withMermaid(
           text: 'Operators',
           items: [
             { text: 'Overview', link: '/operators/' },
-            { text: 'Quickstart', link: '/operators/quickstart' },
+            { text: 'Install', link: '/operators/quickstart' },
             { text: 'Identity providers & domains', link: '/operators/identity-providers' },
             { text: 'Backup login & recovery', link: '/operators/recovery' },
             { text: 'Forward-auth (proxies)', link: '/operators/forward-auth' },

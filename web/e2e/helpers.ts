@@ -15,9 +15,9 @@ export const IDP = process.env.PORCH_E2E_IDP ?? 'http://127.0.0.1:9999'
 
 /**
  * Waits until dialogs, overlays and notifications have finished their open transitions and no animation is running, so
- * axe never measures half-faded colours.
+ * axe (and screenshots) never see half-faded colours.
  */
-async function settle(page: Page) {
+export async function settle(page: Page) {
   await page.waitForFunction(() => {
     // Effective opacity: a dialog can be opaque itself while a transition wrapper around it is still fading in.
     const opacity = (el: Element | null): number => {

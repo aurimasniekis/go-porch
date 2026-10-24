@@ -57,7 +57,7 @@ export const Route = createFileRoute('/_app/')({
         </section>
         <Card>
           <Title order={2} size="h4" mb="sm">
-            Your groups
+            Your memberships
           </Title>
           {me.memberships.length === 0 ? (
             <Text c="dimmed">You are not a member of any tenant yet.</Text>
