@@ -409,3 +409,30 @@ can repair. Delegation is enforced only in the API; the UI hides what `/me/admin
   Background scrolling while a dialog is open is the accepted cost; relaxing `style-src-elem` is not.
 **Consequences.** New colours or components must keep axe clean in the e2e suite; the suite fails otherwise.
 
+## ADR-0041 — Automation tokens and Idempotency-Key (security-relevant change)
+
+**Context.** Terraform and scripts need non-interactive access to the management API; retries must not create
+duplicates or leak secrets twice.
+**Decision.**
+- `porch_at_<43 base64url chars>` bearer tokens (32 random bytes) stored as HMACs under the keyring token key (own MAC
+  domain), shown once, with a mandatory expiry of 1–366 days, `last_used_at`/`last_used_ip`, revocation, audit
+  (`actor_type: automation`, `auth_method: automation`, provenance `automation:<token id>`).
+- A token acts for its creator and never for more than the creator holds *now*: installation tokens carry `admin` or
+  `auditor` and work only while the creator still holds an installation role that covers it (owner/admin for admin);
+  tenant tokens carry one tenant and a permission list, issued only with permissions the creator holds (ADR-0038
+  escalation check) and every request needs both the token's permission and the creator's current right (operators'
+  tenant tokens use the operator scope, still limited to their tenant and permissions). A disabled creator disables
+  all their tokens.
+- **Security-relevant change:** bearer requests skip the Origin/CSRF checks (no ambient credential) and **skip step-up**
+  (ADR-0010) — a token is itself issued under step-up by an owner or a tenant administrator and is short-lived by
+  policy. To limit the blast radius, tokens are refused for: issuing tokens, granting or revoking installation roles,
+  rotating signing keys, unlocking backup logins, logout and every state-changing `/me/*` operation (credentials,
+  linking, personal sessions).
+- `Idempotency-Key` (1–255 printable ASCII) on any authenticated POST: the key is scoped by a MAC of the presented
+  credential and bound to a SHA-256 of method, path and body; a repeat returns the stored 2xx response
+  (`Idempotent-Replayed: true`), a different request with the same key gets `422 idempotency_key_reused`, a concurrent
+  one `409 idempotency_in_progress`. Responses containing `client_secret`, `token` or `secret` are stored without the
+  body and replay as `409 idempotent_secret_withheld` with a `Location` header. Failed requests are not stored. Keys
+  live 24 h.
+**Consequences.** A leaked token is usable until it expires or is revoked; secret scanners can match the prefix.
+

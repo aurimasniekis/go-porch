@@ -114,9 +114,10 @@ flowchart LR
 
 | ID | STRIDE | Threat | Mitigation | Coverage |
 |---|---|---|---|---|
-| T-B7-1 | E | Long-lived broad automation token | Tokens tenant-scoped, permission-scoped, required expiry, hashed at rest | API tests |
+| T-B7-1 | E | Long-lived broad automation token | Tenant tokens permission-scoped and limited to the creator's current rights; installation tokens admin/auditor only; mandatory expiry ≤ 366 d; HMAC at rest; revocation; refused for token issuance, role changes, key rotation and `/me` writes (ADR-0041) | `TestAutomationTokens` |
+| T-B7-4 | E | Stolen token bypasses step-up | Accepted (ADR-0041): issuance needs step-up, prefix `porch_at_` for secret scanners, `last_used_ip`, audit actor `automation` | `TestAutomationTokens` |
 | T-B7-2 | T | Lost update between UI and Terraform | `ETag`/`If-Match` on row version; `managed_by` drift warnings | API tests |
-| T-B7-3 | I | Secret echo on retry | Idempotent replays of secret-bearing creates never return the secret again | API tests |
+| T-B7-3 | I | Secret echo on retry | Idempotent replays of secret-bearing creates never return the secret again (`409 idempotent_secret_withheld` + `Location`); keys scoped per credential | `TestIdempotencyKeys` |
 
 ## B8 — Management listener
 

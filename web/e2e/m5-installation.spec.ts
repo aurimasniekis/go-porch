@@ -1,14 +1,5 @@
-import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test'
-import { BASE, expectAccessible, googleLogin, ownerContext, trackCSP } from './helpers'
-
-/** Waits until a Mantine modal has finished its open transition (axe would measure half-faded colours otherwise). */
-async function openedDialog(page: Page, name: string | RegExp): Promise<Locator> {
-  const dialog = page.getByRole('dialog', { name })
-  await expect(dialog).toBeVisible()
-  await expect(dialog).toHaveCSS('opacity', '1')
-  await expect(page.locator('.mantine-Modal-overlay').last()).toHaveCSS('opacity', '1')
-  return dialog
-}
+import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { BASE, expectAccessible, googleLogin, openedDialog, ownerContext, trackCSP } from './helpers'
 
 /**
  * expectAccessible once success notifications have auto-closed: Mantine's notification close button has no accessible

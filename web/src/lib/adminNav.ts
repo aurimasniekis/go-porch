@@ -21,6 +21,7 @@ export const tenantSections: TenantSection[] = [
   { slug: 'access', label: 'Access explorer', perms: ['role:manage', 'authz:simulate'] },
   { slug: 'audit', label: 'Audit log', perms: ['audit:read'] },
   { slug: 'domains', label: 'Domain rules', perms: ['tenant:manage'], operatorOnly: true },
+  { slug: 'tokens', label: 'Automation tokens', perms: ['tenant:manage'] },
   { slug: 'settings', label: 'Settings', perms: ['tenant:manage'] },
 ]
 
@@ -40,5 +41,6 @@ export const installationSections: InstallationSection[] = [
   { slug: 'audit', label: 'Audit log', needs: 'auditor' },
   { slug: 'alerts', label: 'Alerts', needs: 'auditor' },
   { slug: 'keys', label: 'Keys', needs: 'auditor' },
+  { slug: 'tokens', label: 'Automation tokens', needs: 'auditor' },
   { slug: 'operators', label: 'Operators', needs: 'auditor' },
 ]

@@ -45,7 +45,9 @@ Status legend:
 | Ops | Audit explorer (installation + tenant), sessions admin, system health (ADR-0039) | tested | API `/audit`, `/tenants/{t}/audit`, `/sessions`, `/users/{u}/revoke-sessions`, `/installation/health` | `TestAuditExplorerSessionsAndHealth` (M5) |
 | UI | Admin UI: tenant (members, invitations, applications + one-time secrets, service accounts, settings, domain rules), authorization (roles, groups + nesting, assignments, resources tree, policies with live validation, access explorer: effective permissions + simulator with trace), installation (health, tenants, users + search, identity providers, sessions, audit explorer, alerts, keys, operators + role grants); delegated navigation from `/me/admin`; light/dark | tested | UI `/admin/*` | Playwright `m5-tenant-admin`, `m5-authz-admin` (incl. Dave delegation + escalation refusal), `m5-installation`: 34/34 with axe WCAG 2.1 AA on every page and dialog and zero CSP violations; vitest 61 (M5) |
 | Admin | Installation role grant/revoke (owner, step-up, last owner kept), user substring search, backup-login lockout status | tested | API `/installation/operators`, `/users?q=`, `/users/{u}` | `TestOperatorRoleManagement`, `TestBackupLoginAndDoSIsolation` (M5) |
-| Automation | Automation tokens, Terraform provider | planned | — | M6 |
+| Automation | Automation tokens (installation admin/auditor, tenant permission-scoped), management UI | tested | API `/installation/automation-tokens`, `/tenants/{t}/automation-tokens`; UI `/admin/i/tokens`, `/admin/t/{t}/tokens` | `TestAutomationTokens`, Playwright `m6-automation.spec.ts` (M6) |
+| Automation | Terraform provider | planned | — | M6 |
+| Ops | Grafana dashboard, Prometheus alert rules (each links a runbook), runbooks | tested (static) | `deploy/monitoring`, `docs/runbooks` | `deploy/monitoring/check.sh`: promtool validates 14 rules + 25 dashboard queries and passes rule unit tests; metric names checked against a live `/metrics`; not loaded into a running Grafana (M6) |
 | Events | Outbox → pulse | planned | — | M6 |
 | Backups | age + MinIO backup/restore | planned | — | M6 |
 | Backups | Real S3 providers | not verified | — | — |
@@ -54,4 +56,4 @@ Status legend:
 | Deploy | Container image (distroless, nonroot, 29 MB), production compose (read-only rootfs, cap_drop ALL), systemd unit, demo stack (Caddy + fake Google + demo-app + whoami) | tested (manual) | `deploy/` | `docker build`, compose `up --wait` healthy, demo `up.sh` sign-in via curl, systemd 257 in a container (`systemd-analyze security` 1.4) (M4); not on a bare Linux host |
 | Release | Acceptance script, release workflow | planned | — | M7 |
 | API | Management API conventions: RFC 9457 problems with stable codes, cursor pagination, ETag/If-Match, provenance headers, OpenAPI 3.1 committed | tested | `/api/v1` | path-param binding + auth-required spec tests (M1) |
-| API | `Idempotency-Key` on creates | planned | — | M6 (with automation tokens) |
+| API | `Idempotency-Key` on POST (replay, reuse detection, secrets withheld) | tested | `/api/v1` | `TestIdempotencyKeys` (M6) |

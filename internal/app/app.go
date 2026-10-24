@@ -14,6 +14,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
+	"github.com/aurimasniekis/go-porch/internal/automation"
 	"github.com/aurimasniekis/go-porch/internal/buildinfo"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
@@ -52,6 +53,7 @@ type App struct {
 	Local    *localauth.Service
 	Apps     *apps.Service
 	SAs      *serviceacct.Service
+	Tokens   *automation.Service
 	OP       *oidcop.Provider
 	Engine   *authz.Engine
 	Authz    *authz.Admin
@@ -137,6 +139,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	a.Apps = apps.New(a.Store, a.Keyring, a.Audit)
 	a.Apps.AllowInsecureRedirects = !cfg.IsProduction()
 	a.SAs = serviceacct.New(a.Store, a.Keyring, a.Audit)
+	a.Tokens = automation.New(a.Store, a.Keyring, a.Audit, a.Clock)
 	keys := oidcop.NewKeys(a.Store, a.Keyring, a.Audit)
 	if opts.RSABits > 0 {
 		keys.RSABits = opts.RSABits

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/apps"
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
+	"github.com/aurimasniekis/go-porch/internal/automation"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
@@ -59,6 +61,7 @@ type Deps struct {
 	Local     *localauth.Service
 	Apps      *apps.Service
 	SAs       *serviceacct.Service
+	Tokens    *automation.Service
 	OP        *oidcop.Provider
 	Engine    *authz.Engine
 	Authz     *authz.Admin
@@ -88,6 +91,7 @@ func (d *Deps) log() *slog.Logger {
 // Security scheme names.
 const (
 	schemeSession = "session"
+	schemeToken   = "automationToken"
 )
 
 // Config returns the Huma configuration (shared with the openapi command).
@@ -100,16 +104,19 @@ func Config(version string) huma.Config {
 	c.CreateHooks = nil // no $schema links in bodies
 	c.Info.Description = "Management API for Porch. Browser clients authenticate with the __Host-porch_session cookie and " +
 		"send the session's CSRF token in X-Porch-CSRF on state-changing requests. Automation clients use " +
-		"`Authorization: Bearer porch_at_…` (milestone M6)."
+		"`Authorization: Bearer porch_at_…` (automation tokens; no CSRF header needed)."
 	c.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
 		schemeSession: {Type: "apiKey", In: "cookie", Name: session.CookieName},
+		schemeToken:   {Type: "http", Scheme: "bearer", Description: "Automation token (porch_at_…); see ADR-0041."},
 	}
 	return c
 }
 
 // New registers every operation on mux and returns the API.
 func New(mux *http.ServeMux, d *Deps) huma.API {
-	api := humago.NewWithPrefix(mux, Prefix, Config(d.Version))
+	inner := http.NewServeMux()
+	mux.Handle(Prefix+"/", d.idempotency(inner))
+	api := humago.NewWithPrefix(inner, Prefix, Config(d.Version))
 	api.UseMiddleware(d.authenticate(api))
 	registerSetup(api, d)
 	registerInstallation(api, d)
@@ -128,10 +135,12 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerServiceAccounts(api, d)
 	registerAdminCapabilities(api, d)
 	registerOps(api, d)
+	registerTokens(api, d)
 	return api
 }
 
-var sessionSecurity = []map[string][]string{{schemeSession: {}}}
+// sessionSecurity accepts either a browser session or an automation token.
+var sessionSecurity = []map[string][]string{{schemeSession: {}}, {schemeToken: {}}}
 
 type principalKey struct{}
 
@@ -150,6 +159,21 @@ func (d *Deps) authenticate(api huma.API) func(huma.Context, func(huma.Context))
 		op := ctx.Operation()
 		if op == nil || len(op.Security) == 0 {
 			next(huma.WithContext(ctx, audit.WithMeta(ctx.Context(), meta)))
+			return
+		}
+		if bearer, ok := bearerToken(r); ok {
+			// Automation tokens carry no ambient credential, so Origin and CSRF checks do not apply (ADR-0041).
+			p, err := d.tokenPrincipal(r.Context(), bearer, meta.SourceIP)
+			if err != nil {
+				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "invalid automation token")
+				return
+			}
+			if interactiveOnly[op.OperationID] || (!httpx.IsSafeMethod(r.Method) && strings.HasPrefix(op.Path, "/me/")) {
+				_ = writeProblem(api, ctx, problem(http.StatusForbidden, apperr.CodeForbidden, "this operation needs an interactive sign-in", nil))
+				return
+			}
+			meta.AuthMethod = session.MethodAutomation
+			next(huma.WithContext(ctx, context.WithValue(audit.WithMeta(ctx.Context(), meta), principalKey{}, p)))
 			return
 		}
 		if !httpx.IsSafeMethod(r.Method) && !httpx.SameOrigin(r, d.Origin) {
@@ -178,6 +202,55 @@ func (d *Deps) authenticate(api huma.API) func(huma.Context, func(huma.Context))
 	}
 }
 
+// interactiveOnly operations refuse automation tokens: credentials, installation roles, keys and token issuance stay
+// with people who signed in (and passed step-up).
+var interactiveOnly = map[string]bool{
+	"create-installation-token": true, "create-tenant-token": true, "grant-operator-role": true, "revoke-operator-role": true,
+	"rotate-signing-key": true, "unlock-backup-login": true, "logout": true,
+}
+
+// bearerToken returns an automation token from the Authorization header.
+func bearerToken(r *http.Request) (string, bool) {
+	h := r.Header.Get("Authorization")
+	if len(h) < 7 || !strings.EqualFold(h[:7], "Bearer ") {
+		return "", false
+	}
+	return strings.TrimSpace(h[7:]), true
+}
+
+// tokenPrincipal builds the principal of an automation token: its creator, restricted to the token's grant. Operator
+// roles are the intersection of the token's role and the roles the creator still holds.
+func (d *Deps) tokenPrincipal(ctx context.Context, raw, ip string) (*session.Principal, error) {
+	if d.Tokens == nil {
+		return nil, automation.ErrInvalid
+	}
+	g, userID, err := d.Tokens.Authenticate(ctx, raw, ip)
+	if err != nil {
+		return nil, err
+	}
+	u, err := d.Store.R().GetUser(ctx, userID)
+	if err != nil || u.Status != "active" {
+		return nil, automation.ErrInvalid
+	}
+	p := &session.Principal{SessionID: g.ID, UserID: u.ID, PublicID: u.PublicID, DisplayName: u.DisplayName, Email: u.PrimaryEmail.String,
+		Method: session.MethodAutomation, AuthTime: d.now(), CreatedAt: d.now(), OperatorRoles: []string{}, Token: g}
+	roles, err := d.Store.R().ListOperatorRoles(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	g.CreatorOperator = slices.Contains(roles, identity.RoleOwner) || slices.Contains(roles, identity.RoleAdmin)
+	if g.Role != "" {
+		// An owner's admin token acts as admin; an auditor token never gains more than auditor.
+		if g.Role == identity.RoleAdmin && (slices.Contains(roles, identity.RoleOwner) || slices.Contains(roles, identity.RoleAdmin)) {
+			p.OperatorRoles = []string{identity.RoleAdmin}
+		}
+		if g.Role == identity.RoleAuditor && len(roles) > 0 {
+			p.OperatorRoles = []string{identity.RoleAuditor}
+		}
+	}
+	return p, nil
+}
+
 // recheckExempt operations work even while an upstream recheck is due (so the UI can show who is signed in).
 var recheckExempt = map[string]bool{"get-me": true, "logout": true}
 
@@ -196,6 +269,9 @@ func (d *Deps) providerAction(ctx context.Context, p *session.Principal, intent 
 // stepUp enforces a recent authentication (ADR-0010). The problem's action tells the UI how to re-authenticate.
 func (d *Deps) stepUp(ctx context.Context) error {
 	p := Principal(ctx)
+	if p.Token != nil {
+		return nil // tokens are issued under step-up and are refused for interactive-only operations (ADR-0041)
+	}
 	if err := d.Sessions.RequireStepUp(p); err == nil {
 		return nil
 	}
@@ -213,7 +289,12 @@ func (d *Deps) stepUp(ctx context.Context) error {
 func change(ctx context.Context, managedBy string) domain.Change {
 	p := Principal(ctx)
 	ch := domain.Change{ManagedBy: managedBy}
-	if p != nil {
+	if p != nil && p.Token != nil {
+		ch.Actor = audit.Actor{Type: audit.ActorAutomation, ID: p.Token.ID}
+		if managedBy == "" {
+			ch.ManagedBy = domain.ManagedAPI
+		}
+	} else if p != nil {
 		ch.Actor = audit.Actor{Type: audit.ActorUser, ID: p.UserID}
 	} else {
 		ch.Actor = audit.Actor{Type: audit.ActorUser}

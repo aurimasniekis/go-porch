@@ -196,6 +196,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation/automation-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Installation automation tokens (owner, admin or auditor) */
+        get: operations["list-installation-tokens"];
+        put?: never;
+        /** Issue an installation automation token (owner; needs a recent sign-in) */
+        post: operations["create-installation-token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/installation/automation-tokens/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an installation automation token (owner) */
+        delete: operations["revoke-installation-token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/installation/health": {
         parameters: {
             query?: never;
@@ -782,6 +817,41 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/automation-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Automation tokens of a tenant (tenant:manage) */
+        get: operations["list-tenant-tokens"];
+        put?: never;
+        /** Issue a tenant automation token with permissions you hold (needs a recent sign-in) */
+        post: operations["create-tenant-token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenant}/automation-tokens/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a tenant automation token (its creator or tenant:manage) */
+        delete: operations["revoke-tenant-token"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1627,6 +1697,31 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        CreatedToken: {
+            /** Format: date-time */
+            created_at: string;
+            created_by: string;
+            creator_name?: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Last characters of the token. */
+            hint: string;
+            id: string;
+            /** @enum {string} */
+            kind: "installation" | "tenant";
+            /** Format: date-time */
+            last_used_at?: string;
+            last_used_ip?: string;
+            name: string;
+            permissions: string[];
+            /** Format: date-time */
+            revoked_at?: string;
+            /** @enum {string} */
+            role?: "admin" | "auditor" | "";
+            tenant_id?: string;
+            /** @description Send as Authorization: Bearer <token>. Shown only in this response. */
+            token: string;
+        };
         Decision: {
             allowed: boolean;
             reason: string;
@@ -1762,6 +1857,16 @@ export interface components {
             /** Format: date-time */
             setup_completed_at?: string;
             version: string;
+        };
+        InstallationTokenRequest: {
+            /** Format: int64 */
+            expires_in_days: number;
+            name: string;
+            /**
+             * @description admin manages every tenant and installation setting; auditor reads.
+             * @enum {string}
+             */
+            role: "admin" | "auditor";
         };
         Invite: {
             /** Format: date-time */
@@ -2202,6 +2307,36 @@ export interface components {
         TenantList: {
             items: components["schemas"]["Tenant"][];
             next_cursor?: string;
+        };
+        TenantTokenRequest: {
+            /** Format: int64 */
+            expires_in_days: number;
+            name: string;
+            /** @description Tenant permissions; you must hold each of them. */
+            permissions: string[];
+        };
+        Token: {
+            /** Format: date-time */
+            created_at: string;
+            created_by: string;
+            creator_name?: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Last characters of the token. */
+            hint: string;
+            id: string;
+            /** @enum {string} */
+            kind: "installation" | "tenant";
+            /** Format: date-time */
+            last_used_at?: string;
+            last_used_ip?: string;
+            name: string;
+            permissions: string[];
+            /** Format: date-time */
+            revoked_at?: string;
+            /** @enum {string} */
+            role?: "admin" | "auditor" | "";
+            tenant_id?: string;
         };
         Trace: {
             candidates: components["schemas"]["GrantTrace"][];
@@ -2728,6 +2863,97 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuditVerification"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-installation-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-installation-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstallationTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedToken"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-installation-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -4177,6 +4403,105 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EffectiveGrant"][];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "list-tenant-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"][];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "create-tenant-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedToken"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "revoke-tenant-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

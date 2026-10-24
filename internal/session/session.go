@@ -36,6 +36,8 @@ const (
 	MethodOIDC         = "oidc"
 	MethodBackup       = "backup"
 	MethodRecoveryLink = "recovery_link"
+	// MethodAutomation marks principals authenticated with an automation token (never stored on sessions).
+	MethodAutomation = "automation"
 )
 
 // Options configure the manager.
@@ -84,6 +86,20 @@ type Principal struct {
 	OperatorRoles []string
 	CSRFToken     string
 	csrfSecret    []byte
+	// Token is set when the request authenticated with an automation token instead of a browser session (ADR-0041).
+	Token *TokenGrant
+}
+
+// TokenGrant restricts a principal to what an automation token allows: an installation role, or a tenant and a set
+// of tenant permissions. The creator's current rights still apply on every request.
+type TokenGrant struct {
+	ID          string
+	TenantID    string   // empty for installation tokens
+	Role        string   // installation tokens: admin or auditor
+	Permissions []string // tenant tokens
+	// CreatorOperator is true while the creator of a tenant token holds installation owner or admin: such tokens act
+	// through the operator scope, still limited to their tenant and permissions.
+	CreatorOperator bool
 }
 
 // IsOperator reports whether the principal holds one of the given installation roles.

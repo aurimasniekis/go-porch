@@ -1,7 +1,14 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import {
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from '@playwright/test'
 
 export const BASE = process.env.PORCH_E2E_URL ?? 'http://localhost:8080'
 export const IDP = process.env.PORCH_E2E_IDP ?? 'http://127.0.0.1:9999'
@@ -109,4 +116,13 @@ export async function apiTry(
   })
   const text = await res.text()
   return { status: res.status(), body: text ? (JSON.parse(text) as Record<string, unknown>) : null }
+}
+
+/** Waits until a Mantine modal has finished its open transition (axe would measure half-faded colours otherwise). */
+export async function openedDialog(page: Page, name: string | RegExp): Promise<Locator> {
+  const dialog = page.getByRole('dialog', { name })
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toHaveCSS('opacity', '1')
+  await expect(page.locator('.mantine-Modal-overlay').last()).toHaveCSS('opacity', '1')
+  return dialog
 }

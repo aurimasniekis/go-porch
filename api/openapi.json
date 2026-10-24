@@ -1312,6 +1312,86 @@
         ],
         "type": "object"
       },
+      "CreatedToken": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "creator_name": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hint": {
+            "description": "Last characters of the token.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "installation",
+              "tenant"
+            ],
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_used_ip": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "admin",
+              "auditor",
+              ""
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "token": {
+            "description": "Send as Authorization: Bearer \u003ctoken\u003e. Shown only in this response.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "id",
+          "name",
+          "kind",
+          "permissions",
+          "hint",
+          "created_by",
+          "created_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
       "Decision": {
         "additionalProperties": false,
         "properties": {
@@ -1802,6 +1882,36 @@
           "version",
           "security_epoch",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "InstallationTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_in_days": {
+            "format": "int64",
+            "maximum": 366,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "role": {
+            "description": "admin manages every tenant and installation setting; auditor reads.",
+            "enum": [
+              "admin",
+              "auditor"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "expires_in_days"
         ],
         "type": "object"
       },
@@ -3326,6 +3436,112 @@
         ],
         "type": "object"
       },
+      "TenantTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_in_days": {
+            "format": "int64",
+            "maximum": 366,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "permissions": {
+            "description": "Tenant permissions; you must hold each of them.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions",
+          "expires_in_days"
+        ],
+        "type": "object"
+      },
+      "Token": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "creator_name": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hint": {
+            "description": "Last characters of the token.",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "installation",
+              "tenant"
+            ],
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_used_ip": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "admin",
+              "auditor",
+              ""
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "permissions",
+          "hint",
+          "created_by",
+          "created_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
       "Trace": {
         "additionalProperties": false,
         "properties": {
@@ -3603,6 +3819,11 @@
       }
     },
     "securitySchemes": {
+      "automationToken": {
+        "description": "Automation token (porch_at_…); see ADR-0041.",
+        "scheme": "bearer",
+        "type": "http"
+      },
       "session": {
         "in": "cookie",
         "name": "__Host-porch_session",
@@ -3611,7 +3832,7 @@
     }
   },
   "info": {
-    "description": "Management API for Porch. Browser clients authenticate with the __Host-porch_session cookie and send the session's CSRF token in X-Porch-CSRF on state-changing requests. Automation clients use `Authorization: Bearer porch_at_…` (milestone M6).",
+    "description": "Management API for Porch. Browser clients authenticate with the __Host-porch_session cookie and send the session's CSRF token in X-Porch-CSRF on state-changing requests. Automation clients use `Authorization: Bearer porch_at_…` (automation tokens; no CSRF header needed).",
     "title": "Porch management API",
     "version": "v1"
   },
@@ -3745,6 +3966,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Search the installation audit log (owner, admin or auditor)",
@@ -4057,6 +4281,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "List upstream identity providers",
@@ -4124,6 +4351,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Add an upstream identity provider (needs a recent sign-in)",
@@ -4187,6 +4417,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete an identity provider and its linked identities (needs a recent sign-in)",
@@ -4272,6 +4505,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Update an identity provider (needs a recent sign-in)",
@@ -4308,6 +4544,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Installation status",
@@ -4347,6 +4586,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Open operator alerts",
@@ -4387,6 +4629,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Acknowledge an alert",
@@ -4423,11 +4668,146 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Verify the audit log hash chain",
         "tags": [
           "installation"
+        ]
+      }
+    },
+    "/installation/automation-tokens": {
+      "get": {
+        "operationId": "list-installation-tokens",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Token"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Installation automation tokens (owner, admin or auditor)",
+        "tags": [
+          "automation"
+        ]
+      },
+      "post": {
+        "operationId": "create-installation-token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallationTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedToken"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Issue an installation automation token (owner; needs a recent sign-in)",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/installation/automation-tokens/{token}": {
+      "delete": {
+        "operationId": "revoke-installation-token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Revoke an installation automation token (owner)",
+        "tags": [
+          "automation"
         ]
       }
     },
@@ -4459,6 +4839,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "System health (owner, admin or auditor)",
@@ -4498,6 +4881,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Users with installation roles",
@@ -4535,6 +4921,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Give a user an installation role (owner only; needs a recent sign-in)",
@@ -4588,6 +4977,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Remove an installation role (owner only; needs a recent sign-in; the last owner stays)",
@@ -4627,6 +5019,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "OIDC signing keys",
@@ -4673,6 +5068,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Rotate an OIDC signing key (owner, needs a recent sign-in)",
@@ -4709,6 +5107,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "End the current session",
@@ -4745,6 +5146,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "The authenticated caller",
@@ -4781,6 +5185,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "What the caller can administer",
@@ -4820,6 +5227,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Applications you can open (launcher)",
@@ -4856,6 +5266,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Your backup login status and recovery titles",
@@ -4900,6 +5313,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Enroll or rotate your backup login (needs a recent sign-in)",
@@ -4939,6 +5355,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Set an optional backup login handle (needs a recent sign-in)",
@@ -4978,6 +5397,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Applications with offline access to your account (refresh tokens)",
@@ -5018,6 +5440,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Revoke an application's offline access",
@@ -5057,6 +5482,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Upstream accounts linked to you",
@@ -5096,6 +5524,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Your active browser sessions",
@@ -5136,6 +5567,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Sign out one of your sessions",
@@ -5189,6 +5623,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Random words from the EFF large wordlist (optional help for recovery answers)",
@@ -5253,6 +5690,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Active browser sessions across the installation (owner or admin)",
@@ -5293,6 +5733,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "End a browser session (owner or admin)",
@@ -5445,6 +5888,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "List tenants",
@@ -5512,6 +5958,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a tenant",
@@ -5577,6 +6026,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a tenant and everything it owns",
@@ -5631,6 +6083,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a tenant",
@@ -5718,6 +6173,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Update a tenant",
@@ -5770,6 +6228,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Applications of a tenant",
@@ -5848,6 +6309,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create an application (OIDC client or forward-auth)",
@@ -5922,6 +6386,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete an application and its client",
@@ -5985,6 +6452,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get an application",
@@ -6081,6 +6551,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Update an application",
@@ -6139,6 +6612,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Issue a new client secret (needs a recent sign-in; the old secret stops working)",
@@ -6200,6 +6676,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Tenants an application is shared with",
@@ -6259,6 +6738,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Share an application with another tenant (explicit cross-tenant access)",
@@ -6319,6 +6801,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Stop sharing an application",
@@ -6402,6 +6887,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Role assignments of a tenant",
@@ -6473,6 +6961,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Assign a role (delegated administrators may only grant roles whose permissions they hold)",
@@ -6524,6 +7015,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Remove a role assignment",
@@ -6660,6 +7154,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Search a tenant's audit events (audit:read)",
@@ -6719,6 +7216,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Decide (and explain) whether a user may perform an action",
@@ -6781,6 +7281,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Several authorization decisions at once",
@@ -6857,11 +7360,183 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Every grant reaching a subject and how (conditions are reported, not evaluated)",
         "tags": [
           "authz"
+        ]
+      }
+    },
+    "/tenants/{tenant}/automation-tokens": {
+      "get": {
+        "operationId": "list-tenant-tokens",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Token"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Automation tokens of a tenant (tenant:manage)",
+        "tags": [
+          "automation"
+        ]
+      },
+      "post": {
+        "operationId": "create-tenant-token",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedToken"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Issue a tenant automation token with permissions you hold (needs a recent sign-in)",
+        "tags": [
+          "automation"
+        ]
+      }
+    },
+    "/tenants/{tenant}/automation-tokens/{token}": {
+      "delete": {
+        "operationId": "revoke-tenant-token",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Revoke a tenant automation token (its creator or tenant:manage)",
+        "tags": [
+          "automation"
         ]
       }
     },
@@ -6909,6 +7584,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Domain enrollment rules of a tenant",
@@ -6987,6 +7665,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Enroll a domain into a tenant (needs a recent sign-in)",
@@ -7061,6 +7742,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a rule and the memberships derived from it (needs a recent sign-in)",
@@ -7113,6 +7797,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Groups of a tenant (direct members and parents)",
@@ -7191,6 +7878,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a group",
@@ -7244,6 +7934,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a group (memberships, nesting and its assignments)",
@@ -7309,6 +8002,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a group",
@@ -7407,6 +8103,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Rename or describe a group",
@@ -7471,6 +8170,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Remove a user from a group",
@@ -7533,6 +8235,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Add a tenant member to a group (delegated administrators may only confer what they hold)",
@@ -7597,6 +8302,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Remove a group from a parent group",
@@ -7659,6 +8367,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Make a group a member of a parent group (DAG, depth ≤ 5)",
@@ -7711,6 +8422,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Invitations of a tenant",
@@ -7782,6 +8496,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Invite an email address (accepted only with a matching verified upstream email)",
@@ -7833,6 +8550,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Revoke an invitation",
@@ -7907,6 +8627,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "List tenant members (member, group or role managers)",
@@ -7985,6 +8708,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Add a user to a tenant",
@@ -8061,6 +8787,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Remove a user from a tenant",
@@ -8159,6 +8888,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Suspend or reactivate a membership",
@@ -8208,6 +8940,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Known permissions (system catalogue and custom ones in use)",
@@ -8260,6 +8995,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Policies of a tenant",
@@ -8338,6 +9076,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a policy (needs a recent sign-in)",
@@ -8397,6 +9138,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Compile an expression against the policy environment without saving it",
@@ -8450,6 +9194,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a policy and the conditional assignments using it (needs a recent sign-in)",
@@ -8515,6 +9262,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a policy",
@@ -8613,6 +9363,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Replace a policy (needs a recent sign-in)",
@@ -8665,6 +9418,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Resources of a tenant (assignment scopes; parents form a hierarchy)",
@@ -8743,6 +9499,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a resource",
@@ -8794,6 +9553,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a resource, its children and assignments scoped to it",
@@ -8857,6 +9619,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a resource",
@@ -8953,6 +9718,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Rename a resource or replace its attributes",
@@ -9005,6 +9773,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Roles of a tenant",
@@ -9083,6 +9854,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a role (delegated administrators may only include permissions they hold)",
@@ -9136,6 +9910,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a custom role and its assignments",
@@ -9201,6 +9978,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a role",
@@ -9299,6 +10079,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Replace a role's definition",
@@ -9351,6 +10134,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Service accounts of a tenant",
@@ -9429,6 +10215,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a service account (grant it roles with assignments)",
@@ -9505,6 +10294,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a service account and its role assignments",
@@ -9570,6 +10362,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a service account",
@@ -9668,6 +10463,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Update a service account",
@@ -9728,6 +10526,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Issue a new secret (needs a recent sign-in; the old secret stops working)",
@@ -9826,6 +10627,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "List users",
@@ -9893,6 +10697,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Create a user",
@@ -9958,6 +10765,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Delete a user",
@@ -10012,6 +10822,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Get a user",
@@ -10100,6 +10913,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Update a user",
@@ -10143,6 +10959,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "Clear a user's backup-login lockout (owner/admin, needs a recent sign-in)",
@@ -10183,6 +11002,9 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "automationToken": []
           }
         ],
         "summary": "End every session of a user (owner or admin; needs a recent sign-in)",

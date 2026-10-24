@@ -25,6 +25,7 @@ import { Route as AppAdminIOperatorsRouteImport } from './routes/_app/admin/i/op
 import { Route as AppAdminIProvidersRouteImport } from './routes/_app/admin/i/providers'
 import { Route as AppAdminISessionsRouteImport } from './routes/_app/admin/i/sessions'
 import { Route as AppAdminITenantsRouteImport } from './routes/_app/admin/i/tenants'
+import { Route as AppAdminITokensRouteImport } from './routes/_app/admin/i/tokens'
 import { Route as AppAdminIUsersRouteImport } from './routes/_app/admin/i/users'
 import { Route as AppAdminTTenantAccessRouteImport } from './routes/_app/admin/t/$tenant/access'
 import { Route as AppAdminTTenantApplicationsRouteImport } from './routes/_app/admin/t/$tenant/applications'
@@ -39,6 +40,7 @@ import { Route as AppAdminTTenantResourcesRouteImport } from './routes/_app/admi
 import { Route as AppAdminTTenantRolesRouteImport } from './routes/_app/admin/t/$tenant/roles'
 import { Route as AppAdminTTenantServiceAccountsRouteImport } from './routes/_app/admin/t/$tenant/service-accounts'
 import { Route as AppAdminTTenantSettingsRouteImport } from './routes/_app/admin/t/$tenant/settings'
+import { Route as AppAdminTTenantTokensRouteImport } from './routes/_app/admin/t/$tenant/tokens'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -119,6 +121,11 @@ const AppAdminITenantsRoute = AppAdminITenantsRouteImport.update({
   path: '/i/tenants',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminITokensRoute = AppAdminITokensRouteImport.update({
+  id: '/i/tokens',
+  path: '/i/tokens',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminIUsersRoute = AppAdminIUsersRouteImport.update({
   id: '/i/users',
   path: '/i/users',
@@ -193,6 +200,11 @@ const AppAdminTTenantSettingsRoute = AppAdminTTenantSettingsRouteImport.update({
   path: '/t/$tenant/settings',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminTTenantTokensRoute = AppAdminTTenantTokensRouteImport.update({
+  id: '/t/$tenant/tokens',
+  path: '/t/$tenant/tokens',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -210,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/admin/i/providers': typeof AppAdminIProvidersRoute
   '/admin/i/sessions': typeof AppAdminISessionsRoute
   '/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/admin/i/tokens': typeof AppAdminITokensRoute
   '/admin/i/users': typeof AppAdminIUsersRoute
   '/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
   '/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
@@ -224,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
   '/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
   '/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
+  '/admin/t/$tenant/tokens': typeof AppAdminTTenantTokensRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -240,6 +254,7 @@ export interface FileRoutesByTo {
   '/admin/i/providers': typeof AppAdminIProvidersRoute
   '/admin/i/sessions': typeof AppAdminISessionsRoute
   '/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/admin/i/tokens': typeof AppAdminITokensRoute
   '/admin/i/users': typeof AppAdminIUsersRoute
   '/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
   '/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
@@ -254,6 +269,7 @@ export interface FileRoutesByTo {
   '/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
   '/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
   '/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
+  '/admin/t/$tenant/tokens': typeof AppAdminTTenantTokensRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -273,6 +289,7 @@ export interface FileRoutesById {
   '/_app/admin/i/providers': typeof AppAdminIProvidersRoute
   '/_app/admin/i/sessions': typeof AppAdminISessionsRoute
   '/_app/admin/i/tenants': typeof AppAdminITenantsRoute
+  '/_app/admin/i/tokens': typeof AppAdminITokensRoute
   '/_app/admin/i/users': typeof AppAdminIUsersRoute
   '/_app/admin/t/$tenant/access': typeof AppAdminTTenantAccessRoute
   '/_app/admin/t/$tenant/applications': typeof AppAdminTTenantApplicationsRoute
@@ -287,6 +304,7 @@ export interface FileRoutesById {
   '/_app/admin/t/$tenant/roles': typeof AppAdminTTenantRolesRoute
   '/_app/admin/t/$tenant/service-accounts': typeof AppAdminTTenantServiceAccountsRoute
   '/_app/admin/t/$tenant/settings': typeof AppAdminTTenantSettingsRoute
+  '/_app/admin/t/$tenant/tokens': typeof AppAdminTTenantTokensRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -306,6 +324,7 @@ export interface FileRouteTypes {
     | '/admin/i/providers'
     | '/admin/i/sessions'
     | '/admin/i/tenants'
+    | '/admin/i/tokens'
     | '/admin/i/users'
     | '/admin/t/$tenant/access'
     | '/admin/t/$tenant/applications'
@@ -320,6 +339,7 @@ export interface FileRouteTypes {
     | '/admin/t/$tenant/roles'
     | '/admin/t/$tenant/service-accounts'
     | '/admin/t/$tenant/settings'
+    | '/admin/t/$tenant/tokens'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -336,6 +356,7 @@ export interface FileRouteTypes {
     | '/admin/i/providers'
     | '/admin/i/sessions'
     | '/admin/i/tenants'
+    | '/admin/i/tokens'
     | '/admin/i/users'
     | '/admin/t/$tenant/access'
     | '/admin/t/$tenant/applications'
@@ -350,6 +371,7 @@ export interface FileRouteTypes {
     | '/admin/t/$tenant/roles'
     | '/admin/t/$tenant/service-accounts'
     | '/admin/t/$tenant/settings'
+    | '/admin/t/$tenant/tokens'
   id:
     | '__root__'
     | '/_app'
@@ -368,6 +390,7 @@ export interface FileRouteTypes {
     | '/_app/admin/i/providers'
     | '/_app/admin/i/sessions'
     | '/_app/admin/i/tenants'
+    | '/_app/admin/i/tokens'
     | '/_app/admin/i/users'
     | '/_app/admin/t/$tenant/access'
     | '/_app/admin/t/$tenant/applications'
@@ -382,6 +405,7 @@ export interface FileRouteTypes {
     | '/_app/admin/t/$tenant/roles'
     | '/_app/admin/t/$tenant/service-accounts'
     | '/_app/admin/t/$tenant/settings'
+    | '/_app/admin/t/$tenant/tokens'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -505,6 +529,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminITenantsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/i/tokens': {
+      id: '/_app/admin/i/tokens'
+      path: '/i/tokens'
+      fullPath: '/admin/i/tokens'
+      preLoaderRoute: typeof AppAdminITokensRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/i/users': {
       id: '/_app/admin/i/users'
       path: '/i/users'
@@ -603,6 +634,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminTTenantSettingsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/t/$tenant/tokens': {
+      id: '/_app/admin/t/$tenant/tokens'
+      path: '/t/$tenant/tokens'
+      fullPath: '/admin/t/$tenant/tokens'
+      preLoaderRoute: typeof AppAdminTTenantTokensRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
@@ -616,6 +654,7 @@ interface AppAdminRouteChildren {
   AppAdminIProvidersRoute: typeof AppAdminIProvidersRoute
   AppAdminISessionsRoute: typeof AppAdminISessionsRoute
   AppAdminITenantsRoute: typeof AppAdminITenantsRoute
+  AppAdminITokensRoute: typeof AppAdminITokensRoute
   AppAdminIUsersRoute: typeof AppAdminIUsersRoute
   AppAdminTTenantAccessRoute: typeof AppAdminTTenantAccessRoute
   AppAdminTTenantApplicationsRoute: typeof AppAdminTTenantApplicationsRoute
@@ -630,6 +669,7 @@ interface AppAdminRouteChildren {
   AppAdminTTenantRolesRoute: typeof AppAdminTTenantRolesRoute
   AppAdminTTenantServiceAccountsRoute: typeof AppAdminTTenantServiceAccountsRoute
   AppAdminTTenantSettingsRoute: typeof AppAdminTTenantSettingsRoute
+  AppAdminTTenantTokensRoute: typeof AppAdminTTenantTokensRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
@@ -642,6 +682,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminIProvidersRoute: AppAdminIProvidersRoute,
   AppAdminISessionsRoute: AppAdminISessionsRoute,
   AppAdminITenantsRoute: AppAdminITenantsRoute,
+  AppAdminITokensRoute: AppAdminITokensRoute,
   AppAdminIUsersRoute: AppAdminIUsersRoute,
   AppAdminTTenantAccessRoute: AppAdminTTenantAccessRoute,
   AppAdminTTenantApplicationsRoute: AppAdminTTenantApplicationsRoute,
@@ -656,6 +697,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminTTenantRolesRoute: AppAdminTTenantRolesRoute,
   AppAdminTTenantServiceAccountsRoute: AppAdminTTenantServiceAccountsRoute,
   AppAdminTTenantSettingsRoute: AppAdminTTenantSettingsRoute,
+  AppAdminTTenantTokensRoute: AppAdminTTenantTokensRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(

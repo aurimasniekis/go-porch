@@ -118,6 +118,23 @@ type AuthzEpoch struct {
 	Epoch    int64
 }
 
+type AutomationToken struct {
+	ID          string
+	Mac         []byte
+	Hint        string
+	Name        string
+	Kind        string
+	TenantID    sql.NullString
+	Role        sql.NullString
+	Permissions string
+	CreatedBy   string
+	CreatedAt   int64
+	ExpiresAt   int64
+	LastUsedAt  sql.NullInt64
+	LastUsedIp  string
+	RevokedAt   sql.NullInt64
+}
+
 type BackupChallenge struct {
 	ID         string
 	Mac        []byte
@@ -223,6 +240,21 @@ type GroupMember struct {
 	UserID    string
 	Source    string
 	CreatedAt int64
+}
+
+type IdempotencyKey struct {
+	KeyMac         []byte
+	RequestHash    []byte
+	Method         string
+	Path           string
+	State          string
+	Status         int64
+	ContentType    string
+	Body           []byte
+	SecretWithheld int64
+	Location       string
+	CreatedAt      int64
+	ExpiresAt      int64
 }
 
 type IdentityProvider struct {
