@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net/http"
+	"reflect"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -27,20 +28,29 @@ type AppearanceSettings struct {
 	Images     []appearance.Image `json:"images,omitempty" readOnly:"true" doc:"The background images Porch currently holds."`
 }
 
-// BackgroundSettings selects where backgrounds come from.
+// BackgroundSettings selects where backgrounds come from: one pool filled from every provider in turn.
 type BackgroundSettings struct {
-	Source   string   `json:"source" enum:"none,wikimedia,picsum" doc:"wikimedia: Wikimedia Commons (pick a category or files); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs)."`
+	Providers []BackgroundProvider `json:"providers" maxItems:"8" doc:"Empty: no backgrounds (Porch makes no image requests)."`
+	Rotation  string               `json:"rotation" enum:"visit,daily" doc:"visit: a random image on every page load; daily: one image per day."`
+	Count     int                  `json:"count" minimum:"1" maximum:"24" doc:"How many images to keep, shared across providers."`
+	Refresh   string               `json:"refresh" enum:"never,daily,weekly" doc:"How often Porch picks a new random selection."`
+}
+
+// BackgroundProvider is one source of background images.
+type BackgroundProvider struct {
+	Source   string   `json:"source" enum:"wikimedia,picsum,url" doc:"wikimedia: Wikimedia Commons (a category or files, credited); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs); url: your own https image URLs."`
 	Category string   `json:"category,omitempty" maxLength:"200" doc:"wikimedia: Commons category, e.g. \"Featured pictures of landscapes\"."`
-	Files    []string `json:"files" maxItems:"12" doc:"wikimedia: file names (File:…); picsum: photo IDs. Empty = a random selection."`
-	Rotation string   `json:"rotation" enum:"visit,daily" doc:"visit: a random image on every page load; daily: one image per day."`
-	Count    int      `json:"count" minimum:"1" maximum:"12" doc:"How many images to keep."`
-	Refresh  string   `json:"refresh" enum:"never,daily,weekly" doc:"How often Porch picks a new random selection."`
+	Files    []string `json:"files" maxItems:"24" doc:"wikimedia: file names; picsum: photo IDs; url: https image URLs. Empty (wikimedia, picsum) = a random selection."`
 }
 
 func settingsDTO(s appearance.Settings, imgs []appearance.Image) AppearanceSettings {
 	b := s.Background
-	return AppearanceSettings{Title: s.Title, Images: imgs, Background: BackgroundSettings{Source: b.Source, Category: b.Category, Files: b.Files,
-		Rotation: b.Rotation, Count: b.Count, Refresh: b.Refresh}}
+	ps := make([]BackgroundProvider, 0, len(b.Providers))
+	for _, p := range b.Providers {
+		ps = append(ps, BackgroundProvider{Source: p.Source, Category: p.Category, Files: p.Files})
+	}
+	return AppearanceSettings{Title: s.Title, Images: imgs, Background: BackgroundSettings{Providers: ps, Rotation: b.Rotation, Count: b.Count,
+		Refresh: b.Refresh}}
 }
 
 func (d *Deps) appearanceOut(ctx context.Context, s appearance.Settings) (*struct{ Body AppearanceSettings }, error) {
@@ -91,17 +101,18 @@ func registerAppearance(api huma.API, d *Deps) {
 				return nil, d.fail("appearance", err)
 			}
 			b := in.Body.Background
+			ps := make([]appearance.Provider, 0, len(b.Providers))
+			for _, p := range b.Providers {
+				ps = append(ps, appearance.Provider{Source: p.Source, Category: p.Category, Files: p.Files})
+			}
 			s, err := d.Appearance.Update(ctx, change(ctx, ""), appearance.Settings{Title: in.Body.Title, Background: appearance.Background{
-				Source: b.Source, Category: b.Category, Files: b.Files, Rotation: b.Rotation, Count: b.Count, Refresh: b.Refresh}})
+				Providers: ps, Rotation: b.Rotation, Count: b.Count, Refresh: b.Refresh}})
 			if err != nil {
 				return nil, d.fail("appearance", err)
 			}
-			ob, nb := old.Background, s.Background
-			changed := ob.Source != nb.Source || ob.Category != nb.Category || ob.Count != nb.Count || len(ob.Files) != len(nb.Files)
-			for i := 0; !changed && i < len(nb.Files); i++ {
-				changed = ob.Files[i] != nb.Files[i]
-			}
-			if changed && nb.Source != appearance.SourceNone {
+			// New images are fetched when the providers or the pool size changed.
+			changed := old.Background.Count != s.Background.Count || !reflect.DeepEqual(old.Background.Providers, s.Background.Providers)
+			if changed && len(s.Background.Providers) > 0 {
 				if _, err := d.Appearance.Refresh(ctx, change(ctx, "")); err != nil {
 					return nil, d.fail("appearance", err) // the settings are saved; the old images stay until a refresh works
 				}

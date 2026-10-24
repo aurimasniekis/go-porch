@@ -515,14 +515,16 @@ adds outbound requests and content that browsers render.
   `Content-Security-Policy: default-src 'none'; sandbox` (scripts cannot run even when an SVG is opened directly) and
   immutable caching; the UI shows icons only through `<img>`. Browsers never contact a third party (no visitor IPs
   leak to image hosts) and the page CSP stays `img-src 'self'`.
-- Background sources (installation setting, `PUT /installation/appearance`, owner/admin): `none` (default: no outbound
-  requests until an operator opts in), `wikimedia` (Wikimedia Commons: a category, default "Featured pictures of
-  landscapes", or named files; openly licensed with author and licence metadata, shown as a credit), `picsum` (Lorem
-  Picsum photos from Unsplash: random, or by ID; no categories). Porch keeps a pool of 1–12 images, renews it daily,
-  weekly or never, and shows a random one per visit or one per day. Commons metadata is stripped to plain text.
+- Backgrounds (installation setting, `PUT /installation/appearance`, owner/admin) come from a list of providers that
+  fill one pool in turn; an empty list (the default) means no backgrounds and no outbound requests. Providers:
+  `wikimedia` (Wikimedia Commons: a category, default "Featured pictures of landscapes", or named files; openly
+  licensed, with author and licence shown as a credit), `picsum` (Lorem Picsum photos from Unsplash: random, or by ID;
+  no categories) and `url` (the operator's own https image URLs). A provider that fails leaves its share to the others.
+  Porch keeps 1–24 images, renews them daily, weekly or never, and shows a random one per visit or one per day.
+  Commons metadata is stripped to plain text; panoramas wider than 2.6:1 and portrait images are skipped.
 - Application icons (`app:manage`): upload (≤ 512 KiB), an https URL, a brand logo from theSVG (glincker/thesvg, MIT
-  code; each logo keeps its brand's licence and trademark), or a name from the dashboard-icons set (homarr-labs,
-  Apache-2.0; SVG, else PNG), both via jsDelivr. Applications also get a launcher `group`.
+  code; each logo keeps its brand's licence and trademark; from thesvg.org, falling back to the GitHub repository), or
+  a name from the dashboard-icons set (homarr-labs, Apache-2.0; SVG, else PNG; via jsDelivr). Applications also get a launcher `group`.
 - `GET /api/v1/appearance` is public (title and current background with its credit).
 **Consequences.** Tenant application managers can make Porch fetch public URLs (bounded by the guard, size and type
 limits). Icons and backgrounds are part of database backups. Picsum and Commons availability affect only refreshes;

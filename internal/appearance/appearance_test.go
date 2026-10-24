@@ -77,6 +77,9 @@ func TestEncodeIconAndBackground(t *testing.T) {
 	if _, err := appearance.EncodeBackground(jpegOf(600, 900)); !errors.Is(err, appearance.ErrImage) {
 		t.Fatalf("portrait background accepted: %v", err)
 	}
+	if _, err := appearance.EncodeBackground(jpegOf(2560, 400)); !errors.Is(err, appearance.ErrImage) {
+		t.Fatalf("panorama background accepted: %v", err)
+	}
 }
 
 // fakeSources serves a Wikimedia Commons API, Picsum and dashboard-icons over TLS.
@@ -109,10 +112,11 @@ func fakeSources(t *testing.T) (*httptest.Server, *int) {
 			pages[fmt.Sprint(i)] = map[string]any{"title": title, "imageinfo": []any{map[string]any{
 				"thumburl": base + "/img/" + strings.TrimPrefix(title, "File:"), "descriptionurl": "https://commons.example/wiki/" + title,
 				"mime": "image/jpeg", "width": w, "height": h, "extmetadata": map[string]any{
-					"Artist":           map[string]string{"value": `<a href="//commons.wikimedia.org/wiki/User:Anna">Anna &amp; Co</a> <script>x</script>`},
-					"LicenseShortName": map[string]string{"value": "CC BY-SA 4.0"},
-					"LicenseUrl":       map[string]string{"value": "https://creativecommons.org/licenses/by-sa/4.0"},
-					"ObjectName":       map[string]string{"value": "Lake at dawn"}}}}}
+					"Artist":                   map[string]string{"value": `<a href="//commons.wikimedia.org/wiki/User:Anna">Anna &amp; Co</a> <script>x</script>`},
+					"LicenseShortName":         map[string]string{"value": "CC BY-SA 4.0"},
+					"LicenseUrl":               map[string]string{"value": "https://creativecommons.org/licenses/by-sa/4.0"},
+					"ObjectName":               map[string]string{"value": "Lake at dawn"},
+					"CommonsMetadataExtension": map[string]any{"value": 1.2}}}}}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"query": map[string]any{"pages": pages}})
 	})
@@ -150,13 +154,13 @@ func TestWikimediaBackgrounds(t *testing.T) {
 	if bg, _ := svc.Current(ctx); bg != nil {
 		t.Fatal("backgrounds are on by default")
 	}
-	s, err := svc.Update(ctx, admin, appearance.Settings{Title: "Smith family", Background: appearance.Background{Source: appearance.SourceWikimedia,
-		Rotation: appearance.RotateDaily, Count: 3}})
+	s, err := svc.Update(ctx, admin, appearance.Settings{Title: "Smith family", Background: appearance.Background{
+		Providers: []appearance.Provider{{Source: appearance.SourceWikimedia}}, Rotation: appearance.RotateDaily, Count: 3}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Background.Category != appearance.DefaultCategory {
-		t.Fatalf("category default: %q", s.Background.Category)
+	if s.Background.Providers[0].Category != appearance.DefaultCategory {
+		t.Fatalf("category default: %q", s.Background.Providers[0].Category)
 	}
 	imgs, err := svc.Refresh(ctx, admin)
 	if err != nil {
@@ -185,8 +189,8 @@ func TestWikimediaBackgrounds(t *testing.T) {
 	if !svc.RefreshDue(ctx) {
 		t.Fatal("weekly refresh not due after 8 days")
 	}
-	// Turning backgrounds off removes the pool.
-	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Source: appearance.SourceNone}}); err != nil {
+	// Turning backgrounds off (no providers) removes the pool.
+	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{}}); err != nil {
 		t.Fatal(err)
 	}
 	if left, _ := svc.Backgrounds(ctx); len(left) != 0 {
@@ -198,8 +202,8 @@ func TestPicsumAndNamedFilesAndValidation(t *testing.T) {
 	ts, listed := fakeSources(t)
 	svc, _ := newService(t, ts)
 	ctx := context.Background()
-	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Source: appearance.SourcePicsum,
-		Files: []string{"1015", "1016"}}}); err != nil {
+	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Providers: []appearance.Provider{
+		{Source: appearance.SourcePicsum, Files: []string{"1015", "1016"}}}}}); err != nil {
 		t.Fatal(err)
 	}
 	imgs, err := svc.Refresh(ctx, admin)
@@ -209,8 +213,8 @@ func TestPicsumAndNamedFilesAndValidation(t *testing.T) {
 	if imgs[0].Author != "Bo" || imgs[0].License != "Unsplash License" {
 		t.Fatalf("picsum credit: %+v", imgs[0])
 	}
-	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Source: appearance.SourcePicsum,
-		Files: []string{"../etc"}}}); err != nil {
+	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Providers: []appearance.Provider{
+		{Source: appearance.SourcePicsum, Files: []string{"../etc"}}}}}); err != nil {
 		t.Fatal(err) // syntactically a name; refused by the fetcher below
 	}
 	if _, err := svc.Refresh(ctx, admin); err == nil {
@@ -218,17 +222,19 @@ func TestPicsumAndNamedFilesAndValidation(t *testing.T) {
 	}
 	// Named Commons files skip the category listing.
 	before := *listed
-	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Source: appearance.SourceWikimedia,
-		Files: []string{"Lake.jpg"}}}); err != nil {
+	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Providers: []appearance.Provider{
+		{Source: appearance.SourceWikimedia, Files: []string{"Lake.jpg"}}}}}); err != nil {
 		t.Fatal(err)
 	}
 	if imgs, err := svc.Refresh(ctx, admin); err != nil || len(imgs) != 1 || *listed != before {
 		t.Fatalf("named file: %+v %v (category listed %d times)", imgs, err, *listed-before)
 	}
 	for _, bad := range []appearance.Settings{
-		{Background: appearance.Background{Source: "flickr"}},
-		{Background: appearance.Background{Source: appearance.SourceWikimedia, Category: "a|b"}},
-		{Background: appearance.Background{Source: appearance.SourceWikimedia, Count: 50}},
+		{Background: appearance.Background{Providers: []appearance.Provider{{Source: "flickr"}}}},
+		{Background: appearance.Background{Providers: []appearance.Provider{{Source: appearance.SourceWikimedia, Category: "a|b"}}}},
+		{Background: appearance.Background{Providers: []appearance.Provider{{Source: appearance.SourceWikimedia}}, Count: 50}},
+		{Background: appearance.Background{Providers: []appearance.Provider{{Source: appearance.SourceURL}}}},
+		{Background: appearance.Background{Providers: []appearance.Provider{{Source: appearance.SourceURL, Files: []string{"http://x.example/a.jpg"}}}}},
 		{Title: strings.Repeat("x", 81)},
 	} {
 		if _, err := svc.Update(ctx, admin, bad); err == nil {
@@ -322,5 +328,39 @@ func TestTheSVGAndDashboardSVG(t *testing.T) {
 		if _, err := svc.FetchIcon(ctx, appearance.IconTheSVG, bad); err == nil {
 			t.Errorf("thesvg ref %q accepted", bad)
 		}
+	}
+}
+
+// Several providers fill one pool in turn; a failing provider leaves its share to the others.
+func TestMixedProviders(t *testing.T) {
+	ts, _ := fakeSources(t)
+	svc, _ := newService(t, ts)
+	ctx := context.Background()
+	if _, err := svc.Update(ctx, admin, appearance.Settings{Background: appearance.Background{Count: 3, Providers: []appearance.Provider{
+		{Source: appearance.SourceWikimedia, Category: "Featured pictures of landscapes"},
+		{Source: appearance.SourceWikimedia, Category: "Empty category"}, // lists nothing: its share goes to the others
+		{Source: appearance.SourcePicsum, Files: []string{"1015"}},
+		{Source: appearance.SourceURL, Files: []string{ts.URL + "/img/Own.jpg"}},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	imgs, err := svc.Refresh(ctx, admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	from := map[string]bool{}
+	for _, i := range imgs {
+		switch {
+		case i.License == "CC BY-SA 4.0":
+			from["wikimedia"] = true
+		case i.License == "Unsplash License":
+			from["picsum"] = true
+		case i.Title == "Own.jpg":
+			from["url"] = true
+		}
+	}
+	// The fake Commons and URL images have the same bytes, so the pool de-duplicates them: two distinct images.
+	if len(imgs) != 2 || !from["picsum"] || (!from["wikimedia"] && !from["url"]) {
+		t.Fatalf("mixed pool: %+v", imgs)
 	}
 }

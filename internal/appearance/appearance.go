@@ -10,7 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/url"
+	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,11 +25,11 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/store/db"
 )
 
-// Background sources.
+// Background providers.
 const (
-	SourceNone      = "none"
-	SourceWikimedia = "wikimedia"
-	SourcePicsum    = "picsum"
+	SourceWikimedia = "wikimedia" // Wikimedia Commons: a category or named files
+	SourcePicsum    = "picsum"    // Lorem Picsum (Unsplash photos): random or photo IDs
+	SourceURL       = "url"       // the operator's own https image URLs
 )
 
 // Rotation picks which pooled background a page shows.
@@ -46,14 +49,20 @@ type Settings struct {
 	Background Background `json:"background"`
 }
 
-// Background configures login and launcher backgrounds.
+// Background configures login and launcher backgrounds: one pool of images filled from every provider in turn. No
+// providers means no backgrounds.
 type Background struct {
+	Providers []Provider `json:"providers"`
+	Rotation  string     `json:"rotation"`
+	Count     int        `json:"count"` // how many images to keep, shared across providers
+	Refresh   string     `json:"refresh"`
+}
+
+// Provider is one source of background images.
+type Provider struct {
 	Source   string   `json:"source"`
 	Category string   `json:"category"` // wikimedia: Commons category
-	Files    []string `json:"files"`    // wikimedia: file names; picsum: photo IDs (empty = random)
-	Rotation string   `json:"rotation"`
-	Count    int      `json:"count"` // how many images to keep
-	Refresh  string   `json:"refresh"`
+	Files    []string `json:"files"`    // wikimedia: file names; picsum: photo IDs; url: https URLs (empty = random)
 }
 
 // Refresh intervals for the background pool.
@@ -66,8 +75,7 @@ const (
 // Defaults: no backgrounds (Porch makes no outbound image requests until an operator picks a source); when one is
 // picked, Wikimedia Commons featured landscapes, a new random set every week.
 func Defaults() Settings {
-	return Settings{Title: "Porch", Background: Background{Source: SourceNone, Category: DefaultCategory, Files: []string{},
-		Rotation: RotateVisit, Count: 6, Refresh: RefreshWeekly}}
+	return Settings{Title: "Porch", Background: Background{Providers: []Provider{}, Rotation: RotateVisit, Count: 6, Refresh: RefreshWeekly}}
 }
 
 var (
@@ -82,8 +90,8 @@ func (s *Settings) normalize() error {
 		s.Title = d.Title
 	}
 	b := &s.Background
-	if b.Source == "" {
-		b.Source = d.Background.Source
+	if b.Providers == nil {
+		b.Providers = []Provider{}
 	}
 	if b.Rotation == "" {
 		b.Rotation = d.Background.Rotation
@@ -94,35 +102,49 @@ func (s *Settings) normalize() error {
 	if b.Count == 0 {
 		b.Count = d.Background.Count
 	}
-	if b.Files == nil {
-		b.Files = []string{}
-	}
-	b.Category = strings.TrimPrefix(strings.TrimSpace(b.Category), "Category:")
-	if b.Source == SourceWikimedia && b.Category == "" && len(b.Files) == 0 {
-		b.Category = DefaultCategory
-	}
 	switch {
 	case len([]rune(s.Title)) > 80:
 		return apperr.New(apperr.CodeInvalid, "title is longer than 80 characters")
-	case b.Source != SourceNone && b.Source != SourceWikimedia && b.Source != SourcePicsum:
-		return apperr.New(apperr.CodeInvalid, "background.source must be none, wikimedia or picsum")
+	case len(b.Providers) > 8:
+		return apperr.New(apperr.CodeInvalid, "at most 8 background providers")
 	case b.Rotation != RotateVisit && b.Rotation != RotateDaily:
 		return apperr.New(apperr.CodeInvalid, "background.rotation must be visit or daily")
 	case b.Refresh != RefreshNever && b.Refresh != RefreshDaily && b.Refresh != RefreshWeekly:
 		return apperr.New(apperr.CodeInvalid, "background.refresh must be never, daily or weekly")
-	case b.Count < 1 || b.Count > 12:
-		return apperr.New(apperr.CodeInvalid, "background.count must be within 1..12")
-	case len(b.Files) > 12:
-		return apperr.New(apperr.CodeInvalid, "at most 12 background files")
-	case b.Category != "" && !categoryRE.MatchString(b.Category):
-		return apperr.New(apperr.CodeInvalid, "background.category is not a valid category name")
+	case b.Count < 1 || b.Count > 24:
+		return apperr.New(apperr.CodeInvalid, "background.count must be within 1..24")
 	}
-	for i, f := range b.Files {
-		f = strings.TrimSpace(f)
-		if !fileRE.MatchString(f) {
-			return apperr.New(apperr.CodeInvalid, "background.files[%d] is not a valid name", i)
+	for i := range b.Providers {
+		p := &b.Providers[i]
+		if p.Files == nil {
+			p.Files = []string{}
 		}
-		b.Files[i] = f
+		p.Category = strings.TrimPrefix(strings.TrimSpace(p.Category), "Category:")
+		if p.Source == SourceWikimedia && p.Category == "" && len(p.Files) == 0 {
+			p.Category = DefaultCategory
+		}
+		switch {
+		case p.Source != SourceWikimedia && p.Source != SourcePicsum && p.Source != SourceURL:
+			return apperr.New(apperr.CodeInvalid, "background.providers[%d].source must be wikimedia, picsum or url", i)
+		case len(p.Files) > 24:
+			return apperr.New(apperr.CodeInvalid, "background.providers[%d]: at most 24 files", i)
+		case p.Category != "" && !categoryRE.MatchString(p.Category):
+			return apperr.New(apperr.CodeInvalid, "background.providers[%d].category is not a valid category name", i)
+		case p.Source == SourceURL && len(p.Files) == 0:
+			return apperr.New(apperr.CodeInvalid, "background.providers[%d]: url needs at least one image URL", i)
+		}
+		for j, f := range p.Files {
+			f = strings.TrimSpace(f)
+			ok := fileRE.MatchString(f)
+			if p.Source == SourceURL {
+				u, err := url.Parse(f)
+				ok = err == nil && u.Scheme == "https" && u.Host != "" && u.User == nil && len(f) <= 1024
+			}
+			if !ok {
+				return apperr.New(apperr.CodeInvalid, "background.providers[%d].files[%d] is not valid", i, j)
+			}
+			p.Files[j] = f
+		}
 	}
 	return nil
 }
@@ -198,14 +220,13 @@ func (svc *Service) Update(ctx context.Context, ch domain.Change, s Settings) (S
 			UpdatedBy: sql.NullString{String: ch.Actor.ID, Valid: ch.Actor.ID != ""}}); err != nil {
 			return err
 		}
-		if s.Background.Source == SourceNone {
+		if len(s.Background.Providers) == 0 {
 			if err := tx.Q.DeleteAllBackgrounds(ctx); err != nil {
 				return err
 			}
 		}
 		_, err := svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, Action: "appearance.updated", Target: audit.Target{Type: "installation"},
-			Details: map[string]any{"source": s.Background.Source, "category": s.Background.Category, "files": len(s.Background.Files),
-				"rotation": s.Background.Rotation, "count": s.Background.Count}})
+			Details: map[string]any{"providers": sources(s.Background.Providers), "rotation": s.Background.Rotation, "count": s.Background.Count}})
 		return err
 	})
 	if err != nil {
@@ -231,7 +252,7 @@ func (svc *Service) Backgrounds(ctx context.Context) ([]Image, error) {
 // Current picks the background a page should show now, or nil.
 func (svc *Service) Current(ctx context.Context) (*Image, error) {
 	s, err := svc.Settings(ctx)
-	if err != nil || s.Background.Source == SourceNone {
+	if err != nil || len(s.Background.Providers) == 0 {
 		return nil, err
 	}
 	imgs, err := svc.Backgrounds(ctx)
@@ -248,14 +269,40 @@ func (svc *Service) Current(ctx context.Context) (*Image, error) {
 // ErrNoFetcher means outbound fetching is not available.
 var ErrNoFetcher = errors.New("appearance: image fetching is not configured")
 
-// Refresh replaces the background pool from the configured source. Downloads happen before, and outside, the short
+func sources(ps []Provider) []string {
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, p.Source)
+	}
+	return out
+}
+
+// candidates lists up to n images from one provider.
+func (svc *Service) candidates(ctx context.Context, p Provider, n int) ([]Candidate, error) {
+	switch p.Source {
+	case SourceWikimedia:
+		return svc.fetch.WikimediaCandidates(ctx, p.Category, p.Files, n)
+	case SourcePicsum:
+		return svc.fetch.PicsumCandidates(ctx, p.Files, n)
+	}
+	files := slices.Clone(p.Files)
+	shuffle(files)
+	out := make([]Candidate, 0, min(n, len(files)))
+	for _, f := range files[:min(n, len(files))] {
+		out = append(out, Candidate{URL: f, Title: path.Base(strings.SplitN(f, "?", 2)[0]), SourceURL: f})
+	}
+	return out, nil
+}
+
+// Refresh replaces the background pool from the configured providers: each contributes an equal share, taken in
+// turn, and a provider that fails leaves its share to the others. Downloads happen before, and outside, the short
 // write transaction that stores the result; images that fail are skipped, and the old pool stays when none succeed.
 func (svc *Service) Refresh(ctx context.Context, ch domain.Change) ([]Image, error) {
 	s, err := svc.Settings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if s.Background.Source == SourceNone {
+	if len(s.Background.Providers) == 0 {
 		return []Image{}, nil
 	}
 	if svc.fetch == nil {
@@ -264,21 +311,36 @@ func (svc *Service) Refresh(ctx context.Context, ch domain.Change) ([]Image, err
 	ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
 	defer cancel()
 	b := s.Background
-	var cands []Candidate
-	if b.Source == SourceWikimedia {
-		cands, err = svc.fetch.WikimediaCandidates(ctx, b.Category, b.Files, b.Count)
-	} else {
-		cands, err = svc.fetch.PicsumCandidates(ctx, b.Files, b.Count)
+	// Every provider lists enough for the whole pool, so the others can fill in for one that fails; the lists are
+	// then interleaved so each provider gets its turn.
+	var lists [][]Candidate
+	var lastErr error
+	for _, p := range b.Providers {
+		c, err := svc.candidates(ctx, p, b.Count)
+		if err != nil {
+			lastErr = err
+			svc.log.Warn("appearance: background provider failed", "source", p.Source, "err", err)
+			continue
+		}
+		lists = append(lists, c)
 	}
-	if err != nil {
-		return nil, apperr.Wrap(apperr.CodeUnavailable, err, "cannot list background images: %v", err)
+	var cands []Candidate
+	for i := 0; i < b.Count*2; i++ {
+		for _, l := range lists {
+			if i < len(l) {
+				cands = append(cands, l[i])
+			}
+		}
+	}
+	if len(cands) == 0 {
+		return nil, apperr.Wrap(apperr.CodeUnavailable, lastErr, "cannot list background images: %v", lastErr)
 	}
 	type got struct {
 		e Encoded
 		c Candidate
 	}
 	var imgs []got
-	var lastErr error
+	seen := map[string]bool{}
 	for _, c := range cands {
 		if len(imgs) >= b.Count {
 			break
@@ -287,7 +349,10 @@ func (svc *Service) Refresh(ctx context.Context, ch domain.Change) ([]Image, err
 		if err == nil {
 			var e Encoded
 			if e, err = EncodeBackground(raw); err == nil {
-				imgs = append(imgs, got{e, c})
+				if !seen[e.ID] {
+					seen[e.ID] = true
+					imgs = append(imgs, got{e, c})
+				}
 				continue
 			}
 		}
@@ -312,7 +377,7 @@ func (svc *Service) Refresh(ctx context.Context, ch domain.Change) ([]Image, err
 			return err
 		}
 		_, err := svc.audit.Append(ctx, tx, audit.Event{Actor: ch.Actor, Action: "appearance.backgrounds_refreshed", Target: audit.Target{Type: "installation"},
-			Details: map[string]any{"source": b.Source, "images": len(imgs)}})
+			Details: map[string]any{"providers": sources(b.Providers), "images": len(imgs)}})
 		return err
 	})
 	if err != nil {
@@ -324,7 +389,7 @@ func (svc *Service) Refresh(ctx context.Context, ch domain.Change) ([]Image, err
 // RefreshDue reports whether the background pool should be renewed now.
 func (svc *Service) RefreshDue(ctx context.Context) bool {
 	s, err := svc.Settings(ctx)
-	if err != nil || s.Background.Source == SourceNone {
+	if err != nil || len(s.Background.Providers) == 0 {
 		return false
 	}
 	imgs, err := svc.Backgrounds(ctx)

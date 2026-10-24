@@ -94,8 +94,8 @@ func EncodeIcon(b []byte) (Encoded, error) {
 	return encoded("image/png", buf.Bytes(), img), nil
 }
 
-// EncodeBackground turns a photo into a JPEG of at most 2560×1600. Portrait images are refused: they make poor
-// page backgrounds.
+// EncodeBackground turns a photo into a JPEG of at most 2560×1600. Portrait images and panoramas wider than 2.6:1
+// are refused: they make poor page backgrounds.
 func EncodeBackground(b []byte) (Encoded, error) {
 	if len(b) > maxBgBytes {
 		return Encoded{}, fmt.Errorf("%w: larger than %d bytes", ErrImage, maxBgBytes)
@@ -106,6 +106,8 @@ func EncodeBackground(b []byte) (Encoded, error) {
 	}
 	if r := img.Bounds(); r.Dx() < r.Dy() {
 		return Encoded{}, fmt.Errorf("%w: portrait orientation", ErrImage)
+	} else if r.Dx()*10 > r.Dy()*26 {
+		return Encoded{}, fmt.Errorf("%w: panorama (wider than 2.6:1)", ErrImage)
 	}
 	img = fit(img, backgroundWidth, backgroundHeight)
 	var buf bytes.Buffer

@@ -81,9 +81,9 @@ func TestApplicationIconsAndLauncherGroups(t *testing.T) {
 		t.Fatalf("public appearance: %v", pub)
 	}
 	expect(t, ada.do(http.MethodPut, "/api/v1/installation/appearance", map[string]any{"title": "Ours",
-		"background": map[string]any{"source": "none", "files": []string{}, "rotation": "visit", "count": 3, "refresh": "never"}}, nil), http.StatusForbidden)
+		"background": map[string]any{"providers": []any{}, "rotation": "visit", "count": 3, "refresh": "never"}}, nil), http.StatusForbidden)
 	set := decode[map[string]any](t, owner.do(http.MethodPut, "/api/v1/installation/appearance", map[string]any{"title": "Smith family",
-		"background": map[string]any{"source": "none", "files": []string{}, "rotation": "visit", "count": 3, "refresh": "never"}}, nil))
+		"background": map[string]any{"providers": []any{}, "rotation": "visit", "count": 3, "refresh": "never"}}, nil))
 	if set["title"] != "Smith family" {
 		t.Fatalf("settings: %v", set)
 	}

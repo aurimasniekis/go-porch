@@ -1605,16 +1605,25 @@ export interface components {
             id?: string;
             type: string;
         };
-        BackgroundSettings: {
+        BackgroundProvider: {
             /** @description wikimedia: Commons category, e.g. "Featured pictures of landscapes". */
             category?: string;
+            /** @description wikimedia: file names; picsum: photo IDs; url: https image URLs. Empty (wikimedia, picsum) = a random selection. */
+            files: string[];
+            /**
+             * @description wikimedia: Wikimedia Commons (a category or files, credited); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs); url: your own https image URLs.
+             * @enum {string}
+             */
+            source: "wikimedia" | "picsum" | "url";
+        };
+        BackgroundSettings: {
             /**
              * Format: int64
-             * @description How many images to keep.
+             * @description How many images to keep, shared across providers.
              */
             count: number;
-            /** @description wikimedia: file names (File:…); picsum: photo IDs. Empty = a random selection. */
-            files: string[];
+            /** @description Empty: no backgrounds (Porch makes no image requests). */
+            providers: components["schemas"]["BackgroundProvider"][];
             /**
              * @description How often Porch picks a new random selection.
              * @enum {string}
@@ -1625,11 +1634,6 @@ export interface components {
              * @enum {string}
              */
             rotation: "visit" | "daily";
-            /**
-             * @description wikimedia: Wikimedia Commons (pick a category or files); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs).
-             * @enum {string}
-             */
-            source: "none" | "wikimedia" | "picsum";
         };
         BackupChallenge: {
             /** Format: date-time */

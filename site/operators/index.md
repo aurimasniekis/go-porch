@@ -10,6 +10,7 @@ installation and everything that keeps it healthy.
 | [Backup login & recovery](./recovery) | the local backup login, lockout, unlocking, offline recovery with `porch admin recover` |
 | [Forward-auth (proxies)](./forward-auth) | protecting apps without OIDC through Caddy, Traefik or nginx |
 | [Backups and restore](./backups) | encrypted backups to S3-compatible storage, restore drills |
+| [Appearance](./appearance) | sign-in backgrounds (Wikimedia Commons, Picsum, your own images), application logos and launcher groups |
 
 ## Monitoring
 

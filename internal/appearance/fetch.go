@@ -23,7 +23,9 @@ type Fetcher struct {
 	WikimediaAPI   string // default https://commons.wikimedia.org/w/api.php
 	PicsumAPI      string // default https://picsum.photos
 	DashboardIcons string // default https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons
-	TheSVGBase     string // default https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons
+	// TheSVGBase replaces theSVG's sources (default: https://thesvg.org/icons, then the GitHub repository; jsDelivr
+	// refuses the repository, which is larger than its 50 MB package limit).
+	TheSVGBase string
 }
 
 // Candidate is a background image before it is downloaded.
@@ -112,7 +114,18 @@ func (f *Fetcher) TheSVG(ctx context.Context, ref string) ([]byte, error) {
 	if variant == "" {
 		variant = "default"
 	}
-	return f.get(ctx, f.or(f.TheSVGBase, "https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons")+"/"+m[1]+"/"+variant+".svg", maxSVGBytes)
+	bases := []string{"https://thesvg.org/icons", "https://raw.githubusercontent.com/glincker/thesvg/main/public/icons"}
+	if f.TheSVGBase != "" {
+		bases = []string{strings.TrimRight(f.TheSVGBase, "/")}
+	}
+	var err error
+	for _, base := range bases {
+		var b []byte
+		if b, err = f.get(ctx, base+"/"+m[1]+"/"+variant+".svg", maxSVGBytes); err == nil {
+			return b, nil
+		}
+	}
+	return nil, err
 }
 
 // ---- Wikimedia Commons ----
@@ -131,8 +144,9 @@ type wmResponse struct {
 				Mime           string `json:"mime"`
 				Width          int    `json:"width"`
 				Height         int    `json:"height"`
-				Ext            map[string]struct {
-					Value string `json:"value"`
+				// Values are usually strings, sometimes numbers or other JSON.
+				Ext map[string]struct {
+					Value json.RawMessage `json:"value"`
 				} `json:"extmetadata"`
 			} `json:"imageinfo"`
 		} `json:"pages"`
@@ -151,6 +165,15 @@ func (f *Fetcher) wikimedia(ctx context.Context, params url.Values) (wmResponse,
 }
 
 var tags = regexp.MustCompile(`<[^>]*>`)
+
+// meta returns a Commons metadata value as plain text, whatever JSON type it has.
+func meta(v json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(v, &s); err == nil {
+		return plain(s)
+	}
+	return plain(string(v))
+}
 
 // plain turns Commons' HTML metadata into plain text.
 func plain(s string) string {
@@ -203,16 +226,16 @@ func (f *Fetcher) WikimediaCandidates(ctx context.Context, category string, file
 				continue
 			}
 			ii := p.ImageInfo[0]
-			license := plain(ii.Ext["LicenseShortName"].Value)
-			if ii.ThumbURL == "" || ii.Mime != "image/jpeg" || ii.Width < ii.Height || license == "" {
+			license := meta(ii.Ext["LicenseShortName"].Value)
+			if ii.ThumbURL == "" || ii.Mime != "image/jpeg" || ii.Width < ii.Height || ii.Width*10 > ii.Height*26 || license == "" {
 				continue
 			}
-			title := plain(ii.Ext["ObjectName"].Value)
+			title := meta(ii.Ext["ObjectName"].Value)
 			if title == "" {
 				title = strings.TrimSuffix(strings.TrimPrefix(p.Title, "File:"), ".jpg")
 			}
-			out = append(out, Candidate{URL: ii.ThumbURL, Title: title, Author: plain(ii.Ext["Artist"].Value), License: license,
-				LicenseURL: plain(ii.Ext["LicenseUrl"].Value), SourceURL: ii.DescriptionURL})
+			out = append(out, Candidate{URL: ii.ThumbURL, Title: title, Author: meta(ii.Ext["Artist"].Value), License: license,
+				LicenseURL: meta(ii.Ext["LicenseUrl"].Value), SourceURL: ii.DescriptionURL})
 		}
 	}
 	if len(out) == 0 {

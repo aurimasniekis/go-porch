@@ -674,7 +674,7 @@
         ],
         "type": "object"
       },
-      "BackgroundSettings": {
+      "BackgroundProvider": {
         "additionalProperties": false,
         "properties": {
           "category": {
@@ -682,19 +682,46 @@
             "maxLength": 200,
             "type": "string"
           },
-          "count": {
-            "description": "How many images to keep.",
-            "format": "int64",
-            "maximum": 12,
-            "minimum": 1,
-            "type": "integer"
-          },
           "files": {
-            "description": "wikimedia: file names (File:…); picsum: photo IDs. Empty = a random selection.",
+            "description": "wikimedia: file names; picsum: photo IDs; url: https image URLs. Empty (wikimedia, picsum) = a random selection.",
             "items": {
               "type": "string"
             },
-            "maxItems": 12,
+            "maxItems": 24,
+            "type": "array"
+          },
+          "source": {
+            "description": "wikimedia: Wikimedia Commons (a category or files, credited); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs); url: your own https image URLs.",
+            "enum": [
+              "wikimedia",
+              "picsum",
+              "url"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "files"
+        ],
+        "type": "object"
+      },
+      "BackgroundSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "description": "How many images to keep, shared across providers.",
+            "format": "int64",
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "providers": {
+            "description": "Empty: no backgrounds (Porch makes no image requests).",
+            "items": {
+              "$ref": "#/components/schemas/BackgroundProvider"
+            },
+            "maxItems": 8,
             "type": "array"
           },
           "refresh": {
@@ -713,20 +740,10 @@
               "daily"
             ],
             "type": "string"
-          },
-          "source": {
-            "description": "wikimedia: Wikimedia Commons (pick a category or files); picsum: Lorem Picsum photos from Unsplash (random, or photo IDs).",
-            "enum": [
-              "none",
-              "wikimedia",
-              "picsum"
-            ],
-            "type": "string"
           }
         },
         "required": [
-          "source",
-          "files",
+          "providers",
           "rotation",
           "count",
           "refresh"
