@@ -50,4 +50,12 @@ test.describe.serial('M6: automation tokens', () => {
     await expectAccessible(page)
     expect(csp).toEqual([])
   })
+
+  test('backups page explains how to enable backups', async () => {
+    await page.goto('/admin/i/backups')
+    await expect(page.getByRole('heading', { name: 'Backups' })).toBeVisible()
+    await expect(page.getByText('Backups are not configured')).toBeVisible()
+    await expectAccessible(page)
+    expect(csp).toEqual([])
+  })
 })

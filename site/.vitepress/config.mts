@@ -73,6 +73,7 @@ export default withMermaid(
             { text: 'Identity providers & domains', link: '/operators/identity-providers' },
             { text: 'Backup login & recovery', link: '/operators/recovery' },
             { text: 'Forward-auth (proxies)', link: '/operators/forward-auth' },
+            { text: 'Backups and restore', link: '/operators/backups' },
           ],
         },
         {

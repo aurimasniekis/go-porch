@@ -39,7 +39,9 @@ func Default() *Config {
 		},
 		Setup:   SetupConfig{TokenTTL: Duration(time.Hour)},
 		Forward: ForwardAuthConfig{SessionTTL: Duration(12 * time.Hour)},
-		Backup: BackupLoginConfig{Threshold: 1, LockDuration: Duration(6 * time.Hour), MaxLockDuration: Duration(48 * time.Hour),
+		Backup:  BackupConfig{Interval: Duration(6 * time.Hour), Retention: 28, S3: BackupS3Config{Prefix: "porch/", Lookup: "auto"}},
+		Events:  EventsConfig{Pulse: PulseConfig{Source: "porch"}},
+		BackupLogin: BackupLoginConfig{Threshold: 1, LockDuration: Duration(6 * time.Hour), MaxLockDuration: Duration(48 * time.Hour),
 			SourceLimit: 10, SourceWindow: Duration(15 * time.Minute), CircuitLimit: 100, CircuitWindow: Duration(time.Minute), MinPairs: 3, MaxPairs: 12},
 	}
 }

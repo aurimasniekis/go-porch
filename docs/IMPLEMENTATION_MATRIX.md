@@ -48,8 +48,8 @@ Status legend:
 | Automation | Automation tokens (installation admin/auditor, tenant permission-scoped), management UI | tested | API `/installation/automation-tokens`, `/tenants/{t}/automation-tokens`; UI `/admin/i/tokens`, `/admin/t/{t}/tokens` | `TestAutomationTokens`, Playwright `m6-automation.spec.ts` (M6) |
 | Automation | Terraform provider | planned | — | M6 |
 | Ops | Grafana dashboard, Prometheus alert rules (each links a runbook), runbooks | tested (static) | `deploy/monitoring`, `docs/runbooks` | `deploy/monitoring/check.sh`: promtool validates 14 rules + 25 dashboard queries and passes rule unit tests; metric names checked against a live `/metrics`; not loaded into a running Grafana (M6) |
-| Events | Outbox → pulse | planned | — | M6 |
-| Backups | age + MinIO backup/restore | planned | — | M6 |
+| Events | Outbox → pulse relay (stable IDs, backoff, dead-letter, metrics) | tested | `events.pulse` config | `internal/events` (fake publisher: retry/backoff/dead-letter; embedded NATS JetStream through the go-pulse SDK: headers, IDs, duplicate detection) (M6); a running pulsed (creds issuance) is not verified |
+| Backups | age-encrypted backups with Ed25519-signed manifests, schedule, retention, restore with epoch bump + key rotation | tested | API/UI `/installation/backups`, CLI `porch backup …`, `porch restore` | `TestBackupRestoreDrill` (in-memory store: forged/tampered/wrong identity refused); `scripts/backup-drill.sh` against MinIO with versioning + object lock: backup → list → verify → restore → old session 401, keys replaced, data via recovery link, audit chain OK (M6) |
 | Backups | Real S3 providers | not verified | — | — |
 | Edge | Trusted-proxy client IP (right-to-left XFF), Cloudflare `CF-Connecting-IP` only from CF ranges, security headers + CSP nonce | tested | — | `internal/httpx` spoofing table (16 cases), audit records trusted IP (M1) |
 | Edge | Real Cloudflare | not verified | — | — |

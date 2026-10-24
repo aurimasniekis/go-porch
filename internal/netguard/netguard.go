@@ -80,10 +80,10 @@ func (g *Guard) control(_, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-// Client returns an HTTP client using the guard, with conservative timeouts.
-func (g *Guard) Client(timeout time.Duration) *http.Client {
+// Transport returns an HTTP transport whose dialer enforces the guard.
+func (g *Guard) Transport() *http.Transport {
 	d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: g.control}
-	tr := &http.Transport{
+	return &http.Transport{
 		Proxy:                 nil, // never route through an environment proxy that could reach internals
 		DialContext:           d.DialContext,
 		ForceAttemptHTTP2:     true,
@@ -92,7 +92,11 @@ func (g *Guard) Client(timeout time.Duration) *http.Client {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 15 * time.Second,
 	}
-	return &http.Client{Timeout: timeout, Transport: tr, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+}
+
+// Client returns an HTTP client using the guard, with conservative timeouts.
+func (g *Guard) Client(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: g.Transport(), CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 5 {
 			return errors.New("too many redirects")
 		}

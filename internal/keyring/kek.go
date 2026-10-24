@@ -52,6 +52,7 @@ type KeyWrapper interface {
 type LocalKEK struct {
 	id   string
 	aead cipher.AEAD
+	raw  []byte
 }
 
 // NewLocalKEK builds a wrapper from raw key material.
@@ -70,8 +71,11 @@ func NewLocalKEK(kek []byte) (*LocalKEK, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LocalKEK{id: KEKID(kek), aead: aead}, nil
+	return &LocalKEK{id: KEKID(kek), aead: aead, raw: bytes.Clone(kek)}, nil
 }
+
+// Encoded returns the KEK in its file encoding, for escrow inside encrypted backups (ADR-0042).
+func (k *LocalKEK) Encoded() []byte { return EncodeKEK(k.raw) }
 
 // KEKID derives a non-secret identifier for a KEK.
 func KEKID(kek []byte) string {

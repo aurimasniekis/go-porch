@@ -21,6 +21,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/automation"
+	"github.com/aurimasniekis/go-porch/internal/backup"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/domain"
 	"github.com/aurimasniekis/go-porch/internal/httpx"
@@ -48,30 +49,34 @@ const ManagedByHeader = "X-Porch-Managed-By"
 
 // Deps are the services the API needs.
 type Deps struct {
-	Log       *slog.Logger
-	Version   string
-	Origin    string // public origin, for Origin checks
-	Store     *store.Store
-	Audit     *audit.Writer
-	Users     *identity.Service
-	Tenants   *tenancy.Service
-	Sessions  *session.Manager
-	Setup     *setup.Service
-	IDP       *idp.Service
-	Local     *localauth.Service
-	Apps      *apps.Service
-	SAs       *serviceacct.Service
-	Tokens    *automation.Service
-	OP        *oidcop.Provider
-	Engine    *authz.Engine
-	Authz     *authz.Admin
-	Metrics   *metrics.Metrics
-	Keyring   *keyring.Keyring
-	Ready     func(context.Context) error
-	StartedAt time.Time
-	Clock     clock.Clock
-	SetupRate *httpx.Limiter
-	LoginRate *httpx.Limiter
+	Log      *slog.Logger
+	Version  string
+	Origin   string // public origin, for Origin checks
+	Store    *store.Store
+	Audit    *audit.Writer
+	Users    *identity.Service
+	Tenants  *tenancy.Service
+	Sessions *session.Manager
+	Setup    *setup.Service
+	IDP      *idp.Service
+	Local    *localauth.Service
+	Apps     *apps.Service
+	SAs      *serviceacct.Service
+	Tokens   *automation.Service
+	Backups  *backup.Service
+	// BackupEnabled and BackupInterval come from the configuration (health checks).
+	BackupEnabled  bool
+	BackupInterval time.Duration
+	OP             *oidcop.Provider
+	Engine         *authz.Engine
+	Authz          *authz.Admin
+	Metrics        *metrics.Metrics
+	Keyring        *keyring.Keyring
+	Ready          func(context.Context) error
+	StartedAt      time.Time
+	Clock          clock.Clock
+	SetupRate      *httpx.Limiter
+	LoginRate      *httpx.Limiter
 }
 
 func (d *Deps) now() time.Time {
@@ -136,6 +141,7 @@ func New(mux *http.ServeMux, d *Deps) huma.API {
 	registerAdminCapabilities(api, d)
 	registerOps(api, d)
 	registerTokens(api, d)
+	registerBackups(api, d)
 	return api
 }
 

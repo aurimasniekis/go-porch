@@ -19,6 +19,7 @@ import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminIAlertsRouteImport } from './routes/_app/admin/i/alerts'
 import { Route as AppAdminIAuditRouteImport } from './routes/_app/admin/i/audit'
+import { Route as AppAdminIBackupsRouteImport } from './routes/_app/admin/i/backups'
 import { Route as AppAdminIHealthRouteImport } from './routes/_app/admin/i/health'
 import { Route as AppAdminIKeysRouteImport } from './routes/_app/admin/i/keys'
 import { Route as AppAdminIOperatorsRouteImport } from './routes/_app/admin/i/operators'
@@ -89,6 +90,11 @@ const AppAdminIAlertsRoute = AppAdminIAlertsRouteImport.update({
 const AppAdminIAuditRoute = AppAdminIAuditRouteImport.update({
   id: '/i/audit',
   path: '/i/audit',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminIBackupsRoute = AppAdminIBackupsRouteImport.update({
+  id: '/i/backups',
+  path: '/i/backups',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminIHealthRoute = AppAdminIHealthRouteImport.update({
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AppAdminIndexRoute
   '/admin/i/alerts': typeof AppAdminIAlertsRoute
   '/admin/i/audit': typeof AppAdminIAuditRoute
+  '/admin/i/backups': typeof AppAdminIBackupsRoute
   '/admin/i/health': typeof AppAdminIHealthRoute
   '/admin/i/keys': typeof AppAdminIKeysRoute
   '/admin/i/operators': typeof AppAdminIOperatorsRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AppAdminIndexRoute
   '/admin/i/alerts': typeof AppAdminIAlertsRoute
   '/admin/i/audit': typeof AppAdminIAuditRoute
+  '/admin/i/backups': typeof AppAdminIBackupsRoute
   '/admin/i/health': typeof AppAdminIHealthRoute
   '/admin/i/keys': typeof AppAdminIKeysRoute
   '/admin/i/operators': typeof AppAdminIOperatorsRoute
@@ -283,6 +291,7 @@ export interface FileRoutesById {
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/admin/i/alerts': typeof AppAdminIAlertsRoute
   '/_app/admin/i/audit': typeof AppAdminIAuditRoute
+  '/_app/admin/i/backups': typeof AppAdminIBackupsRoute
   '/_app/admin/i/health': typeof AppAdminIHealthRoute
   '/_app/admin/i/keys': typeof AppAdminIKeysRoute
   '/_app/admin/i/operators': typeof AppAdminIOperatorsRoute
@@ -318,6 +327,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/i/alerts'
     | '/admin/i/audit'
+    | '/admin/i/backups'
     | '/admin/i/health'
     | '/admin/i/keys'
     | '/admin/i/operators'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/i/alerts'
     | '/admin/i/audit'
+    | '/admin/i/backups'
     | '/admin/i/health'
     | '/admin/i/keys'
     | '/admin/i/operators'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/_app/admin/'
     | '/_app/admin/i/alerts'
     | '/_app/admin/i/audit'
+    | '/_app/admin/i/backups'
     | '/_app/admin/i/health'
     | '/_app/admin/i/keys'
     | '/_app/admin/i/operators'
@@ -485,6 +497,13 @@ declare module '@tanstack/react-router' {
       path: '/i/audit'
       fullPath: '/admin/i/audit'
       preLoaderRoute: typeof AppAdminIAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/i/backups': {
+      id: '/_app/admin/i/backups'
+      path: '/i/backups'
+      fullPath: '/admin/i/backups'
+      preLoaderRoute: typeof AppAdminIBackupsRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/i/health': {
@@ -648,6 +667,7 @@ interface AppAdminRouteChildren {
   AppAdminIndexRoute: typeof AppAdminIndexRoute
   AppAdminIAlertsRoute: typeof AppAdminIAlertsRoute
   AppAdminIAuditRoute: typeof AppAdminIAuditRoute
+  AppAdminIBackupsRoute: typeof AppAdminIBackupsRoute
   AppAdminIHealthRoute: typeof AppAdminIHealthRoute
   AppAdminIKeysRoute: typeof AppAdminIKeysRoute
   AppAdminIOperatorsRoute: typeof AppAdminIOperatorsRoute
@@ -676,6 +696,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminIndexRoute: AppAdminIndexRoute,
   AppAdminIAlertsRoute: AppAdminIAlertsRoute,
   AppAdminIAuditRoute: AppAdminIAuditRoute,
+  AppAdminIBackupsRoute: AppAdminIBackupsRoute,
   AppAdminIHealthRoute: AppAdminIHealthRoute,
   AppAdminIKeysRoute: AppAdminIKeysRoute,
   AppAdminIOperatorsRoute: AppAdminIOperatorsRoute,

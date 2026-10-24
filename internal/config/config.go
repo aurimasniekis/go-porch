@@ -49,21 +49,23 @@ func (d Duration) MarshalYAML() (any, error) { return time.Duration(d).String(),
 
 // Config is the complete Porch configuration.
 type Config struct {
-	Mode       Mode              `yaml:"mode"`
-	DataDir    string            `yaml:"data_dir"`
-	PublicURL  string            `yaml:"public_url"`
-	KEK        KEKConfig         `yaml:"kek"`
-	HTTP       HTTPConfig        `yaml:"http"`
-	Management ManagementConfig  `yaml:"management"`
-	Proxy      ProxyConfig       `yaml:"proxy"`
-	Log        LogConfig         `yaml:"log"`
-	Storage    StorageConfig     `yaml:"storage"`
-	Session    SessionConfig     `yaml:"session"`
-	Setup      SetupConfig       `yaml:"setup"`
-	Backup     BackupLoginConfig `yaml:"backup_login"`
-	Outbound   OutboundConfig    `yaml:"outbound"`
-	Authz      AuthzConfig       `yaml:"authz"`
-	Forward    ForwardAuthConfig `yaml:"forward_auth"`
+	Mode        Mode              `yaml:"mode"`
+	DataDir     string            `yaml:"data_dir"`
+	PublicURL   string            `yaml:"public_url"`
+	KEK         KEKConfig         `yaml:"kek"`
+	HTTP        HTTPConfig        `yaml:"http"`
+	Management  ManagementConfig  `yaml:"management"`
+	Proxy       ProxyConfig       `yaml:"proxy"`
+	Log         LogConfig         `yaml:"log"`
+	Storage     StorageConfig     `yaml:"storage"`
+	Session     SessionConfig     `yaml:"session"`
+	Setup       SetupConfig       `yaml:"setup"`
+	BackupLogin BackupLoginConfig `yaml:"backup_login"`
+	Backup      BackupConfig      `yaml:"backup"`
+	Events      EventsConfig      `yaml:"events"`
+	Outbound    OutboundConfig    `yaml:"outbound"`
+	Authz       AuthzConfig       `yaml:"authz"`
+	Forward     ForwardAuthConfig `yaml:"forward_auth"`
 }
 
 // AuthzConfig configures the authorization engine (ADR-0011).
@@ -78,6 +80,56 @@ type ForwardAuthConfig struct {
 	TrustedPeers []string `yaml:"trusted_peers"`
 	// SessionTTL bounds a per-application forward-auth session (it also never outlives the Porch session).
 	SessionTTL Duration `yaml:"session_ttl"`
+}
+
+// EventsConfig configures domain-event delivery (ADR-0019).
+type EventsConfig struct {
+	Pulse PulseConfig `yaml:"pulse"`
+}
+
+// PulseConfig connects the outbox relay to pulse (NATS JetStream).
+type PulseConfig struct {
+	Enabled bool `yaml:"enabled"`
+	// URL of the pulse NATS endpoint, e.g. tls://events.example.com:4222.
+	URL string `yaml:"url"`
+	// CredsFile is the pulse client .creds file (issued by pulsed for this publisher).
+	CredsFile string `yaml:"creds_file"`
+	// CAFile trusts an extra CA for the NATS TLS certificate.
+	CAFile string `yaml:"ca_file"`
+	// Source is the CloudEvents source of published events.
+	Source string `yaml:"source"`
+}
+
+// BackupConfig configures encrypted backups to S3-compatible storage (ADR-0042).
+type BackupConfig struct {
+	Enabled bool `yaml:"enabled"`
+	// Interval between scheduled backups (also the recovery point objective).
+	Interval Duration `yaml:"interval"`
+	// Retention is the number of complete backups kept; older ones are deleted after a successful backup.
+	Retention int `yaml:"retention"`
+	// Recipients are age X25519 public keys (age1…). The matching identities stay offline: Porch can write backups but
+	// cannot read them.
+	Recipients []string `yaml:"recipients"`
+	// ExcludeKEK leaves the KEK out of backups (it must then be kept and restored separately).
+	ExcludeKEK bool           `yaml:"exclude_kek"`
+	S3         BackupS3Config `yaml:"s3"`
+}
+
+// BackupS3Config locates the bucket.
+type BackupS3Config struct {
+	Endpoint            string `yaml:"endpoint"` // host[:port]
+	Bucket              string `yaml:"bucket"`
+	Prefix              string `yaml:"prefix"`
+	Region              string `yaml:"region"`
+	AccessKeyID         string `yaml:"access_key_id"`
+	SecretAccessKey     string `yaml:"secret_access_key"` // prefer PORCH_BACKUP_S3_SECRET_ACCESS_KEY or the file
+	SecretAccessKeyFile string `yaml:"secret_access_key_file"`
+	// Lookup is auto, path or virtual (bucket addressing style).
+	Lookup string `yaml:"lookup"`
+	CAFile string `yaml:"ca_file"`
+	// Insecure uses plain HTTP (development only).
+	Insecure     bool `yaml:"insecure"`
+	CreateBucket bool `yaml:"create_bucket"`
 }
 
 // BackupLoginConfig configures the local backup login (ADR-0008).

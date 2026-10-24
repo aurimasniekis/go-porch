@@ -231,6 +231,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backup configuration and recent runs (owner, admin or auditor) */
+        get: operations["get-backups"];
+        put?: never;
+        /** Take a backup now (owner or admin) */
+        post: operations["run-backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/installation/health": {
         parameters: {
             query?: never;
@@ -1541,6 +1559,14 @@ export interface components {
             identifier: string;
             password: string;
         };
+        BackupStatus: {
+            enabled: boolean;
+            /** Format: int64 */
+            interval_seconds: number;
+            runs: components["schemas"]["Run"][];
+            /** @description Ed25519 key that verifies this installation's backups; store it with the age identity. */
+            verify_key?: string;
+        };
         ClientConfig: {
             /** Format: int64 */
             access_token_ttl_seconds?: number;
@@ -2159,6 +2185,24 @@ export interface components {
              * @description How long the old key stays published (default 24h).
              */
             overlap_seconds?: number;
+        };
+        Run: {
+            /** Format: int64 */
+            db_bytes: number;
+            error?: string;
+            /** Format: date-time */
+            finished_at?: string;
+            id: string;
+            kek_included: boolean;
+            ok?: boolean;
+            /** Format: int64 */
+            pruned: number;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: int64 */
+            stored_bytes: number;
+            /** @enum {string} */
+            trigger: "schedule" | "manual" | "cli";
         };
         ServiceAccount: {
             /** Format: int64 */
@@ -2954,6 +2998,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "run-backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
             };
             /** @description Error */
             default: {

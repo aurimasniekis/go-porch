@@ -15,6 +15,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/audit"
 	"github.com/aurimasniekis/go-porch/internal/authz"
 	"github.com/aurimasniekis/go-porch/internal/automation"
+	"github.com/aurimasniekis/go-porch/internal/backup"
 	"github.com/aurimasniekis/go-porch/internal/buildinfo"
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
@@ -54,6 +55,7 @@ type App struct {
 	Apps     *apps.Service
 	SAs      *serviceacct.Service
 	Tokens   *automation.Service
+	Backups  *backup.Service
 	OP       *oidcop.Provider
 	Engine   *authz.Engine
 	Authz    *authz.Admin
@@ -71,6 +73,8 @@ type Options struct {
 	HashParams *localauth.Params
 	// RSABits overrides the RSA signing key size (tests only; default 3072).
 	RSABits int
+	// BackupObjects replaces the S3 client (tests).
+	BackupObjects backup.ObjectStore
 }
 
 // Open opens the data directory (taking its lock), loads the keyring and builds every service.
@@ -127,7 +131,7 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	}
 	a.IDP = idp.New(a.Store, a.Keyring, a.Audit, a.Users, a.Tenants, a.Sessions, upstream.New(guard.Client(30*time.Second)), idp.Options{
 		PublicURL: cfg.PublicOrigin(), AllowInsecureIssuers: !cfg.IsProduction(), Clock: a.Clock, Metrics: a.Metrics})
-	b := cfg.Backup
+	b := cfg.BackupLogin
 	pol := localauth.DefaultPolicy()
 	pol.Disabled, pol.Threshold, pol.Duration, pol.MaxDuration = b.Disabled, b.Threshold, b.LockDuration.D(), b.MaxLockDuration.D()
 	pol.SourceLimit, pol.SourceWindow, pol.CircuitLimit, pol.CircuitWindow = b.SourceLimit, b.SourceWindow.D(), b.CircuitLimit, b.CircuitWindow.D()
@@ -146,6 +150,12 @@ func (a *App) init(ctx context.Context, opts Options) error {
 	}
 	if err := keys.Load(ctx); err != nil {
 		return fmt.Errorf("oidc signing keys: %w", err)
+	}
+	if err := a.finishRestore(ctx, keys); err != nil {
+		return err
+	}
+	if err := a.initBackups(kek, opts.BackupObjects); err != nil {
+		return err
 	}
 	a.Engine = authz.NewEngine(a.Store, a.Clock, a.Metrics, cfg.Authz.TrustedNetworks)
 	a.Authz = authz.NewAdmin(a.Store, a.Audit)

@@ -163,6 +163,19 @@ type BackupLockout struct {
 	UpdatedAt   int64
 }
 
+type BackupRun struct {
+	ID          string
+	Trigger     string
+	StartedAt   int64
+	FinishedAt  sql.NullInt64
+	Ok          sql.NullInt64
+	Error       string
+	DbBytes     int64
+	StoredBytes int64
+	KekIncluded int64
+	Pruned      int64
+}
+
 type DomainRule struct {
 	ID              string
 	Domain          string

@@ -16,9 +16,11 @@ const EnvPrefix = "PORCH_"
 
 // Environment variables with the prefix that are not configuration overrides.
 var nonConfigEnv = map[string]bool{
-	"PORCH_KEK":         true, // base64 KEK when kek.source = env
-	"PORCH_CONFIG":      true, // config file path
-	"PORCH_TEST_TX_MAX": true, // test-only transaction duration guard
+	"PORCH_KEK":            true, // base64 KEK when kek.source = env
+	"PORCH_CONFIG":         true, // config file path
+	"PORCH_TEST_TX_MAX":    true, // test-only transaction duration guard
+	"PORCH_TEST_NETFS_DIR": true, // test-only network filesystem directory
+	"PORCH_TEST_S3":        true, // test-only S3 endpoint for backup integration tests
 }
 
 // EnvKeys lists every supported override variable, sorted. Used for documentation and tests.

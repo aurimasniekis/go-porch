@@ -94,9 +94,11 @@ flowchart LR
 | ID | STRIDE | Threat | Mitigation | Coverage |
 |---|---|---|---|---|
 | T-B6-1 | I | Secrets in events | Event payloads built from allowlisted fields; redaction tests | outbox tests |
-| T-B6-2 | I | Backup read by S3 operator | age encryption to an offline recipient; Porch cannot decrypt its own backups | backup tests |
-| T-B6-3 | T | Backup tampering/rollback | Manifest SHA-256, object lock option, restore bumps security epoch and rotates signing keys | drill test |
-| T-B6-4 | D | Pulse outage blocks logins | Outbox decoupled; relay retries out of band | fault test |
+| T-B6-2 | I | Backup read by S3 operator | age encryption to an offline recipient; Porch cannot decrypt its own backups | `TestBackupRestoreDrill` (objects are age ciphertext; wrong identity fails) |
+| T-B6-3 | T | Backup tampering/rollback | Signed manifest with SHA-256 per object, object lock, restore bumps security epoch and rotates signing keys | `TestBackupRestoreDrill`, `scripts/backup-drill.sh` |
+| T-B6-4 | D | Pulse outage blocks logins | Outbox decoupled; relay retries out of band with capped backoff; dead-letter + alert | `TestRelayRetriesThenPublishes`, `TestRelayDeadLetters` |
+| T-B6-5 | T | Forged or tampered backup planted in the bucket (recipients are public) | Ed25519-signed manifest, verification key kept offline with the identity; per-object SHA-256; restore refuses unverified backups | `TestBackupRestoreDrill`, `scripts/backup-drill.sh` |
+| T-B6-6 | E | Sessions, refresh tokens or signing keys from a leaked backup reused after restore | Restore bumps the security epoch and replaces signing keys; optional backup-login reset | `TestBackupRestoreDrill` |
 
 ## B6b — Delegated tenant administration (ADR-0038)
 
@@ -133,6 +135,6 @@ flowchart LR
 - Logical tenant isolation is not a security boundary against Porch bugs. Hostile tenants should run separate instances.
 - Recovery answers are user-chosen and titled like security questions (ADR-0009): their entropy is an estimate, titles
   may point at socially discoverable facts, and answers stay valid until rotated. Step 2 reveals that a password guess
-  was correct (accepted oracle). Restoring an old backup restores old answers unless `--invalidate-backup-credentials` is used.
+  was correct (accepted oracle). Restoring an old backup restores old answers unless `porch restore --invalidate-backup-logins` is used.
 - Forward-auth protects only requests that pass through the proxy. Backends reachable directly bypass it.
 - Real Google, real S3 providers and real Cloudflare behaviour are not verified by the automated suite.

@@ -388,6 +388,32 @@ func (d *Deps) systemHealth(ctx context.Context) (SystemHealth, error) {
 	} else {
 		add("alerts", "ok", "")
 	}
-	add("backups", "warning", "backups are not configured (milestone M6)")
+	switch {
+	case !d.BackupEnabled || d.Backups == nil:
+		add("backups", "warning", "backups are not configured (backup.enabled)")
+	default:
+		runs, err := d.Backups.Runs(ctx, 1)
+		if err != nil {
+			return h, err
+		}
+		last, err := d.Backups.LastSuccess(ctx)
+		if err != nil {
+			return h, err
+		}
+		h.Backups.Configured = true
+		if !last.IsZero() {
+			h.Backups.LastAt, h.Backups.LastOK = &last, true
+		}
+		switch {
+		case len(runs) > 0 && runs[0].OK != nil && !*runs[0].OK:
+			add("backups", "critical", "the last backup failed: "+runs[0].Error)
+		case last.IsZero():
+			add("backups", "warning", "no successful backup yet")
+		case d.now().Sub(last) > 2*d.BackupInterval:
+			add("backups", "critical", "the last successful backup is older than two intervals")
+		default:
+			add("backups", "ok", "")
+		}
+	}
 	return h, nil
 }

@@ -43,6 +43,9 @@ func (a *App) RunMaintenance(ctx context.Context) {
 		if _, err := tx.Q.PurgeSessions(ctx, db.PurgeSessionsParams{AbsoluteExpiresAt: now, RevokedAt: sqlNull(now - int64(30*24*time.Hour/time.Microsecond))}); err != nil {
 			return err
 		}
+		if _, err := tx.Q.PurgePublishedOutbox(ctx, sqlNull(now-int64(7*24*time.Hour/time.Microsecond))); err != nil {
+			return err
+		}
 		if _, err := tx.Q.PurgeIdempotencyKeys(ctx, now); err != nil {
 			return err
 		}

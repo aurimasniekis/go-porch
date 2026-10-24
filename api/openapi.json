@@ -771,6 +771,34 @@
         ],
         "type": "object"
       },
+      "BackupStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "interval_seconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/Run"
+            },
+            "type": "array"
+          },
+          "verify_key": {
+            "description": "Ed25519 key that verifies this installation's backups; store it with the age identity.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "interval_seconds",
+          "runs"
+        ],
+        "type": "object"
+      },
       "ClientConfig": {
         "additionalProperties": false,
         "properties": {
@@ -2955,6 +2983,61 @@
         ],
         "type": "object"
       },
+      "Run": {
+        "additionalProperties": false,
+        "properties": {
+          "db_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kek_included": {
+            "type": "boolean"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "pruned": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "stored_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "trigger": {
+            "enum": [
+              "schedule",
+              "manual",
+              "cli"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trigger",
+          "started_at",
+          "db_bytes",
+          "stored_bytes",
+          "kek_included",
+          "pruned"
+        ],
+        "type": "object"
+      },
       "ServiceAccount": {
         "additionalProperties": false,
         "properties": {
@@ -4808,6 +4891,82 @@
         "summary": "Revoke an installation automation token (owner)",
         "tags": [
           "automation"
+        ]
+      }
+    },
+    "/installation/backups": {
+      "get": {
+        "operationId": "get-backups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Backup configuration and recent runs (owner, admin or auditor)",
+        "tags": [
+          "backups"
+        ]
+      },
+      "post": {
+        "operationId": "run-backup",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Take a backup now (owner or admin)",
+        "tags": [
+          "backups"
         ]
       }
     },

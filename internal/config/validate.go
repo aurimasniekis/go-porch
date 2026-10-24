@@ -84,7 +84,19 @@ func (c *Config) Validate() error {
 	v.durationRange("session.upstream_recheck", s.UpstreamRecheck, time.Minute, 24*time.Hour)
 	v.durationRange("session.setup_absolute", s.SetupAbsolute, time.Minute, 24*time.Hour)
 	v.durationRange("setup.token_ttl", c.Setup.TokenTTL, time.Minute, 7*24*time.Hour)
-	b := c.Backup
+	c.validateBackup(v)
+	if p := c.Events.Pulse; p.Enabled {
+		if !strings.HasPrefix(p.URL, "tls://") && !strings.HasPrefix(p.URL, "nats://") {
+			v.add("events.pulse.url must be a nats:// or tls:// URL")
+		}
+		if strings.HasPrefix(p.URL, "nats://") && c.IsProduction() {
+			v.add("events.pulse.url must use tls:// in production mode")
+		}
+		if p.CredsFile == "" {
+			v.add("events.pulse.creds_file is required")
+		}
+	}
+	b := c.BackupLogin
 	if b.Threshold < 1 || b.Threshold > 10 {
 		v.add("backup_login.threshold must be within 1..10")
 	}
@@ -210,4 +222,44 @@ func (v *validator) err() error {
 		return nil
 	}
 	return &ValidationError{Problems: v.problems}
+}
+
+func (c *Config) validateBackup(v *validator) {
+	b := c.Backup
+	if !b.Enabled {
+		return
+	}
+	v.durationRange("backup.interval", b.Interval, 15*time.Minute, 7*24*time.Hour)
+	if b.Retention < 1 || b.Retention > 1000 {
+		v.add("backup.retention must be within 1..1000")
+	}
+	if len(b.Recipients) == 0 {
+		v.add("backup.recipients: at least one age recipient (age1…) is required")
+	}
+	for _, r := range b.Recipients {
+		if !strings.HasPrefix(strings.TrimSpace(r), "age1") {
+			v.add("backup.recipients: %q is not an age X25519 recipient", r)
+		}
+	}
+	s := b.S3
+	if s.Endpoint == "" || strings.Contains(s.Endpoint, "/") {
+		v.add("backup.s3.endpoint must be host[:port]")
+	}
+	if s.Bucket == "" {
+		v.add("backup.s3.bucket is required")
+	}
+	if s.Prefix != "" && !strings.HasSuffix(s.Prefix, "/") {
+		v.add("backup.s3.prefix must end with /")
+	}
+	if s.AccessKeyID == "" || (s.SecretAccessKey == "" && s.SecretAccessKeyFile == "") {
+		v.add("backup.s3: access_key_id and secret_access_key (or secret_access_key_file) are required")
+	}
+	switch s.Lookup {
+	case "", "auto", "path", "virtual":
+	default:
+		v.add("backup.s3.lookup must be auto, path or virtual")
+	}
+	if s.Insecure && c.IsProduction() {
+		v.add("backup.s3.insecure (plain HTTP) is not allowed in production mode")
+	}
 }

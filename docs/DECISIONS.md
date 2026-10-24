@@ -436,3 +436,42 @@ duplicates or leak secrets twice.
   live 24 h.
 **Consequences.** A leaked token is usable until it expires or is revoked; secret scanners can match the prefix.
 
+## ADR-0042 — Encrypted backups and restore
+
+**Decision.**
+- A backup is a `VACUUM INTO` snapshot plus (unless `backup.exclude_kek`) the encoded KEK, each S2-compressed and
+  encrypted with age to the configured offline X25519 recipients, uploaded to S3-compatible storage
+  (`<prefix>backups/<bkp_id>/{db.age,kek.age,manifest.json}`) through the SSRF-guarded transport. Porch holds no
+  identity: it can write backups but not read them.
+- `manifest.json` (written last; marks a complete backup) lists every object with plaintext and ciphertext SHA-256,
+  schema version, installation and KEK IDs. It is **signed with Ed25519** (key derived from the keyring `backup-meta`
+  purpose key). Recipients are public, so anyone with write access to the bucket could otherwise plant a complete,
+  well-encrypted forged installation; `porch restore` refuses unless one of the supplied verification keys
+  (`porch-backup-ed25519:…`, shown in the admin UI, the server log and `porch backup verify-key`) verifies the manifest.
+  `--insecure-skip-verify` exists for lost keys and is recorded in the restore alert.
+- Schedule: first backup at start, then every `backup.interval` (default 6 h, the RPO) after the last success; failures
+  retry after 15 minutes; manual runs via API/UI (`POST /installation/backups`) or `porch backup run` (server stopped).
+  Retention keeps the newest `backup.retention` complete backups (manifest deleted first so a partly deleted backup is
+  never mistaken for a complete one); deletions failing under object lock are logged, the backup still counts.
+- Restore (`porch restore`) only writes into an empty data directory and a non-existent KEK path (0400), then leaves a
+  marker; the next start bumps the installation security epoch (every session and refresh token from the backup is
+  invalid), rotates and immediately retires the ES256/RS256 signing keys, raises a critical `installation_restored`
+  alert and audits `installation.restored`. `--invalidate-backup-logins` deletes all backup-login credentials (reusable
+  recovery answers restored from an old state are the main residual risk).
+- Health: the `backups` check is critical when the last run failed or the last success is older than two intervals.
+**Consequences.** RPO = interval; the restore drill (`scripts/backup-drill.sh`, MinIO with versioning + object lock)
+takes seconds for a small installation; RTO target < 30 min is dominated by fetching the identity from offline storage.
+
+## ADR-0043 — Event relay to pulse
+
+**Decision.** Implements ADR-0019 with the go-pulse SDK (pinned pseudo-version of the public `main`): a single relay
+goroutine polls due outbox rows every 2 s (draining backlogs without waiting), publishes each with
+`Nats-Msg-Id` = the outbox ID, `ce-type` `porch.<area>.<entity>_<action>.v1`, `ce-time` = enqueue time, subject
+`evt.porch.<area>.<entity>.<action>`, payload = the non-secret JSON stored at enqueue. On failure the row backs off
+(2^(n-1) s ± 50 %, cap 5 min) and the round stops (pulse is probably down); after 50 attempts or 24 h it is
+dead-lettered (`porch_outbox_events{state="dead"}`, alert `PorchOutboxDeadLetters`). Connection failures retry every 30 s;
+requests never wait for pulse. Published rows are purged after 7 days.
+**Consequences.** Delivery is at-least-once: JetStream de-duplicates retries within its window (2 min in pulse) and
+consumers must de-duplicate on the event ID beyond it. Verified against an embedded NATS JetStream through the SDK;
+not verified against a running pulsed (creds issuance).
+

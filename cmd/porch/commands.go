@@ -46,6 +46,14 @@ func rootCommands() []*command {
 			{name: "recover", summary: "issue a one-time 15-minute login link for a user (offline recovery)", run: runRecover},
 			{name: "unlock-backup", summary: "clear a user's backup-login lockout", run: runUnlockBackup},
 		}},
+		{name: "backup", summary: "encrypted backups (ADR-0042)", sub: []*command{
+			{name: "keygen", summary: "generate an age identity for backups (keep it offline) and print its recipient", run: runBackupKeygen},
+			{name: "run", summary: "take a backup now (needs the data-directory lock; use the API while serving)", run: runBackupRun},
+			{name: "list", summary: "list backups in object storage", run: runBackupList},
+			{name: "verify", summary: "download, verify, decrypt and integrity-check a backup", run: runBackupVerify},
+			{name: "verify-key", summary: "print the key that verifies this installation's backups", run: runBackupVerifyKey},
+		}},
+		{name: "restore", summary: "restore a backup into an empty data directory", run: runRestore},
 		{name: "audit", summary: "audit log tools", sub: []*command{
 			{name: "verify", summary: "verify the audit hash chain", run: runAuditVerify},
 		}},

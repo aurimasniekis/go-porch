@@ -111,7 +111,7 @@ func (a *App) recheckHook(w http.ResponseWriter, r *http.Request) bool {
 func (a *App) APIDeps() *mgmtapi.Deps {
 	return &mgmtapi.Deps{Log: a.Log, Version: buildinfo.Get().Version, Origin: a.Cfg.PublicOrigin(), Store: a.Store, Audit: a.Audit,
 		Users: a.Users, Tenants: a.Tenants, Sessions: a.Sessions, Setup: a.Setup, IDP: a.IDP, Local: a.Local, Apps: a.Apps, OP: a.OP,
-		SAs: a.SAs, Tokens: a.Tokens, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
+		SAs: a.SAs, Tokens: a.Tokens, Backups: a.Backups, BackupInterval: a.Cfg.Backup.Interval.D(), BackupEnabled: a.Cfg.Backup.Enabled, Engine: a.Engine, Keyring: a.Keyring, Ready: a.Ready, StartedAt: a.Clock.Now(), Clock: a.Clock, Authz: a.Authz, Metrics: a.Metrics,
 		SetupRate: httpx.NewLimiter(a.Clock, 10, 5), LoginRate: httpx.NewLimiter(a.Clock, 10, 5)}
 }
 
@@ -229,6 +229,14 @@ func (a *App) Serve(ctx context.Context, ls *Listeners) error {
 	})
 	g.Go(func() error {
 		a.maintain(gctx)
+		return nil
+	})
+	g.Go(func() error {
+		a.backupLoop(gctx)
+		return nil
+	})
+	g.Go(func() error {
+		a.relayLoop(gctx)
 		return nil
 	})
 	g.Go(func() error {
