@@ -8,8 +8,8 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/expr-lang/expr v1.17.8
-	github.com/go-jose/go-jose/v4 v4.1.4
-	github.com/klauspost/compress v1.20.1
+	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/klauspost/compress v1.20.3
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/nats-io/nats-server/v2 v2.15.1
 	github.com/nats-io/nats.go v1.55.0
