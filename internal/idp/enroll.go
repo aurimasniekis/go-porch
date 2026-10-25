@@ -81,7 +81,8 @@ func (svc *Service) linkTx(ctx context.Context, tx *store.Tx, prov db.IdentityPr
 
 // resolveTx maps verified claims to a user: an existing (provider, issuer, subject) identity, or enrollment through a
 // domain rule (jit, or invite_only with a matching invite) or a plain invite. Email never links to an existing user
-// (ADR-0005): a new identity always creates a new user.
+// (ADR-0005), and a new identity whose email already belongs to a user is refused instead of creating a duplicate: that
+// user signs in another way and links the identity from their account page.
 func (svc *Service) resolveTx(ctx context.Context, tx *store.Tx, prov db.IdentityProvider, c upstream.Claims) (string, error) {
 	uid, err := svc.identityOwner(ctx, tx, prov, c)
 	if err == nil {
@@ -96,6 +97,15 @@ func (svc *Service) resolveTx(ctx context.Context, tx *store.Tx, prov db.Identit
 	}
 	if !errors.Is(err, ErrNotEnrolled) {
 		return "", err
+	}
+	if c.Email != "" {
+		inUse, err := tx.Q.EmailBelongsToUser(ctx, c.Email)
+		if err != nil {
+			return "", err
+		}
+		if inUse != 0 {
+			return "", ErrEmailInUse
+		}
 	}
 	var rule *db.DomainRule
 	for _, d := range []string{c.HD, emailDomain(c)} {

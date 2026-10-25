@@ -78,8 +78,41 @@ func (d *Deps) providerID(ctx context.Context, ref string) string {
 	return ref
 }
 
+// LoginSettings configures the sign-in page.
+type LoginSettings struct {
+	DirectProvider string `json:"direct_provider" maxLength:"64" doc:"Slug of an enabled provider the sign-in page sends people to directly; empty shows every sign-in method. /login?all=1 always shows them."`
+}
+
 func registerProviders(api huma.API, d *Deps) {
 	tags := []string{"identity-providers"}
+	huma.Register(api, huma.Operation{OperationID: "get-login-settings", Method: http.MethodGet, Path: "/installation/login",
+		Summary: "Sign-in page settings", Tags: tags, Security: sessionSecurity},
+		func(ctx context.Context, _ *struct{}) (*struct{ Body LoginSettings }, error) {
+			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor); err != nil {
+				return nil, err
+			}
+			slug, err := d.IDP.DirectProvider(ctx)
+			if err != nil {
+				return nil, d.fail("login-settings", err)
+			}
+			return &struct{ Body LoginSettings }{Body: LoginSettings{DirectProvider: slug}}, nil
+		})
+
+	huma.Register(api, huma.Operation{OperationID: "update-login-settings", Method: http.MethodPut, Path: "/installation/login",
+		Summary: "Change the sign-in page settings", Tags: tags, Security: sessionSecurity},
+		func(ctx context.Context, in *struct{ Body LoginSettings }) (*struct{ Body LoginSettings }, error) {
+			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin); err != nil {
+				return nil, err
+			}
+			if err := d.stepUp(ctx); err != nil {
+				return nil, err
+			}
+			if err := d.IDP.SetDirectProvider(ctx, change(ctx, ""), in.Body.DirectProvider); err != nil {
+				return nil, d.fail("login-settings", err)
+			}
+			return &struct{ Body LoginSettings }{Body: in.Body}, nil
+		})
+
 	huma.Register(api, huma.Operation{OperationID: "list-identity-providers", Method: http.MethodGet, Path: "/identity-providers",
 		Summary: "List upstream identity providers", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, _ *struct{}) (*struct{ Body []IdentityProvider }, error) {

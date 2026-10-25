@@ -25,6 +25,8 @@ type LoginOptions struct {
 	Providers     []LoginProvider `json:"providers"`
 	BackupEnabled bool            `json:"backup_enabled"`
 	SetupComplete bool            `json:"setup_complete"`
+	// DirectProvider is the slug of the provider the sign-in page redirects to ("" = show every method).
+	DirectProvider string `json:"direct_provider"`
 }
 
 // BackupStartRequest is step 1 of the backup login.
@@ -101,6 +103,9 @@ func registerAuth(api huma.API, d *Deps) {
 					if p.Enabled {
 						out.Providers = append(out.Providers, LoginProvider{Slug: p.Slug, Name: p.Name, Kind: p.Kind, LoginURL: "/login/" + p.Slug})
 					}
+				}
+				if out.DirectProvider, err = d.IDP.DirectProvider(ctx); err != nil {
+					return nil, d.fail("login-options", err)
 				}
 			}
 			done, err := d.Setup.Completed(ctx)

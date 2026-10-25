@@ -23,7 +23,7 @@ export function useLogout() {
   return async () => {
     check(await api.POST('/logout'))
     qc.clear()
-    window.location.assign('/login')
+    window.location.assign('/login?logged_out=1')
   }
 }
 

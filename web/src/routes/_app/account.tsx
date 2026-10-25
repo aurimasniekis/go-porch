@@ -75,7 +75,7 @@ function Identities() {
         ))}
       </Group>
       <Text size="xs" c="dimmed" mt="xs">
-        Linking requires a recent sign-in and a fresh sign-in at the provider. Accounts are never linked by email.
+        Linking requires a recent sign-in here, then a sign-in at the provider. Accounts are never linked by email.
       </Text>
     </Card>
   )

@@ -128,6 +128,11 @@ SELECT * FROM users WHERE backup_handle = ?;
 -- name: GetUsersByPrimaryEmail :many
 SELECT * FROM users WHERE primary_email = ? LIMIT 2;
 
+-- name: EmailBelongsToUser :one
+-- Whether any user has this (lowercase) email as primary or additional address (ADR-0005 duplicate guard).
+SELECT CAST(EXISTS (SELECT 1 FROM user_emails WHERE email = sqlc.arg(email))
+    OR EXISTS (SELECT 1 FROM users WHERE primary_email = sqlc.arg(email)) AS INTEGER) AS in_use;
+
 -- name: SetBackupHandle :execrows
 UPDATE users SET backup_handle = ?, updated_at = ? WHERE id = ?;
 

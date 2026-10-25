@@ -11,6 +11,9 @@ automatically the first time; otherwise an administrator invites your email firs
   your email can never take over yours.
 - About once an hour Porch silently re-confirms your account with Google. If your Workspace account was removed, your
   Porch session ends.
+- Already have a Porch account (for example you set Porch up)? Link Google first under **Account → Linked sign-in
+  accounts**; a first Google sign-in with your email is refused instead of creating a second account.
+- If the sign-in page goes straight to Google, `/login?all=1` shows every way in, including the backup login.
 
 ## Backup login
 

@@ -51,6 +51,7 @@ func newStack(t *testing.T, mutate ...func(*config.Config)) *stack {
 		t.Fatal(err)
 	}
 	g.Now = st.clk.Now
+	g.OmitAuthTime = true // like real Google (no session age claims, no forced re-authentication)
 	st.google, st.gsrv = g, httptest.NewServer(g.Handler())
 	t.Cleanup(st.gsrv.Close)
 	g.SetIssuer(st.gsrv.URL)
@@ -159,8 +160,14 @@ func (b *browser) me() map[string]any {
 // setupGoogle creates the provider, a tenant and a domain rule directly through services.
 func (st *stack) setupGoogle(allowedHDs []string, rules ...idp.RuleParams) tenancy.Tenant {
 	st.t.Helper()
+	return st.setupProvider(idp.KindGoogle, allowedHDs, rules...)
+}
+
+// setupProvider is setupGoogle for either provider kind (the fake serves both; the slug stays "google").
+func (st *stack) setupProvider(kind string, allowedHDs []string, rules ...idp.RuleParams) tenancy.Tenant {
+	st.t.Helper()
 	ctx := context.Background()
-	p, err := st.a.IDP.CreateProvider(ctx, domain.SystemChange, idp.ProviderParams{Slug: "google", Kind: idp.KindGoogle, Name: "Google",
+	p, err := st.a.IDP.CreateProvider(ctx, domain.SystemChange, idp.ProviderParams{Slug: "google", Kind: kind, Name: "Google",
 		Issuer: st.gsrv.URL, ClientID: "porch-client", Secret: "porch-secret", AllowedHDs: allowedHDs})
 	if err != nil {
 		st.t.Fatal(err)
@@ -273,37 +280,84 @@ func TestHDValidation(t *testing.T) {
 	}
 }
 
-// T-B3-4 / M2 acceptance: an upstream account with the same email as an existing user is never linked to it.
+// T-B3-4 / M2 acceptance: an upstream account with the same email as an existing user is never linked to it, and is
+// not enrolled as a second user either (ADR-0005): the login is refused with email_in_use.
 func TestEmailLinkAttack(t *testing.T) {
-	st := newStack(t)
-	tn := st.setupGoogle(nil, idp.RuleParams{Domain: "smith.example", EvidenceKind: idp.EvidenceVerifiedEmail, Mode: idp.ModeJIT})
 	ctx := context.Background()
-	victim, err := st.a.Users.Create(ctx, domain.SystemChange, identityParams("Victim", "victim@smith.example"))
+	for name, rules := range map[string][]idp.RuleParams{
+		"jit verified_email rule": {{Domain: "smith.example", EvidenceKind: idp.EvidenceVerifiedEmail, Mode: idp.ModeJIT}},
+		"no rule or invite":       nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			st := newStack(t)
+			tn := st.setupGoogle(nil, rules...)
+			if _, err := st.a.Users.Create(ctx, domain.SystemChange, identityParams("Victim", "victim@smith.example")); err != nil {
+				t.Fatal(err)
+			}
+			// Attacker controls an upstream account claiming the victim's (verified) email.
+			st.google.AddUser(fakeidp.User{Subject: "attacker-sub", Email: "victim@smith.example", EmailVerified: true, Name: "Attacker"})
+			b := st.browser()
+			if f := st.loginAs(b, "attacker-sub"); f.Path != "/login" || f.Query().Get("error") != "email_in_use" {
+				t.Fatalf("landed on %s", f)
+			}
+			if b.me() != nil || len(st.members(tn)) != 0 || st.userCount() != 1 {
+				t.Fatal("signed in, enrolled or created a second user")
+			}
+		})
+	}
+}
+
+// The first owner and their Google account: Google sign-in with the owner's email is refused until the owner links it
+// from their own session; afterwards it signs in as the owner (one user, still an operator).
+func TestOwnerLinksGoogleInsteadOfDuplicate(t *testing.T) {
+	ctx := context.Background()
+	st := newStack(t)
+	tn := st.setupGoogle(nil, idp.RuleParams{Domain: "smith.example", EvidenceKind: idp.EvidenceWorkspaceHD, Mode: idp.ModeJIT})
+	tok, _, err := st.a.Setup.Issue(ctx, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Attacker controls an upstream account claiming the victim's (verified) email.
-	st.google.AddUser(fakeidp.User{Subject: "attacker-sub", Email: "victim@smith.example", EmailVerified: true, Name: "Attacker"})
-	b := st.browser()
-	st.loginAs(b, "attacker-sub")
-	me := b.me()
-	if me == nil {
-		t.Fatal("expected JIT enrollment of a separate user")
+	owner := st.browser()
+	if code, out := owner.api(http.MethodPost, "/api/v1/setup", map[string]string{"token": tok, "display_name": "Ada Owner",
+		"email": "ada@smith.example"}); code != http.StatusCreated {
+		t.Fatalf("setup: %d %v", code, out)
 	}
-	if me["user_id"] == victim.ID {
-		t.Fatal("attacker was linked to the victim's account by email")
+	ownerID := owner.me()["user_id"].(string)
+	st.google.AddUser(workspaceUser("g-ada", "ada@smith.example", "smith.example"))
+
+	if f := st.loginAs(st.browser(), "g-ada"); f.Query().Get("error") != "email_in_use" {
+		t.Fatalf("unlinked Google login: %s", f)
 	}
-	if n := len(st.members(tn)); n != 1 {
-		t.Fatalf("members %d", n)
+	if st.userCount() != 1 || len(st.members(tn)) != 0 {
+		t.Fatal("a duplicate user was created")
 	}
-	// Without any rule or invite the same login is refused outright.
-	st2 := newStack(t)
-	st2.setupGoogle(nil)
-	_, _ = st2.a.Users.Create(ctx, domain.SystemChange, identityParams("Victim", "victim@smith.example"))
-	st2.google.AddUser(fakeidp.User{Subject: "attacker-sub", Email: "victim@smith.example", EmailVerified: true})
-	if f := st2.loginAs(st2.browser(), "attacker-sub"); f.Query().Get("error") != "not_enrolled" {
-		t.Fatalf("got %s", f)
+
+	st.google.Set(func(i *fakeidp.IdP) { i.Current = "g-ada" })
+	if f := owner.visit("/login/google?intent=link&return_to=/account"); f.Path != "/account" || f.Query().Get("error") != "" {
+		t.Fatalf("link: %s", f)
 	}
+	g := st.browser()
+	st.loginAs(g, "g-ada")
+	me := g.me()
+	if me == nil || me["user_id"] != ownerID {
+		t.Fatalf("Google login after linking: %v", me)
+	}
+	if roles, _ := me["operator_roles"].([]any); len(roles) == 0 {
+		t.Fatalf("owner lost operator role: %v", me)
+	}
+	if st.userCount() != 1 {
+		t.Fatalf("users %d", st.userCount())
+	}
+}
+
+func (st *stack) userCount() int {
+	st.t.Helper()
+	pg, _ := domain.ParsePage(200, "")
+	us, _, err := st.a.Users.List(context.Background(), pg, identity.ListFilter{})
+	if err != nil {
+		st.t.Fatal(err)
+	}
+	return len(us)
 }
 
 func TestInviteOnlyAndVerifiedEmail(t *testing.T) {
@@ -421,13 +475,39 @@ func TestGoogleStepUp(t *testing.T) {
 	if code != http.StatusForbidden || p["code"] != "reauth_required" || p["action"] != "/login/google?intent=stepup" {
 		t.Fatalf("%d %v", code, p)
 	}
+	// Google cannot re-authenticate on request and sends no auth_time (ADR-0047): the interactive sign-in is the proof.
+	b.visit("/login/google?intent=stepup&return_to=/account")
+	if q := st.google.LastAuthorize; q.Get("prompt") != "select_account" || q.Has("max_age") {
+		t.Fatalf("step-up params %v", q)
+	}
+	b.me()
+	if code, p := b.api(http.MethodPut, "/api/v1/me/backup-handle", map[string]string{"handle": "ada-backup"}); code != http.StatusNoContent {
+		t.Fatalf("after step-up %d %v", code, p)
+	}
+}
+
+// A generic OIDC provider must prove a fresh sign-in for step-up and linking: prompt=login, max_age=0 and a recent
+// auth_time (review L9); a response without auth_time is refused.
+func TestGenericOIDCStepUpNeedsFreshAuthTime(t *testing.T) {
+	st := newStack(t)
+	st.google.Set(func(i *fakeidp.IdP) { i.OmitAuthTime = false })
+	st.setupProvider(idp.KindOIDC, nil, idp.RuleParams{Domain: "smith.example", EvidenceKind: idp.EvidenceVerifiedEmail, Mode: idp.ModeJIT})
+	st.google.AddUser(workspaceUser("o-ada", "ada@smith.example", ""))
+	b := st.browser()
+	st.loginAs(b, "o-ada")
+	st.clk.Advance(10 * time.Minute)
 	b.visit("/login/google?intent=stepup&return_to=/account")
 	if q := st.google.LastAuthorize; q.Get("prompt") != "login" || q.Get("max_age") != "0" {
 		t.Fatalf("step-up params %v", q)
 	}
 	b.me()
 	if code, p := b.api(http.MethodPut, "/api/v1/me/backup-handle", map[string]string{"handle": "ada-backup"}); code != http.StatusNoContent {
-		t.Fatalf("after step-up %d %v", code, p)
+		t.Fatalf("after fresh step-up %d %v", code, p)
+	}
+	st.clk.Advance(10 * time.Minute)
+	st.google.Set(func(i *fakeidp.IdP) { i.OmitAuthTime = true })
+	if f := b.visit("/login/google?intent=stepup&return_to=/account"); f.Query().Get("error") != "stale_auth" {
+		t.Fatalf("step-up without auth_time: %s", f)
 	}
 }
 
@@ -681,5 +761,54 @@ func TestOwnerTokenWithoutExpiry(t *testing.T) {
 	}
 	if c := call(); c != http.StatusUnauthorized {
 		t.Fatalf("revoked token: %d", c)
+	}
+}
+
+// The sign-in page can go straight to one provider: owners set it (with a recent sign-in), the public login options
+// carry it, and a disabled or unknown provider never becomes the target.
+func TestDirectLoginProvider(t *testing.T) {
+	ctx := context.Background()
+	st := newStack(t)
+	st.setupGoogle(nil)
+	tok, _, err := st.a.Setup.Issue(ctx, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := st.browser()
+	if code, out := owner.api(http.MethodPost, "/api/v1/setup", map[string]string{"token": tok, "display_name": "Ada Owner",
+		"email": "ada@smith.example"}); code != http.StatusCreated {
+		t.Fatalf("setup: %d %v", code, out)
+	}
+	owner.me()
+	direct := func() any {
+		_, o := st.browser().api(http.MethodGet, "/api/v1/auth/options", nil)
+		return o["direct_provider"]
+	}
+	if d := direct(); d != "" {
+		t.Fatalf("default direct_provider %v", d)
+	}
+	if code, out := owner.api(http.MethodPut, "/api/v1/installation/login", map[string]string{"direct_provider": "nope"}); code != http.StatusNotFound {
+		t.Fatalf("unknown provider: %d %v", code, out)
+	}
+	if code, out := owner.api(http.MethodPut, "/api/v1/installation/login", map[string]string{"direct_provider": "google"}); code != http.StatusOK {
+		t.Fatalf("set: %d %v", code, out)
+	}
+	if d := direct(); d != "google" {
+		t.Fatalf("direct_provider %v", d)
+	}
+	// Disabling the provider turns the redirect off without touching the setting.
+	off := false
+	if _, err := st.a.IDP.UpdateProvider(ctx, domain.SystemChange, st.prov.ID, idp.ProviderParams{Slug: "google", Kind: idp.KindGoogle,
+		Name: "Google", Issuer: st.gsrv.URL, ClientID: "porch-client", Enabled: &off}); err != nil {
+		t.Fatal(err)
+	}
+	if d := direct(); d != "" {
+		t.Fatalf("disabled provider still direct: %v", d)
+	}
+	// Changing it needs a recent sign-in.
+	st.clk.Advance(10 * time.Minute)
+	if code, out := owner.api(http.MethodPut, "/api/v1/installation/login", map[string]string{"direct_provider": ""}); code != http.StatusForbidden ||
+		out["code"] != "reauth_required" {
+		t.Fatalf("without step-up: %d %v", code, out)
 	}
 }

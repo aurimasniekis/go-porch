@@ -10,6 +10,24 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+### Added
+
+- **Sign in directly with Google.** Installation → Identity providers → Sign-in page: "Go straight to Google" makes
+  `/login` redirect to the provider. `/login?all=1` always shows every sign-in method; the full page also appears after
+  a failed sign-in and after signing out. API: `GET`/`PUT /api/v1/installation/login`.
+
+### Fixed
+
+- **Linking Google and step-up with real Google (security-relevant, ADR-0047).** Google does not support
+  re-authentication requests (`prompt=login`, `max_age`) and sends no `auth_time` to most apps, so linking a Google
+  account and confirming a sensitive action with Google always failed with "The identity provider did not perform a
+  fresh sign-in". Porch now asks Google for an interactive sign-in (`prompt=select_account`) and accepts it; generic
+  OIDC providers still have to prove a fresh sign-in. Applications that send `prompt=login` or `max_age` work for
+  Google users too.
+- **No duplicate user on first Google sign-in.** Signing in with Google for the first time with the email of an
+  existing user (for example the owner created at setup) created a second, separate user. Porch now refuses the sign-in
+  and explains how to link Google from the account page instead.
+
 ## [0.1.0] - 2026-10-25
 
 The first release: milestones M0–M7 ([docs/PLAN.md](docs/PLAN.md)), the redesigned sign-in page and launcher, and

@@ -40,8 +40,12 @@ installation capabilities. Cross-tenant app use requires an `app_shares` row.
 
 **Decision.** `external_identities (provider_id, issuer, subject)` is unique; email is an attribute. A new upstream
 identity whose email matches an existing user is **not** linked automatically. Linking requires a logged-in user,
-step-up, and a fresh upstream authentication of the second identity; it is audited.
-**Consequences.** Users who switch Google accounts need an explicit link or admin action.
+step-up, and a fresh upstream authentication of the second identity (for Google: a completed interactive sign-in,
+ADR-0047); it is audited. A new identity whose email already belongs to a user (primary or additional address) is
+not enrolled through a domain rule or invite either: the login is refused with `email_in_use` and the person is told
+to sign in another way and link the account (0.1.1; before, a second user was created).
+**Consequences.** Users who switch Google accounts need an explicit link or admin action. An installation's first
+owner, created at setup with their own email, links Google from their account page before signing in with it.
 
 ## ADR-0006 — Domain enrollment by validated evidence, with provenance
 
@@ -129,7 +133,8 @@ backup restores old answers (mitigated by `restore --invalidate-backup-credentia
 
 **Decision.** Sensitive operations require `auth_time` within 5 minutes: recovery enrollment/rotation, secret rotation,
 key operations, provider/domain changes, installation-role changes, backup configuration, policy writes, identity linking.
-Satisfied by a fresh upstream re-auth (`prompt=login`, `max_age=0`, verified `auth_time`) or the local backup credential.
+Satisfied by a fresh upstream re-auth (`prompt=login`, `max_age=0`, verified `auth_time`; for Google, which cannot
+re-authenticate on request, a completed interactive sign-in, ADR-0047) or the local backup credential.
 
 ## ADR-0011 — Authorization: RBAC + conditional grants + deny policies, default deny
 
@@ -290,7 +295,8 @@ session created — by login or step-up rotation, on Porch's clock — after the
 into `max_age=0`; an earlier "now − auth_time ≤ max_age" check looped forever for real clients (found by the OpenID
 conformance suite, `oidcc-prompt-login`). `prompt=login` additionally records which session was sent to
 re-authenticate; the request continues only when that session came back *rotated* (a step-up always rotates) with an
-`auth_time` inside the step-up window. Federated sessions re-authenticate upstream with `prompt=login&max_age=0`;
+`auth_time` inside the step-up window. Federated sessions re-authenticate upstream with `prompt=login&max_age=0`
+(Google: an interactive `prompt=select_account` sign-in, ADR-0047);
 backup sessions repeat the two-step backup login. `prompt=none` never shows UI: no session, a due upstream recheck or a
 required re-authentication yield `login_required`.
 
@@ -551,3 +557,24 @@ Tenant tokens and non-owners keep the 1–366 day limit and the upstream rule.
 keeps working for a creator removed from the upstream directory (but not for one disabled in Porch). Operators should
 store it like a root password, watch its last-used time and address, and revoke it when it is no longer needed.
 
+## ADR-0047 — Step-up and linking with providers that cannot re-authenticate (security-relevant change)
+
+**Context.** ADR-0010 and ADR-0005 satisfied step-up and identity linking with a fresh upstream sign-in: `prompt=login`,
+`max_age=0` and an `auth_time` inside the step-up window. Google supports neither: "Google does not support Google
+Account reauth requests", `prompt` accepts only `none`, `consent` and `select_account`, and `auth_time` is sent only to
+verified apps that enabled session age claims and asked for it. The fake provider used in tests always sent a fresh
+`auth_time`, so every Google step-up and every Google link failed with real Google ("the identity provider did not
+perform a fresh sign-in"), and an OIDC client's `prompt=login` or `max_age` could not be satisfied for Google users.
+**Decision.** Providers of kind `google` are treated as unable to re-authenticate on request. For them, step-up,
+linking and downstream re-authentication send `prompt=select_account` and accept a completed interactive sign-in: the
+authorization code flow with PKCE, nonce and a state bound to this browser's login cookie, returning the identity
+already linked to the session (step-up) or not linked to anyone (linking). Porch records the completion time as the
+authentication time; Google's `auth_time`, when present, is the age of the Google session and is not used. Linking
+still needs a recent Porch sign-in first. Providers of kind `oidc` keep the strict rule: `prompt=login`, `max_age=0`
+and a recent `auth_time`, else `stale_auth`. The test provider omits `auth_time` like Google by default.
+**Consequences.** **Security-relevant relaxation:** for Google users, step-up proves that the person at this browser
+can complete a Google sign-in as the session's user now. That defeats a stolen Porch session cookie used elsewhere
+(the thief has no Google session for the victim) but not someone at the victim's unlocked device with Google still
+signed in; there, Google's own session policy (re-authentication settings, device lock) is the control. Relying
+parties that send `prompt=login` or `max_age` get the same guarantee for Google users. Users who need a stronger
+step-up use the backup credential.

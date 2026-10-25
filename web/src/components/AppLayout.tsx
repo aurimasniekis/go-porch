@@ -27,7 +27,7 @@ export function AppLayout({ me, children }: { me: Me; children: ReactNode }) {
   const logout = async () => {
     check(await api.POST('/logout'))
     qc.clear()
-    window.location.assign('/login')
+    window.location.assign('/login?logged_out=1')
   }
   return (
     <AppShell header={{ height: 52 }} padding="md">

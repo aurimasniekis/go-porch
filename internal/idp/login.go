@@ -43,6 +43,7 @@ var (
 	ErrStaleAuth     = apperr.New(apperr.CodeForbidden, "the provider did not perform a fresh sign-in")
 	ErrDisabled      = apperr.New(apperr.CodeForbidden, "account disabled")
 	ErrAlreadyLinked = apperr.New(apperr.CodeConflict, "this provider account is already linked to a user")
+	ErrEmailInUse    = apperr.New(apperr.CodeConflict, "a user with this email already exists; sign in another way and link this account")
 )
 
 // BeginParams start an upstream round trip.
@@ -103,10 +104,12 @@ func (svc *Service) Begin(ctx context.Context, p BeginParams) (authURL, state st
 		if opts.LoginHint == "" {
 			opts.LoginHint = p.Session.Email
 		}
-	case IntentStepUp:
-		opts.Prompt, opts.MaxAge0 = "login", true
-	case IntentLink:
-		opts.Prompt, opts.MaxAge0 = "login", true
+	case IntentStepUp, IntentLink:
+		if reauthCapable(prov) {
+			opts.Prompt, opts.MaxAge0 = "login", true
+		} else {
+			opts.Prompt = "select_account"
+		}
 	default:
 		if prov.Kind == KindGoogle {
 			opts.Prompt = "select_account"
@@ -235,8 +238,10 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 	if prov.Kind == KindGoogle {
 		method = session.MethodGoogle
 	}
+	// For a provider that cannot re-authenticate on request, completing this interactive sign-in is the authentication
+	// (ADR-0047); its auth_time, when sent at all, is the age of the upstream session.
 	authTime := claims.AuthTime
-	if authTime.IsZero() {
+	if authTime.IsZero() || !reauthCapable(prov) {
 		authTime = now
 	}
 	switch st.Intent {
@@ -268,6 +273,8 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 			switch {
 			case errors.Is(err, ErrNotEnrolled):
 				reason = "not_enrolled"
+			case errors.Is(err, ErrEmailInUse):
+				reason = "email_in_use"
 			case errors.Is(err, ErrDisabled):
 				reason = "user_disabled"
 			case code != "":
@@ -299,8 +306,9 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 		}
 		return res, nil
 	case IntentStepUp:
-		// A provider that does not report auth_time cannot prove a fresh sign-in (review L9).
-		if claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
+		// A re-authentication capable provider that does not report a fresh auth_time did not prove a fresh sign-in
+		// (review L9).
+		if reauthCapable(prov) && (claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow) {
 			svc.failure(ctx, prov.ID, "stale_auth_time", nil)
 			return Result{}, ErrStaleAuth
 		}
@@ -326,7 +334,7 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 		}
 		return res, err
 	case IntentLink:
-		if claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow {
+		if reauthCapable(prov) && (claims.AuthTime.IsZero() || now.Sub(authTime) > svc.sessions.Options().StepUpWindow) {
 			svc.failure(ctx, prov.ID, "stale_auth_time", nil)
 			return Result{}, ErrStaleAuth
 		}
@@ -352,6 +360,12 @@ func (svc *Service) Complete(ctx context.Context, p CompleteParams) (Result, err
 	}
 	return Result{}, ErrBadState
 }
+
+// reauthCapable reports whether the provider honours prompt=login and max_age=0 and reports auth_time, so step-up and
+// linking can demand a fresh upstream sign-in. Google does not support re-authentication requests and sends auth_time
+// only to verified apps that opted in; for it, a completed interactive sign-in bound to this browser's login state is
+// the proof (ADR-0047).
+func reauthCapable(prov db.IdentityProvider) bool { return prov.Kind != KindGoogle }
 
 func (svc *Service) recheckFailed(ctx context.Context, cur *session.Principal, prov db.IdentityProvider, reason string, res Result) (Result, error) {
 	err := svc.s.W().TxNamed(ctx, "idp.recheck_failed", func(tx *store.Tx) error {

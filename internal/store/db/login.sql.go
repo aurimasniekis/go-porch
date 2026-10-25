@@ -181,6 +181,19 @@ func (q *Queries) DeleteRecoveryPairs(ctx context.Context, userID string) error 
 	return err
 }
 
+const emailBelongsToUser = `-- name: EmailBelongsToUser :one
+SELECT CAST(EXISTS (SELECT 1 FROM user_emails WHERE email = ?1)
+    OR EXISTS (SELECT 1 FROM users WHERE primary_email = ?1) AS INTEGER) AS in_use
+`
+
+// Whether any user has this (lowercase) email as primary or additional address (ADR-0005 duplicate guard).
+func (q *Queries) EmailBelongsToUser(ctx context.Context, email string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, emailBelongsToUser, email)
+	var in_use int64
+	err := row.Scan(&in_use)
+	return in_use, err
+}
+
 const findOpenInvite = `-- name: FindOpenInvite :one
 SELECT id, tenant_id, email, created_by, created_at, expires_at, consumed_at, consumed_by FROM invites WHERE email = ? AND consumed_at IS NULL AND expires_at > ? ORDER BY created_at LIMIT 1
 `

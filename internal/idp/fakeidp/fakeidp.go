@@ -1,7 +1,7 @@
 // Package fakeidp is an in-process OpenID Connect provider that behaves like Google for Porch's tests and demo stack:
 // discovery, JWKS, authorization code + PKCE, ID tokens with Google-style claims (hd, email_verified), prompt=none
 // (login_required when the user has no session or was removed), prompt=login / max_age (fresh auth_time) and an
-// interactive user picker.
+// interactive user picker. With OmitAuthTime it behaves like real Google for an unverified app: no auth_time claim.
 //
 // Adapted from HallPass internal/oidc/oidctest (Apache-2.0). It is a test fixture: it is never compiled into the porch
 // server binary and must never be exposed to real users.
@@ -59,6 +59,9 @@ type IdP struct {
 
 	// Current is the subject logged in automatically on non-interactive authorize (tests). "" = show the picker.
 	Current string
+	// OmitAuthTime leaves auth_time out of ID tokens, like Google, which sends it only to verified apps that enabled
+	// session age claims and requested it (and never performs a forced re-authentication).
+	OmitAuthTime bool
 	// Mutate edits ID token claims before signing (attack tests: wrong aud, missing nonce, forged hd, …).
 	Mutate func(claims map[string]any)
 	// Now is the provider clock.
@@ -307,6 +310,9 @@ func (i *IdP) token(w http.ResponseWriter, r *http.Request) {
 	now := i.Now()
 	claims := map[string]any{"iss": i.issuer, "sub": g.user.Subject, "aud": id, "azp": id, "iat": now.Unix(), "exp": now.Add(time.Hour).Unix(),
 		"auth_time": g.authTime.Unix(), "email": g.user.Email, "email_verified": g.user.EmailVerified, "name": g.user.Name}
+	if i.OmitAuthTime {
+		delete(claims, "auth_time")
+	}
 	if g.nonce != "" {
 		claims["nonce"] = g.nonce
 	}

@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { apiCall, expectAccessible, googleLogin, IDP, trackCSP } from './helpers'
+import { apiCall, expectAccessible, googleLogin, IDP, ownerContext, settle, trackCSP } from './helpers'
 
 const answers = ['Vaivorykštės gatvė 14', 'Massive Attack in Riga, 2004', 'Kudlius the third']
 const titles = ['Street of the summer house', 'First concert I paid for', "Grandmother's dog"]
@@ -66,6 +66,42 @@ test.describe.serial('M2: setup, Google login, backup login', () => {
       process.env.PORCH_E2E_STATE ?? 'e2e-state.json',
       JSON.stringify({ client_id: client.client_id, client_secret: app?.client_secret, demo }),
     )
+  })
+
+  test('the sign-in page can go straight to Google, with the full page at /login?all=1', async ({ browser }) => {
+    const owner = await ownerContext(browser)
+    const admin = await owner.newPage()
+    try {
+      await admin.goto('/admin/i/providers')
+      const select = admin.getByRole('textbox', { name: 'Sign-in page' })
+      await expect(select).toHaveValue('Show every sign-in method')
+      await select.click()
+      await admin.getByRole('option', { name: 'Go straight to Google' }).click()
+      await expect(admin.getByText('Sign-in page saved')).toBeVisible()
+      await expect(admin.locator('code', { hasText: '/login?all=1' })).toBeVisible()
+      await settle(admin)
+      await expectAccessible(admin)
+
+      const anon = await browser.newContext()
+      const page = await anon.newPage()
+      await page.goto('/login?return_to=/apps')
+      await page.waitForURL(`${IDP}/**`)
+      await expect(page.getByRole('heading', { name: 'Fake Google' })).toBeVisible()
+      // The full page: every method, including the backup login.
+      await page.goto('/login?all=1')
+      await expect(page.getByRole('link', { name: /Continue with Google/ })).toBeVisible()
+      await expect(page.getByLabel('Backup handle or email')).toBeVisible()
+      await expectAccessible(page)
+      // After signing out the page stays put.
+      await page.goto('/login?logged_out=1')
+      await expect(page.getByText('You signed out.')).toBeVisible()
+      await expectAccessible(page)
+      await anon.close()
+    } finally {
+      // Later specs sign in through the full page.
+      await apiCall(admin.request, 'PUT', '/installation/login', { direct_provider: '' })
+      await owner.close()
+    }
   })
 
   test('a Workspace user signs in with Google and is enrolled', async ({ page }) => {

@@ -100,6 +100,11 @@ export const providersQuery = queryOptions({
   queryFn: async () => unwrap(await api.GET('/identity-providers')),
 })
 
+export const loginSettingsQuery = queryOptions({
+  queryKey: [...installKeys.providers, 'login-settings'],
+  queryFn: async () => unwrap(await api.GET('/installation/login')),
+})
+
 export function sessionsQuery(user: string | undefined) {
   return queryOptions({
     queryKey: [...installKeys.sessions, user ?? ''],

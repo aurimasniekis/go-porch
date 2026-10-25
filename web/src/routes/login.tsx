@@ -3,7 +3,7 @@ import { useForm } from '@mantine/form'
 import { IconBrandGoogleFilled, IconCircleX, IconKey } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, ApiError, setCsrfToken, unwrap } from '@/api/client'
 import { loginOptionsQuery } from '@/api/queries'
 import { AuthLayout } from '@/components/AuthLayout'
@@ -13,13 +13,20 @@ interface Search {
   return_to: string
   error: string
   stepup: string
+  /** "1" shows every sign-in method even when the page normally goes straight to one provider. */
+  all?: string
+  logged_out?: string
 }
+
+const str = (v: unknown) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : undefined)
 
 export const Route = createFileRoute('/login')({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    return_to: typeof s.return_to === 'string' ? s.return_to : '',
-    error: typeof s.error === 'string' ? s.error : '',
-    stepup: typeof s.stepup === 'string' ? s.stepup : '',
+    return_to: str(s.return_to) ?? '',
+    error: str(s.error) ?? '',
+    stepup: str(s.stepup) ?? '',
+    all: str(s.all),
+    logged_out: str(s.logged_out),
   }),
   component: Login,
 })
@@ -30,6 +37,28 @@ function Login() {
   const returnTo = safeReturnTo(search.return_to)
   const opts = useQuery(loginOptionsQuery)
   const stepUp = search.stepup === 'backup'
+  // Straight to the configured provider, except after an error or sign-out, for backup step-up, before setup, and
+  // when /login?all=1 asks for every method.
+  const direct =
+    !search.error && !stepUp && search.all !== '1' && search.logged_out !== '1' && opts.data?.setup_complete
+      ? opts.data.providers.find((p) => p.slug === opts.data.direct_provider)
+      : undefined
+  const directHref = direct ? `${direct.login_url}?return_to=${encodeURIComponent(returnTo)}` : ''
+  useEffect(() => {
+    if (directHref) window.location.replace(directHref)
+  }, [directHref])
+  if (direct) {
+    return (
+      <AuthLayout subtitle={`Continuing to ${direct.name}…`}>
+        <Button component="a" size="md" href={directHref} variant="default">
+          Continue with {direct.name}
+        </Button>
+        <Anchor href={`/login?all=1&return_to=${encodeURIComponent(returnTo)}`} ta="center" size="sm">
+          Other sign-in options
+        </Anchor>
+      </AuthLayout>
+    )
+  }
   if (search.error) {
     // Like a denied flow: say what happened and offer one way back.
     return (
@@ -43,7 +72,10 @@ function Login() {
         <Button
           variant="default"
           onClick={() =>
-            void navigate({ to: '/login', search: { return_to: search.return_to, error: '', stepup: search.stepup } })
+            void navigate({
+              to: '/login',
+              search: { return_to: search.return_to, error: '', stepup: search.stepup, all: '1' },
+            })
           }
         >
           Back to sign in
@@ -56,6 +88,7 @@ function Login() {
       title={stepUp ? 'Confirm it is you' : undefined}
       subtitle={stepUp ? 'Sign in with your backup login to continue.' : 'Sign in to open your applications.'}
     >
+      {search.logged_out === '1' ? <Alert color="green">You signed out.</Alert> : null}
       {opts.data && !opts.data.setup_complete ? (
         <Alert color="blue">
           Porch is not set up yet.{' '}

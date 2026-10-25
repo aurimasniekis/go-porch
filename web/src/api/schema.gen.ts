@@ -319,6 +319,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sign-in page settings */
+        get: operations["get-login-settings"];
+        /** Change the sign-in page settings */
+        put: operations["update-login-settings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/installation/operators": {
         parameters: {
             query?: never;
@@ -2106,6 +2124,7 @@ export interface components {
         };
         LoginOptions: {
             backup_enabled: boolean;
+            direct_provider: string;
             providers: components["schemas"]["LoginProvider"][];
             setup_complete: boolean;
         };
@@ -2114,6 +2133,10 @@ export interface components {
             login_url: string;
             name: string;
             slug: string;
+        };
+        LoginSettings: {
+            /** @description Slug of an enabled provider the sign-in page sends people to directly; empty shows every sign-in method. /login?all=1 always shows them. */
+            direct_provider: string;
         };
         Me: {
             /** @description Send as X-Porch-CSRF on state-changing requests. */
@@ -3427,6 +3450,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemHealth"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-login-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginSettings"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "update-login-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginSettings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginSettings"];
                 };
             };
             /** @description Error */

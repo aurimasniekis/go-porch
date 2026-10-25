@@ -2333,6 +2333,9 @@
           "backup_enabled": {
             "type": "boolean"
           },
+          "direct_provider": {
+            "type": "string"
+          },
           "providers": {
             "items": {
               "$ref": "#/components/schemas/LoginProvider"
@@ -2346,7 +2349,8 @@
         "required": [
           "providers",
           "backup_enabled",
-          "setup_complete"
+          "setup_complete",
+          "direct_provider"
         ],
         "type": "object"
       },
@@ -2371,6 +2375,20 @@
           "name",
           "kind",
           "login_url"
+        ],
+        "type": "object"
+      },
+      "LoginSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "direct_provider": {
+            "description": "Slug of an enabled provider the sign-in page sends people to directly; empty shows every sign-in method. /login?all=1 always shows them.",
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "direct_provider"
         ],
         "type": "object"
       },
@@ -5522,6 +5540,92 @@
         "summary": "System health (owner, admin or auditor)",
         "tags": [
           "operations"
+        ]
+      }
+    },
+    "/installation/login": {
+      "get": {
+        "operationId": "get-login-settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Sign-in page settings",
+        "tags": [
+          "identity-providers"
+        ]
+      },
+      "put": {
+        "operationId": "update-login-settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "Change the sign-in page settings",
+        "tags": [
+          "identity-providers"
         ]
       }
     },

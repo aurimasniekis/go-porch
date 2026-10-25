@@ -429,16 +429,17 @@ func TestPromptAndMaxAge(t *testing.T) {
 	if q := b.authorize(t, r.authParams(c, map[string]string{"prompt": "none"})); q.Get("code") == "" {
 		t.Fatalf("prompt=none with session: %v", q)
 	}
-	// prompt=login forces a fresh upstream sign-in (Google prompt=login max_age=0) before the code. Time moves on between
-	// the original login and this request, as it does for real (the conformance suite caught a max_age=0 loop here).
+	// prompt=login sends the user through an interactive upstream sign-in before the code (for Google, which cannot be
+	// forced to re-authenticate, prompt=select_account; ADR-0047). Time moves on between the original login and this
+	// request, as it does for real (the conformance suite caught a max_age=0 loop here).
 	st.clk.Advance(3 * time.Second)
 	st.google.Set(func(i *fakeidp.IdP) { i.Now = st.clk.Now })
 	q := b.authorize(t, r.authParams(c, map[string]string{"prompt": "login"}))
 	if q.Get("code") == "" {
 		t.Fatalf("prompt=login: %v", q)
 	}
-	if gq := st.google.LastAuthorize; gq.Get("prompt") != "login" || gq.Get("max_age") != "0" {
-		t.Fatalf("upstream not forced: %v", gq)
+	if gq := st.google.LastAuthorize; gq.Get("prompt") != "select_account" {
+		t.Fatalf("upstream sign-in not interactive: %v", gq)
 	}
 	st.clk.Advance(10 * time.Minute)
 	if q := b.authorize(t, r.authParams(c, map[string]string{"prompt": "none", "max_age": "60"})); q.Get("error") != "login_required" {

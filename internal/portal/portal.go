@@ -89,6 +89,8 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, idp.ErrNotEnrolled):
 			code = "not_enrolled"
+		case errors.Is(err, idp.ErrEmailInUse):
+			code = "email_in_use"
 		case errors.Is(err, idp.ErrHDNotAllowed):
 			code = "domain_not_allowed"
 		case errors.Is(err, idp.ErrBadState):

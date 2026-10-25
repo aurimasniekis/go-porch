@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { adminQuery, ifMatch, useAdminMutation } from '@/api/admin'
-import { installKeys, providersQuery, type IdentityProvider } from '@/api/admin/install'
+import { installKeys, loginSettingsQuery, providersQuery, type IdentityProvider } from '@/api/admin/install'
 import { api, ApiError, check, unwrap, type Schemas } from '@/api/client'
 import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { useVersionedMutation } from '@/components/admin/install/hooks'
@@ -94,6 +94,9 @@ function Providers() {
           </Table>
         </Table.ScrollContainer>
       ) : null}
+      {q.data?.some((p) => p.enabled) ? (
+        <SignInPageSettings providers={q.data.filter((p) => p.enabled)} canWrite={canWrite} />
+      ) : null}
       <Modal
         closeButtonProps={{ 'aria-label': 'Close' }}
         lockScroll={false}
@@ -126,6 +129,41 @@ function Providers() {
           />
         ) : null}
       </Modal>
+    </Stack>
+  )
+}
+
+/** Whether the sign-in page goes straight to one provider; /login?all=1 always shows every method. */
+function SignInPageSettings({ providers, canWrite }: { providers: IdentityProvider[]; canWrite: boolean }) {
+  const s = useQuery(loginSettingsQuery)
+  const save = useAdminMutation({
+    mutationFn: async (slug: string) =>
+      unwrap(await api.PUT('/installation/login', { body: { direct_provider: slug } })),
+    success: 'Sign-in page saved',
+    invalidate: [loginSettingsQuery.queryKey],
+  })
+  const current = s.data?.direct_provider ?? ''
+  return (
+    <Stack gap="xs" maw={560}>
+      <Select
+        label="Sign-in page"
+        description="Send people straight to one provider instead of showing every sign-in method. The full page, with the backup login, stays at /login?all=1 and appears after a failed sign-in or signing out."
+        data={[
+          { value: '', label: 'Show every sign-in method' },
+          ...providers.map((p) => ({ value: p.slug, label: `Go straight to ${p.name}` })),
+        ]}
+        value={current}
+        allowDeselect={false}
+        disabled={!canWrite || s.isPending || save.isPending}
+        onChange={(v) => {
+          if (v !== null && v !== current) save.mutate(v)
+        }}
+      />
+      {current ? (
+        <Text size="xs" c="dimmed">
+          Full sign-in page: <Code>{`${window.location.origin}/login?all=1`}</Code>
+        </Text>
+      ) : null}
     </Stack>
   )
 }

@@ -13,6 +13,8 @@ export function loginErrorMessage(code: string): string {
   switch (code) {
     case 'not_enrolled':
       return 'This account is not enrolled in Porch. Ask an administrator for an invitation.'
+    case 'email_in_use':
+      return 'A Porch account with this email already exists. Sign in another way (for example with your backup login), then link this account under Account → Linked sign-in accounts.'
     case 'domain_not_allowed':
       return "This account's Google Workspace domain is not allowed here."
     case 'expired':
