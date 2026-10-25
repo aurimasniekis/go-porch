@@ -10,6 +10,10 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+### Changed
+
+- The launcher and account pages fade the background photo into the page instead of ending it in a hard edge.
+
 ## [0.2.0] - 2026-10-25
 
 The web UI on phones. **Database:** no migrations; upgrade by replacing the binary or image. **API and
