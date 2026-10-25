@@ -10,6 +10,14 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-25
+
+The web UI on phones. **Database:** no migrations; upgrade by replacing the binary or image. **API and
+configuration:** unchanged.
+
+> **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
+> no external security audit (see 0.1.0).
+
 ### Changed
 
 - **Phones.** The web UI fits a phone screen without sideways scrolling:
@@ -129,6 +137,7 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aurimasniekis/go-porch/releases/tag/v0.1.0

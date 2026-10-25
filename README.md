@@ -23,7 +23,7 @@
 </picture>
 
 > [!NOTE]
-> **Porch 0.1.1** is the current release: see the [changelog](CHANGELOG.md) and [Deploy](#deploy).
+> **Porch 0.2.0** is the current release: see the [changelog](CHANGELOG.md) and [Deploy](#deploy).
 
 ## Why
 
@@ -128,7 +128,7 @@ linux/amd64, linux/arm64 and darwin/arm64 with `SHA256SUMS`, SBOMs and build pro
 (read-only container, UID 65532, all capabilities dropped):
 
 ```sh
-export V=0.1.1
+export V=0.2.0
 gh attestation verify oci://ghcr.io/aurimasniekis/go-porch:$V --repo aurimasniekis/go-porch
 git clone --depth 1 --branch v$V https://github.com/aurimasniekis/go-porch.git && cd go-porch/deploy
 cp .env.example .env && $EDITOR .env                       # PD_PUBLIC_URL=https://auth.example.com
