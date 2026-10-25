@@ -112,7 +112,8 @@ discovery with the configured issuer and exits 0 on SIGTERM.
 | `scripts/container-smoke.sh` against a locally built image | tested locally | Docker Desktop 29.8.2 (arm64), 2026-10-24 and 2026-10-25 |
 | `actionlint` (workflows), `shellcheck` (scripts) | tested locally | actionlint 1.7.12, ShellCheck 0.11.0, 2026-10-25 |
 | syft SBOM and Trivy scan | tested locally with the same tool versions as the workflow | syft v1.54.0, Trivy 0.70.0 (container images) |
-| Release workflow on GitHub-hosted runners, GHCR/Docker Hub push, attestations, draft release | **not verified** | `main` is pushed and CI is green; no `v*` tag has been pushed yet (first run: v0.1.0) |
+| Release workflow on GitHub-hosted runners, GHCR/Docker Hub push, attestations, draft release | tested (v0.1.0) | Run 40189472113 for tag `v0.1.0` (`e33dc75`), all jobs passed, 2026-10-25. One digest (`sha256:372eb5e5…0497`) on GHCR and Docker Hub, anonymous pull from both; `gh attestation verify` passed for the linux/amd64 archive and both images; `SHA256SUMS` checked on the downloads; `porch version` reports v0.1.0 from the darwin/arm64 archive and the image |
+| Terraform provider release (GoReleaser, GPG-signed checksums, Terraform Registry) | tested (v0.1.0) | terraform-provider-porch run 40189506247 for `v0.1.0`; the Registry ingested 0.1.0 and `terraform init` installed it ("self-signed, key ID 62BC817EB965CAFF"), 2026-10-25 |
 | Reproducibility of archives byte-for-byte across machines | **not verified** | same inputs give the same binaries by construction (`-trimpath`, empty build ID, `SOURCE_DATE_EPOCH`); not compared across hosts |
 
 ## If something goes wrong
