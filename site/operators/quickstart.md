@@ -5,7 +5,7 @@ behind a TLS reverse proxy (or with Porch's own TLS). The key-encryption key (KE
 without it the database cannot be read, so back it up offline as soon as you create it.
 
 ::: tip Releases
-Porch 0.1.0 is the first release. Each release publishes the image `ghcr.io/aurimasniekis/go-porch` (also on Docker
+Porch 0.1.1 is the current release. Each release publishes the image `ghcr.io/aurimasniekis/go-porch` (also on Docker
 Hub as `docker.io/aurimasniekis/porch`; linux/amd64, linux/arm64) and archives for linux/amd64, linux/arm64 and darwin/arm64 on the
 [releases page](https://github.com/aurimasniekis/go-porch/releases), with `SHA256SUMS`, SBOMs and build provenance.
 :::
@@ -18,7 +18,7 @@ Want to look around first? [Try it locally](../guide/try-locally) with the demo 
 published on `127.0.0.1:28080` for your reverse proxy.
 
 ```sh
-export V=0.1.0
+export V=0.1.1
 gh attestation verify oci://ghcr.io/aurimasniekis/go-porch:$V --repo aurimasniekis/go-porch   # optional
 git clone --depth 1 --branch v$V https://github.com/aurimasniekis/go-porch.git && cd go-porch/deploy
 cp .env.example .env && $EDITOR .env                          # PD_PUBLIC_URL=https://auth.example.com

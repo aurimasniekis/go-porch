@@ -10,6 +10,15 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-25
+
+Sign-in fixes for real Google and a direct Google sign-in page. **Database:** no migrations; upgrade by replacing the
+binary or image. If a first Google sign-in already created a second user with an existing user's email, delete that
+user and link Google from the original account (Account → Linked sign-in accounts).
+
+> **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
+> no external security audit (see 0.1.0).
+
 ### Added
 
 - **Sign in directly with Google.** Installation → Identity providers → Sign-in page: "Go straight to Google" makes
@@ -110,5 +119,6 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aurimasniekis/go-porch/releases/tag/v0.1.0
