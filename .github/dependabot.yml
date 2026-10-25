@@ -1,0 +1,42 @@
+# Dependency update PRs. Minor and patch updates are grouped per ecosystem; a new version is proposed only after it
+# has been out for a week. Actions stay pinned by commit SHA (Dependabot updates the SHA and its version comment).
+# The Dockerfile's base images are ARG defaults pinned by digest and are updated by hand (see the Dockerfile header).
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directories: ["/", "/tools"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      go:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories: ["/web", "/site"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker-compose
+    directory: /deploy/demo
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
