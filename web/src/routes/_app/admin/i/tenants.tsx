@@ -14,6 +14,7 @@ import { ManagedBy } from '@/components/admin/install/ManagedBy'
 import { StatusBadge, toneOf } from '@/components/admin/install/StatusBadge'
 import { ConfirmAction } from '@/components/admin/install/ConfirmAction'
 import { DateTime, Loading } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/tenants')({
   component: Tenants,
@@ -52,27 +53,25 @@ function Tenants() {
       {q.isPending ? <Loading label="Loading tenants…" /> : null}
       {q.isSuccess && tenants.length === 0 ? <EmptyState>No tenants yet. Create the first one.</EmptyState> : null}
       {tenants.length > 0 ? (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover aria-label="Tenants" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Slug</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {tenants.map((t) => (
-                <TenantRow key={t.id} t={t} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={760} striped highlightOnHover aria-label="Tenants" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Slug</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>Created</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {tenants.map((t) => (
+              <TenantRow key={t.id} t={t} />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {q.hasNextPage ? (
         <Group justify="center">

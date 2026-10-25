@@ -29,6 +29,9 @@ export const theme = createTheme({
     // Scroll lock (react-remove-scroll) injects a <style> without the CSP nonce, so it stays off.
     Modal: { defaultProps: { closeButtonProps: { 'aria-label': 'Close' }, lockScroll: false } },
     Drawer: { defaultProps: { closeButtonProps: { 'aria-label': 'Close' }, lockScroll: false } },
+    // The initial-focus placeholder is a plain div inside role="menu" (axe aria-required-children); focus goes to the
+    // first item instead.
+    Menu: { defaultProps: { withInitialFocusPlaceholder: false } },
     Notification: { defaultProps: { closeButtonProps: { 'aria-label': 'Close notification' } } },
   },
 })

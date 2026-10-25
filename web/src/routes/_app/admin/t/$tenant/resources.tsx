@@ -19,6 +19,7 @@ import {
   type AttributeRow,
 } from '@/components/admin/authz/logic'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/resources')({
   component: ResourcesPage,
@@ -64,110 +65,114 @@ function ResourcesPage() {
       {resources.isPending ? <LoadingState label="Loading resources…" /> : null}
       {resources.data?.length === 0 ? <EmptyState>No resources yet.</EmptyState> : null}
       {flat.length > 0 ? (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover aria-label="Resources (indented by parent)" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Slug</Table.Th>
-                <Table.Th>Attributes</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {flat.map(({ item: r, depth, descendants }) => {
-                const attrs = Object.entries(r.attributes).sort(([a], [b]) => a.localeCompare(b))
-                const parent = r.parent_id ? byId.get(r.parent_id) : undefined
-                return (
-                  <Table.Tr key={r.id}>
-                    <Table.Td>
-                      <Box pl={depth * 20}>
-                        <Group gap={6} wrap="nowrap">
-                          {depth > 0 ? (
-                            <Text c="dimmed" aria-hidden>
-                              └
+        <ListTable
+          minWidth={760}
+          striped
+          highlightOnHover
+          aria-label="Resources (indented by parent)"
+          verticalSpacing="sm"
+        >
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Type</Table.Th>
+              <Table.Th>Slug</Table.Th>
+              <Table.Th>Attributes</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {flat.map(({ item: r, depth, descendants }) => {
+              const attrs = Object.entries(r.attributes).sort(([a], [b]) => a.localeCompare(b))
+              const parent = r.parent_id ? byId.get(r.parent_id) : undefined
+              return (
+                <Table.Tr key={r.id}>
+                  <Table.Td>
+                    <Box pl={depth * 20}>
+                      <Group gap={6} wrap="nowrap">
+                        {depth > 0 ? (
+                          <Text c="dimmed" aria-hidden>
+                            └
+                          </Text>
+                        ) : null}
+                        <div>
+                          <Text fw={500}>{r.name}</Text>
+                          {parent ? (
+                            <Text size="xs" c="dimmed">
+                              in {parent.name}
                             </Text>
                           ) : null}
-                          <div>
-                            <Text fw={500}>{r.name}</Text>
-                            {parent ? (
-                              <Text size="xs" c="dimmed">
-                                in {parent.name}
-                              </Text>
-                            ) : null}
-                          </div>
-                        </Group>
-                      </Box>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tag color="cyan">{r.type}</Tag>
-                    </Table.Td>
-                    <Table.Td>
-                      <Code>{r.slug}</Code>
-                    </Table.Td>
-                    <Table.Td>
-                      {attrs.length > 0 ? (
-                        <Group gap={4}>
-                          {attrs.map(([k, v]) => (
-                            <Code key={k}>
-                              {k}={v}
-                            </Code>
-                          ))}
-                        </Group>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          —
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <ManagedBy managedBy={r.managed_by} />
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap="xs" justify="flex-end" wrap="nowrap">
-                        <Button
-                          size="xs"
-                          variant="default"
-                          aria-label={`Edit resource ${r.name}`}
-                          onClick={() => {
-                            setDialog({ kind: 'edit', resource: r })
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <ConfirmButton
-                          variant="default"
-                          label="Delete"
-                          title={`Delete resource ${r.name}?`}
-                          confirmLabel="Delete resource"
-                          loading={del.isPending}
-                          onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
-                        >
-                          <Stack gap="xs">
-                            <Text size="sm">
-                              Every assignment scoped to <b>{r.name}</b> is removed.
-                            </Text>
-                            {descendants > 0 ? (
-                              <Text size="sm" fw={600}>
-                                Its {descendants} child resource{descendants > 1 ? 's are' : ' is'} deleted too, with
-                                their assignments.
-                              </Text>
-                            ) : null}
-                            <Text size="sm">This cannot be undone.</Text>
-                          </Stack>
-                        </ConfirmButton>
+                        </div>
                       </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                    </Box>
+                  </Table.Td>
+                  <Table.Td>
+                    <Tag color="cyan">{r.type}</Tag>
+                  </Table.Td>
+                  <Table.Td>
+                    <Code>{r.slug}</Code>
+                  </Table.Td>
+                  <Table.Td>
+                    {attrs.length > 0 ? (
+                      <Group gap={4}>
+                        {attrs.map(([k, v]) => (
+                          <Code key={k}>
+                            {k}={v}
+                          </Code>
+                        ))}
+                      </Group>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        —
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <ManagedBy managedBy={r.managed_by} />
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      <Button
+                        size="xs"
+                        variant="default"
+                        aria-label={`Edit resource ${r.name}`}
+                        onClick={() => {
+                          setDialog({ kind: 'edit', resource: r })
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <ConfirmButton
+                        variant="default"
+                        label="Delete"
+                        title={`Delete resource ${r.name}?`}
+                        confirmLabel="Delete resource"
+                        loading={del.isPending}
+                        onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm">
+                            Every assignment scoped to <b>{r.name}</b> is removed.
+                          </Text>
+                          {descendants > 0 ? (
+                            <Text size="sm" fw={600}>
+                              Its {descendants} child resource{descendants > 1 ? 's are' : ' is'} deleted too, with
+                              their assignments.
+                            </Text>
+                          ) : null}
+                          <Text size="sm">This cannot be undone.</Text>
+                        </Stack>
+                      </ConfirmButton>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              )
+            })}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {dialog ? (
         <ResourceDialog

@@ -15,6 +15,7 @@ import { ManagedBy } from '@/components/admin/install/ManagedBy'
 import { StatusBadge, toneOf } from '@/components/admin/install/StatusBadge'
 import { ConfirmAction } from '@/components/admin/install/ConfirmAction'
 import { DateTime, Loading, Notice } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/users')({
   component: Users,
@@ -98,34 +99,32 @@ function Users() {
         <EmptyState>{filtered ? 'No users match this search.' : 'No users yet.'}</EmptyState>
       ) : null}
       {users.length > 0 ? (
-        <Table.ScrollContainer minWidth={980}>
-          <Table striped highlightOnHover aria-label="Users" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Last sign-in</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {users.map((u) => (
-                <UserRow
-                  key={u.id}
-                  u={u}
-                  isMe={me.data?.user_id === u.id}
-                  onEdit={() => {
-                    setEditing(u)
-                  }}
-                />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={980} striped highlightOnHover aria-label="Users" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Email</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Last sign-in</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {users.map((u) => (
+              <UserRow
+                key={u.id}
+                u={u}
+                isMe={me.data?.user_id === u.id}
+                onEdit={() => {
+                  setEditing(u)
+                }}
+              />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {q.hasNextPage ? (
         <Group justify="center">

@@ -2,13 +2,14 @@ import {
   ActionIcon,
   Button,
   Group,
+  Menu,
   Text,
   Title,
   Tooltip,
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core'
-import { IconLogout, IconMoon, IconSettings, IconSun } from '@tabler/icons-react'
+import { IconApps, IconLogout, IconMenu2, IconMoon, IconSettings, IconSun, IconUser } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -78,7 +79,7 @@ export function UserShell({
               <img src="/logo.svg" alt="" width={30} height={30} />
               {brand}
             </Link>
-            <Group gap={6} wrap="nowrap">
+            <Group gap={6} wrap="nowrap" visibleFrom="sm">
               <Link to="/" className="porch-toplink">
                 Applications
               </Link>
@@ -97,7 +98,7 @@ export function UserShell({
                   Administration
                 </Button>
               ) : null}
-              <Text size="sm" c="gray.2" visibleFrom="sm" px={6}>
+              <Text size="sm" c="gray.2" visibleFrom="md" px={6}>
                 {me.display_name}
               </Text>
               <ColorSchemeToggle variant="subtle" color="gray.0" />
@@ -106,6 +107,35 @@ export function UserShell({
                   <IconLogout size={18} />
                 </ActionIcon>
               </Tooltip>
+            </Group>
+            {/* Phones: the links fold into a menu. */}
+            <Group gap={6} wrap="nowrap" hiddenFrom="sm">
+              <ColorSchemeToggle variant="subtle" color="gray.0" />
+              <Menu position="bottom-end" width={220} shadow="md">
+                <Menu.Target>
+                  <ActionIcon variant="subtle" color="gray.0" size="lg" aria-label="Menu">
+                    <IconMenu2 size={22} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Label>{me.display_name}</Menu.Label>
+                  <Menu.Item component={Link} to="/" leftSection={<IconApps size={16} aria-hidden />}>
+                    Applications
+                  </Menu.Item>
+                  <Menu.Item component={Link} to="/account" leftSection={<IconUser size={16} aria-hidden />}>
+                    Account
+                  </Menu.Item>
+                  {canAdmin ? (
+                    <Menu.Item component={Link} to="/admin" leftSection={<IconSettings size={16} aria-hidden />}>
+                      Administration
+                    </Menu.Item>
+                  ) : null}
+                  <Menu.Divider />
+                  <Menu.Item leftSection={<IconLogout size={16} aria-hidden />} onClick={() => void logout()}>
+                    Sign out
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             </Group>
           </nav>
           <div className="porch-hero-body">

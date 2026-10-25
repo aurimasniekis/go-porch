@@ -167,7 +167,7 @@ test.describe.serial('M5: tenant administration', () => {
 
   test('service accounts: create via the UI, then obtain a token with the client credentials grant', async () => {
     await page.goto(`/admin/t/${T}/service-accounts`)
-    await expect(page.locator('section').getByRole('link', { name: 'Assignments' })).toBeVisible()
+    await expect(page.getByRole('main').getByRole('link', { name: 'Assignments' })).toBeVisible()
     await page.getByRole('button', { name: 'New service account' }).click()
     const create = page.getByRole('dialog', { name: 'New service account' })
     await accessible(page)

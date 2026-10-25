@@ -3,6 +3,7 @@ import { IconCircleCheck, IconCircleX } from '@tabler/icons-react'
 import type { Decision } from '@/api/admin/authz'
 import { alertTitleStyles, Perm, Tag, YesNo } from './common'
 import { describeReason } from './logic'
+import { ListTable } from '@/components/ListTable'
 
 /** Renders an authorization decision and its explain trace (POST /tenants/{t}/authz/check). */
 export function DecisionView({ decision }: { decision: Decision }) {
@@ -67,64 +68,61 @@ export function DecisionView({ decision }: { decision: Decision }) {
             No assignment grants this action for this resource.
           </Text>
         ) : (
-          <Table.ScrollContainer
+          <ListTable
             minWidth={640}
-            type="native"
-            tabIndex={0}
-            role="region"
-            aria-label="Candidate grants, scrollable"
+            scroll={{ type: 'native', tabIndex: 0, role: 'region', 'aria-label': 'Candidate grants, scrollable' }}
+            aria-label="Candidate grants"
+            withTableBorder
           >
-            <Table aria-label="Candidate grants" withTableBorder>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Role</Table.Th>
-                  <Table.Th>Via</Table.Th>
-                  <Table.Th>Scope</Table.Th>
-                  <Table.Th>Permission</Table.Th>
-                  <Table.Th>Condition</Table.Th>
-                  <Table.Th>Applies</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {tr.candidates.map((c, i) => (
-                  <Table.Tr key={`${c.assignment_id ?? 'implicit'}-${c.permission}-${String(i)}`}>
-                    <Table.Td>{c.role}</Table.Td>
-                    <Table.Td>{c.via}</Table.Td>
-                    <Table.Td>
-                      <Text size="sm" style={{ overflowWrap: 'anywhere' }}>
-                        {c.scope}
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Role</Table.Th>
+                <Table.Th>Via</Table.Th>
+                <Table.Th>Scope</Table.Th>
+                <Table.Th>Permission</Table.Th>
+                <Table.Th>Condition</Table.Th>
+                <Table.Th>Applies</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {tr.candidates.map((c, i) => (
+                <Table.Tr key={`${c.assignment_id ?? 'implicit'}-${c.permission}-${String(i)}`}>
+                  <Table.Td>{c.role}</Table.Td>
+                  <Table.Td>{c.via}</Table.Td>
+                  <Table.Td>
+                    <Text size="sm" style={{ overflowWrap: 'anywhere' }}>
+                      {c.scope}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Perm>{c.permission}</Perm>
+                  </Table.Td>
+                  <Table.Td>
+                    {c.condition ? (
+                      <Stack gap={2}>
+                        <Group gap={6} wrap="nowrap">
+                          <Code>{c.condition.slug}</Code>
+                          <YesNo value={c.condition.result} yes="true" no="false" />
+                        </Group>
+                        {c.condition.error ? (
+                          <Text size="xs" c="red">
+                            {c.condition.error}
+                          </Text>
+                        ) : null}
+                      </Stack>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        none
                       </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Perm>{c.permission}</Perm>
-                    </Table.Td>
-                    <Table.Td>
-                      {c.condition ? (
-                        <Stack gap={2}>
-                          <Group gap={6} wrap="nowrap">
-                            <Code>{c.condition.slug}</Code>
-                            <YesNo value={c.condition.result} yes="true" no="false" />
-                          </Group>
-                          {c.condition.error ? (
-                            <Text size="xs" c="red">
-                              {c.condition.error}
-                            </Text>
-                          ) : null}
-                        </Stack>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          none
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <YesNo value={c.applies} yes="✓ applies" no="✗ does not apply" />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <YesNo value={c.applies} yes="✓ applies" no="✗ does not apply" />
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </ListTable>
         )}
       </div>
 
@@ -137,7 +135,7 @@ export function DecisionView({ decision }: { decision: Decision }) {
             No deny policy covers this action.
           </Text>
         ) : (
-          <Table aria-label="Deny policies evaluated" withTableBorder>
+          <ListTable aria-label="Deny policies evaluated" withTableBorder>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Policy</Table.Th>
@@ -160,7 +158,7 @@ export function DecisionView({ decision }: { decision: Decision }) {
                 </Table.Tr>
               ))}
             </Table.Tbody>
-          </Table>
+          </ListTable>
         )}
       </div>
 

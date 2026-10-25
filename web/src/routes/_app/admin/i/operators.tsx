@@ -8,6 +8,7 @@ import { api, check, unwrap } from '@/api/client'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { StatusBadge } from '@/components/admin/install/StatusBadge'
 import { DateTime, Loading } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/operators')({
   component: Operators,
@@ -112,57 +113,55 @@ function Operators() {
       {q.isPending ? <Loading label="Loading operators…" /> : null}
       {q.data?.length === 0 ? <EmptyState>No operators.</EmptyState> : null}
       {q.data?.length ? (
-        <Table.ScrollContainer minWidth={720}>
-          <Table striped aria-label="Installation operators" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Granted by</Table.Th>
-                <Table.Th>Since</Table.Th>
-                {isOwner ? <Table.Th>Actions</Table.Th> : null}
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((o) => (
-                <Table.Tr key={`${o.user_id}:${o.role}`}>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {o.display_name}
+        <ListTable minWidth={720} striped aria-label="Installation operators" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>User</Table.Th>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Granted by</Table.Th>
+              <Table.Th>Since</Table.Th>
+              {isOwner ? <Table.Th>Actions</Table.Th> : null}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((o) => (
+              <Table.Tr key={`${o.user_id}:${o.role}`}>
+                <Table.Td>
+                  <Text size="sm" fw={500}>
+                    {o.display_name}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {o.email ?? o.user_id}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <StatusBadge tone="info">{o.role}</StatusBadge>
+                  {roleInfo[o.role] ? (
+                    <Text size="xs" c="dimmed" mt={4}>
+                      {roleInfo[o.role]}
                     </Text>
-                    <Text size="xs" c="dimmed">
-                      {o.email ?? o.user_id}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <StatusBadge tone="info">{o.role}</StatusBadge>
-                    {roleInfo[o.role] ? (
-                      <Text size="xs" c="dimmed" mt={4}>
-                        {roleInfo[o.role]}
-                      </Text>
-                    ) : null}
-                  </Table.Td>
-                  <Table.Td>{o.source}</Table.Td>
-                  <Table.Td>
-                    <DateTime value={o.created_at} />
-                  </Table.Td>
-                  {isOwner ? (
-                    <Table.Td>
-                      <ConfirmButton
-                        label="Remove"
-                        title={`Remove the ${o.role} role?`}
-                        loading={revoke.isPending}
-                        onConfirm={() => revoke.mutateAsync({ user: o.user_id, role: o.role as Role })}
-                      >
-                        {o.display_name} loses the installation {o.role} role immediately.
-                      </ConfirmButton>
-                    </Table.Td>
                   ) : null}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                </Table.Td>
+                <Table.Td>{o.source}</Table.Td>
+                <Table.Td>
+                  <DateTime value={o.created_at} />
+                </Table.Td>
+                {isOwner ? (
+                  <Table.Td>
+                    <ConfirmButton
+                      label="Remove"
+                      title={`Remove the ${o.role} role?`}
+                      loading={revoke.isPending}
+                      onConfirm={() => revoke.mutateAsync({ user: o.user_id, role: o.role as Role })}
+                    >
+                      {o.display_name} loses the installation {o.role} role immediately.
+                    </ConfirmButton>
+                  </Table.Td>
+                ) : null}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
     </Stack>
   )

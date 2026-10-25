@@ -10,6 +10,7 @@ import { formatBytes, formatDuration } from '@/components/admin/install/format'
 import { StatusBadge, toneOf, type Tone } from '@/components/admin/install/StatusBadge'
 import { DateTime, Loading, Notice, RefreshButton } from '@/components/admin/install/ui'
 import { KeyringCard } from '@/components/admin/install/KeyringCard'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/health')({
   component: Health,
@@ -138,28 +139,26 @@ function HealthBody({ h, updatedAt }: { h: SystemHealth; updatedAt: number }) {
             Last updated <DateTime value={new Date(updatedAt).toISOString()} />
           </Text>
         </Group>
-        <Table.ScrollContainer minWidth={480} mt="md">
-          <Table aria-label="Health checks" verticalSpacing="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Check</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Detail</Table.Th>
+        <ListTable minWidth={480} mt="md" aria-label="Health checks" verticalSpacing="xs">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Check</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Detail</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {h.checks.map((c) => (
+              <Table.Tr key={c.name}>
+                <Table.Td tt="capitalize">{c.name}</Table.Td>
+                <Table.Td>
+                  <StatusBadge tone={toneOf(c.status)}>{c.status}</StatusBadge>
+                </Table.Td>
+                <Table.Td>{c.detail ?? '—'}</Table.Td>
               </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {h.checks.map((c) => (
-                <Table.Tr key={c.name}>
-                  <Table.Td tt="capitalize">{c.name}</Table.Td>
-                  <Table.Td>
-                    <StatusBadge tone={toneOf(c.status)}>{c.status}</StatusBadge>
-                  </Table.Td>
-                  <Table.Td>{c.detail ?? '—'}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       </Card>
 
       <SimpleGrid cols={{ base: 2, sm: 3, lg: 5 }}>

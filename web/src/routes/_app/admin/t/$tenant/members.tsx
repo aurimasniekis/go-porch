@@ -15,6 +15,7 @@ import {
 } from '@/api/admin/tenant'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/members')({
   component: MembersPage,
@@ -66,27 +67,25 @@ function MemberList({ tenant }: { tenant: string }) {
       ) : members.length === 0 && !q.error ? (
         <EmptyState>No members yet. Add a user above or create a domain rule or invitation.</EmptyState>
       ) : (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover aria-label="Tenant members">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Person</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Source</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>Member since</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {members.map((m) => (
-                <MemberRow key={m.id} tenant={tenant} m={m} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={760} striped highlightOnHover aria-label="Tenant members">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Person</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Source</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>Member since</Table.Th>
+              <Table.Th>
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {members.map((m) => (
+              <MemberRow key={m.id} tenant={tenant} m={m} />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       )}
       {q.hasNextPage ? (
         <Group justify="center">
@@ -208,7 +207,7 @@ function AddMember({ tenant, operator }: { tenant: string; operator: boolean }) 
                 description="Ask an installation administrator for the user's ID"
                 required
                 maw={420}
-                style={{ flex: 1 }}
+                style={{ flex: 1, minWidth: 220 }}
                 {...form.getInputProps('userId')}
               />
             )}
@@ -235,7 +234,7 @@ function UserPicker(props: { value?: string; onChange: (v: string) => void; erro
       required
       nothingFoundMessage="No matching user"
       maw={420}
-      style={{ flex: 1 }}
+      style={{ flex: 1, minWidth: 220 }}
       data={(users.data?.items ?? []).map((u) => ({
         value: u.id,
         label: u.primary_email ? `${u.display_name} <${u.primary_email}>` : u.display_name,

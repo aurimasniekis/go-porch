@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { actionUrl, api, ApiError, check, unwrap } from '@/api/client'
 import { backupStatusQuery, identitiesQuery, loginOptionsQuery, myGrantsQuery, mySessionsQuery } from '@/api/queries'
 import { UserShell } from '@/components/UserShell'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/account')({
   component: function Account() {
@@ -46,7 +47,7 @@ function Identities() {
         Linked sign-in accounts
       </Title>
       {ids.data?.length ? (
-        <Table>
+        <ListTable>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Provider</Table.Th>
@@ -63,7 +64,7 @@ function Identities() {
               </Table.Tr>
             ))}
           </Table.Tbody>
-        </Table>
+        </ListTable>
       ) : (
         <Text c="dimmed">No external accounts linked.</Text>
       )}
@@ -300,7 +301,7 @@ function Sessions() {
       <Title order={2} size="h4" mb="sm">
         Signed-in browsers
       </Title>
-      <Table>
+      <ListTable>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Method</Table.Th>
@@ -330,7 +331,7 @@ function Sessions() {
             </Table.Tr>
           ))}
         </Table.Tbody>
-      </Table>
+      </ListTable>
     </Card>
   )
 }
@@ -348,7 +349,7 @@ function Grants() {
         Applications with offline access
       </Title>
       {grants.data?.length ? (
-        <Table>
+        <ListTable>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Application</Table.Th>
@@ -371,7 +372,7 @@ function Grants() {
               </Table.Tr>
             ))}
           </Table.Tbody>
-        </Table>
+        </ListTable>
       ) : (
         <Text c="dimmed">No application keeps you signed in in the background.</Text>
       )}

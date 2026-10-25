@@ -23,6 +23,7 @@ import {
   CurlExample,
   EditServiceAccountModal,
 } from '@/components/admin/tenant/ServiceAccountForms'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/service-accounts')({
   component: ServiceAccountsPage,
@@ -75,39 +76,37 @@ function ServiceAccountsPage() {
         )
       ) : (
         <>
-          <Table.ScrollContainer minWidth={820}>
-            <Table striped highlightOnHover aria-label="Service accounts">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Service account</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Audiences</Table.Th>
-                  <Table.Th>Token lifetime</Table.Th>
-                  <Table.Th>Secret</Table.Th>
-                  <Table.Th>Last used</Table.Th>
-                  <Table.Th>Managed by</Table.Th>
-                  <Table.Th>
-                    <VisuallyHidden>Actions</VisuallyHidden>
-                  </Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {q.data.map((sa) => (
-                  <SARow
-                    key={sa.id}
-                    tenant={tenant}
-                    sa={sa}
-                    onEdit={() => {
-                      setEditing(sa.id)
-                    }}
-                    onRotated={(s) => {
-                      reveal(sa, s, `New secret for ${sa.name}`)
-                    }}
-                  />
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <ListTable minWidth={820} striped highlightOnHover aria-label="Service accounts">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Service account</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Audiences</Table.Th>
+                <Table.Th>Token lifetime</Table.Th>
+                <Table.Th>Secret</Table.Th>
+                <Table.Th>Last used</Table.Th>
+                <Table.Th>Managed by</Table.Th>
+                <Table.Th>
+                  <VisuallyHidden>Actions</VisuallyHidden>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {q.data.map((sa) => (
+                <SARow
+                  key={sa.id}
+                  tenant={tenant}
+                  sa={sa}
+                  onEdit={() => {
+                    setEditing(sa.id)
+                  }}
+                  onRotated={(s) => {
+                    reveal(sa, s, `New secret for ${sa.name}`)
+                  }}
+                />
+              ))}
+            </Table.Tbody>
+          </ListTable>
           <Card>
             <CurlExample sa={q.data[0]} />
           </Card>

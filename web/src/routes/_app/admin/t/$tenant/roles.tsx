@@ -10,6 +10,7 @@ import { LoadingState, ManagedBy, MutationError, Perm, Tag } from '@/components/
 import { PermissionPicker } from '@/components/admin/authz/inputs'
 import { slugify, validSlug } from '@/components/admin/authz/logic'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/roles')({
   component: RolesPage,
@@ -49,91 +50,89 @@ function RolesPage() {
       {roles.isPending ? <LoadingState label="Loading roles…" /> : null}
       {roles.data?.length === 0 ? <EmptyState>No roles yet.</EmptyState> : null}
       {roles.data && roles.data.length > 0 ? (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover aria-label="Roles" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Permissions</Table.Th>
-                <Table.Th>Includes roles</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {roles.data.map((r) => (
-                <Table.Tr key={r.id}>
-                  <Table.Td>
-                    <Group gap={6}>
-                      <Text fw={500}>{r.name}</Text>
-                      {r.built_in ? <Tag color="gray">built-in</Tag> : null}
+        <ListTable minWidth={760} striped highlightOnHover aria-label="Roles" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Permissions</Table.Th>
+              <Table.Th>Includes roles</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {roles.data.map((r) => (
+              <Table.Tr key={r.id}>
+                <Table.Td>
+                  <Group gap={6}>
+                    <Text fw={500}>{r.name}</Text>
+                    {r.built_in ? <Tag color="gray">built-in</Tag> : null}
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    {r.slug}
+                  </Text>
+                  {r.description ? (
+                    <Text size="xs" c="dimmed" maw={360}>
+                      {r.description}
+                    </Text>
+                  ) : null}
+                </Table.Td>
+                <Table.Td>
+                  {r.permissions.length > 0 ? (
+                    <Group gap={4}>
+                      {r.permissions.map((p) => (
+                        <Perm key={p}>{p}</Perm>
+                      ))}
                     </Group>
-                    <Text size="xs" c="dimmed">
-                      {r.slug}
+                  ) : (
+                    <Text size="sm" c="dimmed">
+                      none
                     </Text>
-                    {r.description ? (
-                      <Text size="xs" c="dimmed" maw={360}>
-                        {r.description}
-                      </Text>
-                    ) : null}
-                  </Table.Td>
-                  <Table.Td>
-                    {r.permissions.length > 0 ? (
-                      <Group gap={4}>
-                        {r.permissions.map((p) => (
-                          <Perm key={p}>{p}</Perm>
-                        ))}
-                      </Group>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        none
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">
-                      {r.includes.length > 0 ? r.includes.map((id) => byId.get(id)?.name ?? id).join(', ') : '—'}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <ManagedBy managedBy={r.managed_by} />
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Button
-                        size="xs"
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm">
+                    {r.includes.length > 0 ? r.includes.map((id) => byId.get(id)?.name ?? id).join(', ') : '—'}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <ManagedBy managedBy={r.managed_by} />
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs" justify="flex-end" wrap="nowrap">
+                    <Button
+                      size="xs"
+                      variant="default"
+                      aria-label={`Edit role ${r.name}`}
+                      onClick={() => {
+                        setEditing({ mode: 'edit', role: r })
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    {r.built_in ? null : (
+                      <ConfirmButton
                         variant="default"
-                        aria-label={`Edit role ${r.name}`}
-                        onClick={() => {
-                          setEditing({ mode: 'edit', role: r })
-                        }}
+                        label="Delete"
+                        title={`Delete role ${r.name}?`}
+                        confirmLabel="Delete role"
+                        loading={del.isPending}
+                        onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
                       >
-                        Edit
-                      </Button>
-                      {r.built_in ? null : (
-                        <ConfirmButton
-                          variant="default"
-                          label="Delete"
-                          title={`Delete role ${r.name}?`}
-                          confirmLabel="Delete role"
-                          loading={del.isPending}
-                          onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
-                        >
-                          <Text size="sm">
-                            Every assignment of <b>{r.name}</b> is removed and roles that include it no longer grant its
-                            permissions. This cannot be undone.
-                          </Text>
-                        </ConfirmButton>
-                      )}
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                        <Text size="sm">
+                          Every assignment of <b>{r.name}</b> is removed and roles that include it no longer grant its
+                          permissions. This cannot be undone.
+                        </Text>
+                      </ConfirmButton>
+                    )}
+                  </Group>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {editing ? (
         <RoleDialog

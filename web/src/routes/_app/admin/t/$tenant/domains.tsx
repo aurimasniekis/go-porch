@@ -17,6 +17,7 @@ import {
 } from '@/api/admin/tenant'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, Notice, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/domains')({
   component: DomainsPage,
@@ -68,28 +69,26 @@ function RuleList({ tenant }: { tenant: string }) {
           <EmptyState>No domain rules. Members join through invitations or manual addition only.</EmptyState>
         )
       ) : (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped aria-label="Domain rules">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Domain</Table.Th>
-                <Table.Th>Provider</Table.Th>
-                <Table.Th>Evidence</Table.Th>
-                <Table.Th>Mode</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((r) => (
-                <RuleRow key={r.id} tenant={tenant} rule={r} provider={byId.get(r.provider_id)} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={760} striped aria-label="Domain rules">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Domain</Table.Th>
+              <Table.Th>Provider</Table.Th>
+              <Table.Th>Evidence</Table.Th>
+              <Table.Th>Mode</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>Created</Table.Th>
+              <Table.Th>
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((r) => (
+              <RuleRow key={r.id} tenant={tenant} rule={r} provider={byId.get(r.provider_id)} />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       )}
     </Section>
   )

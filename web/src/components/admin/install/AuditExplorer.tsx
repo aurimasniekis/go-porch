@@ -13,6 +13,7 @@ import { EmptyState, ErrorAlert } from '@/components/admin/kit'
 import { actorLabel, detailsJson, localInputToIso, targetLabel } from './format'
 import { StatusBadge, toneOf } from './StatusBadge'
 import { DateTime, Loading, Notice, RefreshButton } from './ui'
+import { ListTable } from '@/components/ListTable'
 
 const actionRE = /^[a-z_.]{1,64}$/
 
@@ -178,74 +179,72 @@ export function AuditExplorer({ tenant, initial }: AuditExplorerProps) {
       {q.isPending ? <Loading label="Loading audit events…" /> : null}
       {q.isSuccess && events.length === 0 ? <EmptyState>No audit events match these filters.</EmptyState> : null}
       {events.length > 0 ? (
-        <Table.ScrollContainer minWidth={860}>
-          <Table striped highlightOnHover aria-label="Audit events, newest first" verticalSpacing="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={40}>
-                  <span className="visually-hidden">Details</span>
-                </Table.Th>
-                <Table.Th>Time</Table.Th>
-                <Table.Th>Actor</Table.Th>
-                <Table.Th>Action</Table.Th>
-                <Table.Th>Target</Table.Th>
-                <Table.Th>Outcome</Table.Th>
-                <Table.Th>Source IP</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {events.map((ev) => {
-                const expanded = open.has(ev.id)
-                const detailsId = `audit-details-${ev.id}`
-                return (
-                  <Fragment key={ev.id}>
-                    <Table.Tr>
-                      <Table.Td>
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          aria-label={`${expanded ? 'Hide' : 'Show'} details of ${ev.action} event ${String(ev.seq)}`}
-                          aria-expanded={expanded}
-                          aria-controls={expanded ? detailsId : undefined}
-                          onClick={() => {
-                            toggle(ev.id)
-                          }}
-                        >
-                          {expanded ? (
-                            <IconChevronDown size={16} aria-hidden />
-                          ) : (
-                            <IconChevronRight size={16} aria-hidden />
-                          )}
-                        </ActionIcon>
+        <ListTable minWidth={860} striped highlightOnHover aria-label="Audit events, newest first" verticalSpacing="xs">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th w={40}>
+                <span className="visually-hidden">Details</span>
+              </Table.Th>
+              <Table.Th>Time</Table.Th>
+              <Table.Th>Actor</Table.Th>
+              <Table.Th>Action</Table.Th>
+              <Table.Th>Target</Table.Th>
+              <Table.Th>Outcome</Table.Th>
+              <Table.Th>Source IP</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {events.map((ev) => {
+              const expanded = open.has(ev.id)
+              const detailsId = `audit-details-${ev.id}`
+              return (
+                <Fragment key={ev.id}>
+                  <Table.Tr>
+                    <Table.Td className="porch-list-corner">
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label={`${expanded ? 'Hide' : 'Show'} details of ${ev.action} event ${String(ev.seq)}`}
+                        aria-expanded={expanded}
+                        aria-controls={expanded ? detailsId : undefined}
+                        onClick={() => {
+                          toggle(ev.id)
+                        }}
+                      >
+                        {expanded ? (
+                          <IconChevronDown size={16} aria-hidden />
+                        ) : (
+                          <IconChevronRight size={16} aria-hidden />
+                        )}
+                      </ActionIcon>
+                    </Table.Td>
+                    <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                      <DateTime value={ev.at} />
+                    </Table.Td>
+                    <Table.Td>{actorLabel(ev)}</Table.Td>
+                    <Table.Td>
+                      <Code>{ev.action}</Code>
+                    </Table.Td>
+                    <Table.Td style={{ wordBreak: 'break-all' }}>{targetLabel(ev)}</Table.Td>
+                    <Table.Td>
+                      <StatusBadge tone={toneOf(ev.outcome)} size="sm">
+                        {ev.outcome}
+                      </StatusBadge>
+                    </Table.Td>
+                    <Table.Td>{ev.source_ip ?? '—'}</Table.Td>
+                  </Table.Tr>
+                  {expanded ? (
+                    <Table.Tr id={detailsId}>
+                      <Table.Td colSpan={columns}>
+                        <EventDetails ev={ev} tenantName={ev.tenant_id ? tenantNames.get(ev.tenant_id) : undefined} />
                       </Table.Td>
-                      <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                        <DateTime value={ev.at} />
-                      </Table.Td>
-                      <Table.Td>{actorLabel(ev)}</Table.Td>
-                      <Table.Td>
-                        <Code>{ev.action}</Code>
-                      </Table.Td>
-                      <Table.Td style={{ wordBreak: 'break-all' }}>{targetLabel(ev)}</Table.Td>
-                      <Table.Td>
-                        <StatusBadge tone={toneOf(ev.outcome)} size="sm">
-                          {ev.outcome}
-                        </StatusBadge>
-                      </Table.Td>
-                      <Table.Td>{ev.source_ip ?? '—'}</Table.Td>
                     </Table.Tr>
-                    {expanded ? (
-                      <Table.Tr id={detailsId}>
-                        <Table.Td colSpan={columns}>
-                          <EventDetails ev={ev} tenantName={ev.tenant_id ? tenantNames.get(ev.tenant_id) : undefined} />
-                        </Table.Td>
-                      </Table.Tr>
-                    ) : null}
-                  </Fragment>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                  ) : null}
+                </Fragment>
+              )
+            })}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {events.length > 0 ? (
         <Group justify="space-between">

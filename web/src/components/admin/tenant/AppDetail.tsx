@@ -19,6 +19,7 @@ import {
   type UpdateApplicationRequest,
 } from '@/api/admin/tenant'
 import { ConfirmButton, EmptyState, ErrorAlert } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 import {
   ClientFields,
   GeneralFields,
@@ -359,7 +360,7 @@ function Shares({ tenant, app }: { tenant: string; app: Application }) {
             <EmptyState>Not shared.</EmptyState>
           )
         ) : (
-          <Table aria-label="Tenants this application is shared with">
+          <ListTable aria-label="Tenants this application is shared with">
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Tenant</Table.Th>
@@ -395,7 +396,7 @@ function Shares({ tenant, app }: { tenant: string; app: Application }) {
                 </Table.Tr>
               ))}
             </Table.Tbody>
-          </Table>
+          </ListTable>
         )}
         <Group align="flex-end">
           <Select
@@ -406,7 +407,7 @@ function Shares({ tenant, app }: { tenant: string; app: Application }) {
             onChange={setTarget}
             searchable
             nothingFoundMessage="No other tenant"
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 220 }}
             maw={360}
           />
           <Button

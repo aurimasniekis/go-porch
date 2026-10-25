@@ -38,6 +38,7 @@ import { DecisionView } from '@/components/admin/authz/DecisionView'
 import { LoadingState, Perm, Tag } from '@/components/admin/authz/common'
 import { validAction } from '@/components/admin/authz/logic'
 import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/access')({
   component: AccessPage,
@@ -142,48 +143,46 @@ function Effective({ tenant, may }: { tenant: string; may: Caps }) {
       ) : null}
       {grants.data?.length === 0 ? <EmptyState>No grants reach this subject.</EmptyState> : null}
       {grants.data && grants.data.length > 0 ? (
-        <Table.ScrollContainer minWidth={720}>
-          <Table striped aria-label="Effective permissions" verticalSpacing="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Permission</Table.Th>
-                <Table.Th>Scope</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Via</Table.Th>
-                <Table.Th>Limits</Table.Th>
+        <ListTable minWidth={720} striped aria-label="Effective permissions" verticalSpacing="xs">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Permission</Table.Th>
+              <Table.Th>Scope</Table.Th>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Via</Table.Th>
+              <Table.Th>Limits</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {grants.data.map((g, i) => (
+              <Table.Tr key={`${g.permission}|${g.scope}|${g.role}|${g.via}|${String(i)}`}>
+                <Table.Td>
+                  <Perm>{g.permission}</Perm>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm">{g.scope}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm">{g.role}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm">{g.via}</Text>
+                </Table.Td>
+                <Table.Td>
+                  <Group gap={4}>
+                    {g.conditional ? <Tag color="violet">conditional</Tag> : null}
+                    {g.expires ? <Tag color="orange">expires</Tag> : null}
+                    {!g.conditional && !g.expires ? (
+                      <Text size="sm" c="dimmed">
+                        —
+                      </Text>
+                    ) : null}
+                  </Group>
+                </Table.Td>
               </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {grants.data.map((g, i) => (
-                <Table.Tr key={`${g.permission}|${g.scope}|${g.role}|${g.via}|${String(i)}`}>
-                  <Table.Td>
-                    <Perm>{g.permission}</Perm>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{g.scope}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{g.role}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{g.via}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap={4}>
-                      {g.conditional ? <Tag color="violet">conditional</Tag> : null}
-                      {g.expires ? <Tag color="orange">expires</Tag> : null}
-                      {!g.conditional && !g.expires ? (
-                        <Text size="sm" c="dimmed">
-                          —
-                        </Text>
-                      ) : null}
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
     </Stack>
   )

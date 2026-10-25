@@ -10,6 +10,7 @@ import { AppCreateModal } from '@/components/admin/tenant/AppCreateModal'
 import { AppDetail } from '@/components/admin/tenant/AppDetail'
 import { LoadingRows, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
 import { SecretModal, type OneTimeSecret } from '@/components/admin/tenant/SecretModal'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/applications')({
   validateSearch: (s: Record<string, unknown>): { app?: string } =>
@@ -45,34 +46,32 @@ function ApplicationsPage() {
           <EmptyState>No applications yet. Create one to let members sign in to it.</EmptyState>
         )
       ) : (
-        <Table.ScrollContainer minWidth={760}>
-          <Table striped highlightOnHover aria-label="Applications">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Application</Table.Th>
-                <Table.Th>Kind</Table.Th>
-                <Table.Th>Access</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Client ID / hosts</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((a) => (
-                <AppRow
-                  key={a.id}
-                  a={a}
-                  onOpen={() => {
-                    select(a.id)
-                  }}
-                />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={760} striped highlightOnHover aria-label="Applications">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Application</Table.Th>
+              <Table.Th>Kind</Table.Th>
+              <Table.Th>Access</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Client ID / hosts</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((a) => (
+              <AppRow
+                key={a.id}
+                a={a}
+                onOpen={() => {
+                  select(a.id)
+                }}
+              />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       )}
       <AppCreateModal
         tenant={tenant}

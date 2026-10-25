@@ -11,6 +11,7 @@ import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { KeyringCard } from '@/components/admin/install/KeyringCard'
 import { StatusBadge, toneOf } from '@/components/admin/install/StatusBadge'
 import { DateTime, Loading, Notice } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/keys')({
   component: Keys,
@@ -47,38 +48,36 @@ function Keys() {
         {keys.isPending ? <Loading label="Loading signing keys…" /> : null}
         {keys.data?.length === 0 ? <EmptyState>No signing keys yet; one is created on first use.</EmptyState> : null}
         {keys.data?.length ? (
-          <Table.ScrollContainer minWidth={640}>
-            <Table striped aria-label="OIDC signing keys" verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Key ID</Table.Th>
-                  <Table.Th>Algorithm</Table.Th>
-                  <Table.Th>State</Table.Th>
-                  <Table.Th>Created</Table.Th>
-                  <Table.Th>Retires after</Table.Th>
+          <ListTable minWidth={640} striped aria-label="OIDC signing keys" verticalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Key ID</Table.Th>
+                <Table.Th>Algorithm</Table.Th>
+                <Table.Th>State</Table.Th>
+                <Table.Th>Created</Table.Th>
+                <Table.Th>Retires after</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {keys.data.map((k) => (
+                <Table.Tr key={k.kid}>
+                  <Table.Td>
+                    <Code>{k.kid}</Code>
+                  </Table.Td>
+                  <Table.Td>{k.alg}</Table.Td>
+                  <Table.Td>
+                    <StatusBadge tone={k.state === 'retired' ? 'neutral' : toneOf(k.state)}>{k.state}</StatusBadge>
+                  </Table.Td>
+                  <Table.Td>
+                    <DateTime value={k.created_at} />
+                  </Table.Td>
+                  <Table.Td>
+                    <DateTime value={k.retire_after} />
+                  </Table.Td>
                 </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {keys.data.map((k) => (
-                  <Table.Tr key={k.kid}>
-                    <Table.Td>
-                      <Code>{k.kid}</Code>
-                    </Table.Td>
-                    <Table.Td>{k.alg}</Table.Td>
-                    <Table.Td>
-                      <StatusBadge tone={k.state === 'retired' ? 'neutral' : toneOf(k.state)}>{k.state}</StatusBadge>
-                    </Table.Td>
-                    <Table.Td>
-                      <DateTime value={k.created_at} />
-                    </Table.Td>
-                    <Table.Td>
-                      <DateTime value={k.retire_after} />
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+              ))}
+            </Table.Tbody>
+          </ListTable>
         ) : null}
       </Card>
       <ErrorAlert error={health.error} title="Could not load the keyring status" />

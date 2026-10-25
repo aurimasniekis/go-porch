@@ -31,6 +31,7 @@ import { LoadingState, ManagedBy, MutationError, Perm, Tag } from '@/components/
 import { PermissionPicker } from '@/components/admin/authz/inputs'
 import { slugify, validSlug } from '@/components/admin/authz/logic'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/policies')({
   component: PoliciesPage,
@@ -75,87 +76,85 @@ function PoliciesPage() {
       {policies.isPending ? <LoadingState label="Loading policies…" /> : null}
       {policies.data?.length === 0 ? <EmptyState>No policies yet.</EmptyState> : null}
       {policies.data && policies.data.length > 0 ? (
-        <Table.ScrollContainer minWidth={820}>
-          <Table striped highlightOnHover aria-label="Policies" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Policy</Table.Th>
-                <Table.Th>Effect</Table.Th>
-                <Table.Th>Applies to</Table.Th>
-                <Table.Th>Expression</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {policies.data.map((p) => (
-                <Table.Tr key={p.id}>
-                  <Table.Td>
-                    <Text fw={500}>{p.name}</Text>
-                    <Text size="xs" c="dimmed">
-                      {p.slug} · env v{p.env_version}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Tag color={p.effect === 'deny' ? 'red' : 'violet'}>{p.effect}</Tag>
-                  </Table.Td>
-                  <Table.Td>
-                    {p.effect === 'deny' ? (
-                      <Group gap={4}>
-                        {p.actions.map((a) => (
-                          <Perm key={a}>{a}</Perm>
-                        ))}
-                      </Group>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        assignments that reference it
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td maw={360}>
-                    <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      {p.expression.length > 160 ? `${p.expression.slice(0, 160)}…` : p.expression}
-                    </Code>
-                  </Table.Td>
-                  <Table.Td>
-                    <ManagedBy managedBy={p.managed_by} />
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Button
-                        size="xs"
-                        variant="default"
-                        aria-label={`Edit policy ${p.name}`}
-                        onClick={() => {
-                          setDialog({ kind: 'edit', policy: p })
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <ConfirmButton
-                        variant="default"
-                        label="Delete"
-                        title={`Delete policy ${p.name}?`}
-                        confirmLabel="Delete policy"
-                        loading={del.isPending}
-                        onConfirm={() => del.mutateAsync(p).catch(() => undefined)}
-                      >
-                        <Text size="sm">
-                          {p.effect === 'condition'
-                            ? 'Every conditional assignment that references this policy is removed as well.'
-                            : 'Its restriction is lifted: grants for its actions apply again.'}{' '}
-                          This cannot be undone.
-                        </Text>
-                      </ConfirmButton>
+        <ListTable minWidth={820} striped highlightOnHover aria-label="Policies" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Policy</Table.Th>
+              <Table.Th>Effect</Table.Th>
+              <Table.Th>Applies to</Table.Th>
+              <Table.Th>Expression</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {policies.data.map((p) => (
+              <Table.Tr key={p.id}>
+                <Table.Td>
+                  <Text fw={500}>{p.name}</Text>
+                  <Text size="xs" c="dimmed">
+                    {p.slug} · env v{p.env_version}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Tag color={p.effect === 'deny' ? 'red' : 'violet'}>{p.effect}</Tag>
+                </Table.Td>
+                <Table.Td>
+                  {p.effect === 'deny' ? (
+                    <Group gap={4}>
+                      {p.actions.map((a) => (
+                        <Perm key={a}>{a}</Perm>
+                      ))}
                     </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                  ) : (
+                    <Text size="sm" c="dimmed">
+                      assignments that reference it
+                    </Text>
+                  )}
+                </Table.Td>
+                <Table.Td maw={360}>
+                  <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {p.expression.length > 160 ? `${p.expression.slice(0, 160)}…` : p.expression}
+                  </Code>
+                </Table.Td>
+                <Table.Td>
+                  <ManagedBy managedBy={p.managed_by} />
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs" justify="flex-end" wrap="nowrap">
+                    <Button
+                      size="xs"
+                      variant="default"
+                      aria-label={`Edit policy ${p.name}`}
+                      onClick={() => {
+                        setDialog({ kind: 'edit', policy: p })
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <ConfirmButton
+                      variant="default"
+                      label="Delete"
+                      title={`Delete policy ${p.name}?`}
+                      confirmLabel="Delete policy"
+                      loading={del.isPending}
+                      onConfirm={() => del.mutateAsync(p).catch(() => undefined)}
+                    >
+                      <Text size="sm">
+                        {p.effect === 'condition'
+                          ? 'Every conditional assignment that references this policy is removed as well.'
+                          : 'Its restriction is lifted: grants for its actions apply again.'}{' '}
+                        This cannot be undone.
+                      </Text>
+                    </ConfirmButton>
+                  </Group>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {dialog ? (
         <PolicyDialog
@@ -399,7 +398,7 @@ function EnvironmentReference() {
         <Accordion.Control>Environment v1 reference</Accordion.Control>
         <Accordion.Panel>
           <Stack gap="sm">
-            <Table aria-label="Policy environment fields" withRowBorders>
+            <ListTable aria-label="Policy environment fields" withRowBorders>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Field</Table.Th>
@@ -418,8 +417,8 @@ function EnvironmentReference() {
                   </Table.Tr>
                 ))}
               </Table.Tbody>
-            </Table>
-            <Table aria-label="Policy helper functions" withRowBorders>
+            </ListTable>
+            <ListTable aria-label="Policy helper functions" withRowBorders>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Helper</Table.Th>
@@ -438,7 +437,7 @@ function EnvironmentReference() {
                   </Table.Tr>
                 ))}
               </Table.Tbody>
-            </Table>
+            </ListTable>
             <Text size="sm" c="dimmed">
               Expressions are sandboxed: at most {MAX_EXPRESSION} characters and 256 nodes, no other functions. A
               condition that fails to evaluate counts as false; a deny policy that fails to evaluate denies.

@@ -36,6 +36,7 @@ import { api, check, unwrap } from '@/api/client'
 import { LoadingState, MutationError, Tag } from '@/components/admin/authz/common'
 import { localInputToISO, scopeText, toLocalInput, validResourceType } from '@/components/admin/authz/logic'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/assignments')({
   component: AssignmentsPage,
@@ -171,97 +172,95 @@ function AssignmentsPage() {
         <EmptyState>{all.length === 0 ? 'No assignments yet.' : 'No assignments match the filters.'}</EmptyState>
       ) : null}
       {rows.length > 0 ? (
-        <Table.ScrollContainer minWidth={900}>
-          <Table striped highlightOnHover aria-label="Role assignments" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Subject</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Scope</Table.Th>
-                <Table.Th>Condition</Table.Th>
-                <Table.Th>Expires</Table.Th>
-                <Table.Th>Source</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {rows.map((a) => {
-                const role = dir.roleById.get(a.role_id)
-                const pol = a.condition_policy_id ? dir.policyById.get(a.condition_policy_id) : undefined
-                const expired = a.expires_at ? new Date(a.expires_at) <= new Date() : false
-                return (
-                  <Table.Tr key={a.id}>
-                    <Table.Td>
-                      <Group gap={6} wrap="nowrap">
-                        <Tag color={subjectTypeColor[a.subject_type] ?? 'gray'}>
-                          {subjectTypeLabel[a.subject_type] ?? a.subject_type}
-                        </Tag>
-                        <Text size="sm">{subjectName(a)}</Text>
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{role?.name ?? a.role_id}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">
-                        {scopeText(
-                          a.scope_type,
-                          a.scope_resource_type,
-                          a.scope_resource_id
-                            ? (dir.scopeNames.get(`${a.scope_resource_type ?? ''}:${a.scope_resource_id}`) ??
-                                a.scope_resource_id)
-                            : undefined,
-                        )}
+        <ListTable minWidth={900} striped highlightOnHover aria-label="Role assignments" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Subject</Table.Th>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Scope</Table.Th>
+              <Table.Th>Condition</Table.Th>
+              <Table.Th>Expires</Table.Th>
+              <Table.Th>Source</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {rows.map((a) => {
+              const role = dir.roleById.get(a.role_id)
+              const pol = a.condition_policy_id ? dir.policyById.get(a.condition_policy_id) : undefined
+              const expired = a.expires_at ? new Date(a.expires_at) <= new Date() : false
+              return (
+                <Table.Tr key={a.id}>
+                  <Table.Td>
+                    <Group gap={6} wrap="nowrap">
+                      <Tag color={subjectTypeColor[a.subject_type] ?? 'gray'}>
+                        {subjectTypeLabel[a.subject_type] ?? a.subject_type}
+                      </Tag>
+                      <Text size="sm">{subjectName(a)}</Text>
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{role?.name ?? a.role_id}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">
+                      {scopeText(
+                        a.scope_type,
+                        a.scope_resource_type,
+                        a.scope_resource_id
+                          ? (dir.scopeNames.get(`${a.scope_resource_type ?? ''}:${a.scope_resource_id}`) ??
+                              a.scope_resource_id)
+                          : undefined,
+                      )}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    {a.condition_policy_id ? (
+                      <Text size="sm">{pol?.name ?? a.condition_policy_id}</Text>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        always
                       </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {a.condition_policy_id ? (
-                        <Text size="sm">{pol?.name ?? a.condition_policy_id}</Text>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          always
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {a.expires_at ? (
-                        <Group gap={6} wrap="nowrap">
-                          <Text size="sm">{new Date(a.expires_at).toLocaleString()}</Text>
-                          {expired ? <Tag color="red">expired</Tag> : null}
-                        </Group>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          never
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{a.source}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group justify="flex-end">
-                        <ConfirmButton
-                          variant="default"
-                          label="Remove"
-                          title="Remove this assignment?"
-                          confirmLabel="Remove assignment"
-                          loading={del.isPending}
-                          onConfirm={() => del.mutateAsync(a).catch(() => undefined)}
-                        >
-                          <Text size="sm">
-                            {subjectName(a)} loses the role {role?.name ?? a.role_id} granted by this assignment.
-                          </Text>
-                        </ConfirmButton>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    {a.expires_at ? (
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="sm">{new Date(a.expires_at).toLocaleString()}</Text>
+                        {expired ? <Tag color="red">expired</Tag> : null}
                       </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                    ) : (
+                      <Text size="sm" c="dimmed">
+                        never
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{a.source}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group justify="flex-end">
+                      <ConfirmButton
+                        variant="default"
+                        label="Remove"
+                        title="Remove this assignment?"
+                        confirmLabel="Remove assignment"
+                        loading={del.isPending}
+                        onConfirm={() => del.mutateAsync(a).catch(() => undefined)}
+                      >
+                        <Text size="sm">
+                          {subjectName(a)} loses the role {role?.name ?? a.role_id} granted by this assignment.
+                        </Text>
+                      </ConfirmButton>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              )
+            })}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {creating ? (
         <AssignmentDialog

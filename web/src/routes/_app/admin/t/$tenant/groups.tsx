@@ -30,6 +30,7 @@ import { api, check, unwrap } from '@/api/client'
 import { LoadingState, ManagedBy, MutationError } from '@/components/admin/authz/common'
 import { groupDescendants, slugify, validSlug } from '@/components/admin/authz/logic'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/groups')({
   component: GroupsPage,
@@ -71,79 +72,77 @@ function GroupsPage() {
       {groups.isPending ? <LoadingState label="Loading groups…" /> : null}
       {groups.data?.length === 0 ? <EmptyState>No groups yet. Create one to organise members.</EmptyState> : null}
       {list.length > 0 ? (
-        <Table.ScrollContainer minWidth={720}>
-          <Table striped highlightOnHover aria-label="Groups" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Group</Table.Th>
-                <Table.Th>Direct members</Table.Th>
-                <Table.Th>Member of</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
+        <ListTable minWidth={720} striped highlightOnHover aria-label="Groups" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Group</Table.Th>
+              <Table.Th>Direct members</Table.Th>
+              <Table.Th>Member of</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {list.map((g) => (
+              <Table.Tr key={g.id}>
+                <Table.Td>
+                  <Text fw={500}>{g.name}</Text>
+                  <Text size="xs" c="dimmed">
+                    {g.slug}
+                  </Text>
+                </Table.Td>
+                <Table.Td>{g.members.length}</Table.Td>
+                <Table.Td>
+                  <Text size="sm">
+                    {g.parents.length > 0 ? g.parents.map((p) => byId.get(p)?.name ?? p).join(', ') : '—'}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <ManagedBy managedBy={g.managed_by} />
+                </Table.Td>
+                <Table.Td>
+                  <Group gap="xs" justify="flex-end" wrap="nowrap">
+                    <Button
+                      size="xs"
+                      variant="light"
+                      aria-label={`Members & nesting of ${g.name}`}
+                      onClick={() => {
+                        setDialog({ kind: 'manage', id: g.id })
+                      }}
+                    >
+                      Members & nesting
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="default"
+                      aria-label={`Rename ${g.name}`}
+                      onClick={() => {
+                        setDialog({ kind: 'edit', id: g.id })
+                      }}
+                    >
+                      Rename
+                    </Button>
+                    <ConfirmButton
+                      variant="default"
+                      label="Delete"
+                      title={`Delete group ${g.name}?`}
+                      confirmLabel="Delete group"
+                      loading={del.isPending}
+                      onConfirm={() => del.mutateAsync(g).catch(() => undefined)}
+                    >
+                      <Text size="sm">
+                        Its memberships, nesting and role assignments are removed; members lose what the group granted
+                        them. This cannot be undone.
+                      </Text>
+                    </ConfirmButton>
+                  </Group>
+                </Table.Td>
               </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {list.map((g) => (
-                <Table.Tr key={g.id}>
-                  <Table.Td>
-                    <Text fw={500}>{g.name}</Text>
-                    <Text size="xs" c="dimmed">
-                      {g.slug}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>{g.members.length}</Table.Td>
-                  <Table.Td>
-                    <Text size="sm">
-                      {g.parents.length > 0 ? g.parents.map((p) => byId.get(p)?.name ?? p).join(', ') : '—'}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <ManagedBy managedBy={g.managed_by} />
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Button
-                        size="xs"
-                        variant="light"
-                        aria-label={`Members & nesting of ${g.name}`}
-                        onClick={() => {
-                          setDialog({ kind: 'manage', id: g.id })
-                        }}
-                      >
-                        Members & nesting
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="default"
-                        aria-label={`Rename ${g.name}`}
-                        onClick={() => {
-                          setDialog({ kind: 'edit', id: g.id })
-                        }}
-                      >
-                        Rename
-                      </Button>
-                      <ConfirmButton
-                        variant="default"
-                        label="Delete"
-                        title={`Delete group ${g.name}?`}
-                        confirmLabel="Delete group"
-                        loading={del.isPending}
-                        onConfirm={() => del.mutateAsync(g).catch(() => undefined)}
-                      >
-                        <Text size="sm">
-                          Its memberships, nesting and role assignments are removed; members lose what the group granted
-                          them. This cannot be undone.
-                        </Text>
-                      </ConfirmButton>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {dialog?.kind === 'create' ? (
         <GroupForm
@@ -365,44 +364,42 @@ function ManageGroup({
             No direct members.
           </Text>
         ) : (
-          <Table.ScrollContainer minWidth={420}>
-            <Table aria-label={`Direct members of ${group.name}`}>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Member</Table.Th>
-                  <Table.Th>
-                    <span className="visually-hidden">Actions</span>
-                  </Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {group.members.map((u) => {
-                  const m = byUser.get(u)
-                  const label = m ? memberLabel(m) : u
-                  return (
-                    <Table.Tr key={u}>
-                      <Table.Td>{label}</Table.Td>
-                      <Table.Td>
-                        <Group justify="flex-end">
-                          <Button
-                            size="xs"
-                            variant="default"
-                            aria-label={`Remove ${label} from ${group.name}`}
-                            loading={removeMember.isPending && removeMember.variables === u}
-                            onClick={() => {
-                              removeMember.mutate(u)
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  )
-                })}
-              </Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
+          <ListTable minWidth={420} aria-label={`Direct members of ${group.name}`}>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Member</Table.Th>
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {group.members.map((u) => {
+                const m = byUser.get(u)
+                const label = m ? memberLabel(m) : u
+                return (
+                  <Table.Tr key={u}>
+                    <Table.Td>{label}</Table.Td>
+                    <Table.Td>
+                      <Group justify="flex-end">
+                        <Button
+                          size="xs"
+                          variant="default"
+                          aria-label={`Remove ${label} from ${group.name}`}
+                          loading={removeMember.isPending && removeMember.variables === u}
+                          onClick={() => {
+                            removeMember.mutate(u)
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                )
+              })}
+            </Table.Tbody>
+          </ListTable>
         )}
         <form
           onSubmit={(e) => {
@@ -444,7 +441,7 @@ function ManageGroup({
             Not nested in any group.
           </Text>
         ) : (
-          <Table aria-label={`Parent groups of ${group.name}`}>
+          <ListTable aria-label={`Parent groups of ${group.name}`}>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Parent group</Table.Th>
@@ -478,7 +475,7 @@ function ManageGroup({
                 )
               })}
             </Table.Tbody>
-          </Table>
+          </ListTable>
         )}
         <form
           onSubmit={(e) => {

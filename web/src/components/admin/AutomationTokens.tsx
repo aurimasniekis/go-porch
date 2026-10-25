@@ -22,6 +22,7 @@ import { useAdminMutation } from '@/api/admin'
 import { api, check, unwrap, type Schemas } from '@/api/client'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { CopyField } from '@/components/admin/tenant/common'
+import { ListTable } from '@/components/ListTable'
 
 type Token = Schemas['Token']
 
@@ -187,78 +188,76 @@ export function AutomationTokens({ scope, canManage }: { scope: TokenScope; canM
       <ErrorAlert error={q.error} title="Could not load tokens" />
       {q.data?.length === 0 ? <EmptyState>No automation tokens.</EmptyState> : null}
       {q.data?.length ? (
-        <Table.ScrollContainer minWidth={820}>
-          <Table striped aria-label="Automation tokens" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Grants</Table.Th>
-                <Table.Th>Created by</Table.Th>
-                <Table.Th>Expires</Table.Th>
-                <Table.Th>Last used</Table.Th>
-                <Table.Th>Status</Table.Th>
-                {canManage ? <Table.Th>Actions</Table.Th> : null}
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((t) => {
-                const st = status(t, now)
-                return (
-                  <Table.Tr key={t.id}>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>
-                        {t.name}
-                      </Text>
+        <ListTable minWidth={820} striped aria-label="Automation tokens" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Grants</Table.Th>
+              <Table.Th>Created by</Table.Th>
+              <Table.Th>Expires</Table.Th>
+              <Table.Th>Last used</Table.Th>
+              <Table.Th>Status</Table.Th>
+              {canManage ? <Table.Th>Actions</Table.Th> : null}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((t) => {
+              const st = status(t, now)
+              return (
+                <Table.Tr key={t.id}>
+                  <Table.Td>
+                    <Text size="sm" fw={500}>
+                      {t.name}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      …{t.hint}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{t.role ? `installation ${t.role}` : t.permissions.join(', ')}</Text>
+                  </Table.Td>
+                  <Table.Td>{t.creator_name ?? t.created_by}</Table.Td>
+                  <Table.Td>
+                    {t.never_expires ? (
+                      <Badge variant="light" color="orange">
+                        never
+                      </Badge>
+                    ) : (
+                      fmt(t.expires_at)
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    {fmt(t.last_used_at)}
+                    {t.last_used_ip ? (
                       <Text size="xs" c="dimmed">
-                        …{t.hint}
+                        {t.last_used_ip}
                       </Text>
-                    </Table.Td>
+                    ) : null}
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge variant="light" color={st === 'active' ? 'green' : 'gray'}>
+                      {st}
+                    </Badge>
+                  </Table.Td>
+                  {canManage ? (
                     <Table.Td>
-                      <Text size="sm">{t.role ? `installation ${t.role}` : t.permissions.join(', ')}</Text>
-                    </Table.Td>
-                    <Table.Td>{t.creator_name ?? t.created_by}</Table.Td>
-                    <Table.Td>
-                      {t.never_expires ? (
-                        <Badge variant="light" color="orange">
-                          never
-                        </Badge>
-                      ) : (
-                        fmt(t.expires_at)
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {fmt(t.last_used_at)}
-                      {t.last_used_ip ? (
-                        <Text size="xs" c="dimmed">
-                          {t.last_used_ip}
-                        </Text>
+                      {st === 'active' ? (
+                        <ConfirmButton
+                          label="Revoke"
+                          title={`Revoke ${t.name}?`}
+                          loading={revoke.isPending}
+                          onConfirm={() => revoke.mutateAsync(t.id)}
+                        >
+                          Requests using this token fail immediately.
+                        </ConfirmButton>
                       ) : null}
                     </Table.Td>
-                    <Table.Td>
-                      <Badge variant="light" color={st === 'active' ? 'green' : 'gray'}>
-                        {st}
-                      </Badge>
-                    </Table.Td>
-                    {canManage ? (
-                      <Table.Td>
-                        {st === 'active' ? (
-                          <ConfirmButton
-                            label="Revoke"
-                            title={`Revoke ${t.name}?`}
-                            loading={revoke.isPending}
-                            onConfirm={() => revoke.mutateAsync(t.id)}
-                          >
-                            Requests using this token fail immediately.
-                          </ConfirmButton>
-                        ) : null}
-                      </Table.Td>
-                    ) : null}
-                  </Table.Tr>
-                )
-              })}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+                  ) : null}
+                </Table.Tr>
+              )
+            })}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       <Modal
         opened={secret !== null}

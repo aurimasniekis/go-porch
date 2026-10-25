@@ -9,6 +9,7 @@ import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { sessionsSearch } from '@/components/admin/install/search'
 import { ConfirmAction } from '@/components/admin/install/ConfirmAction'
 import { DateTime, Loading, Notice, RefreshButton } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/sessions')({
   validateSearch: sessionsSearch,
@@ -72,30 +73,28 @@ function SessionsPage({ user }: { user: string | undefined }) {
         <EmptyState>{user ? 'This user has no active sessions.' : 'No active sessions.'}</EmptyState>
       ) : null}
       {q.data?.length ? (
-        <Table.ScrollContainer minWidth={1100}>
-          <Table striped highlightOnHover aria-label="Active sessions" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Method</Table.Th>
-                <Table.Th>Tenant</Table.Th>
-                <Table.Th>IP address</Table.Th>
-                <Table.Th>Browser</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th>Last seen</Table.Th>
-                <Table.Th>Expires</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((s) => (
-                <SessionRow key={s.id} s={s} tenantName={s.tenant_id ? tenantNames.get(s.tenant_id) : undefined} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={1100} striped highlightOnHover aria-label="Active sessions" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>User</Table.Th>
+              <Table.Th>Method</Table.Th>
+              <Table.Th>Tenant</Table.Th>
+              <Table.Th>IP address</Table.Th>
+              <Table.Th>Browser</Table.Th>
+              <Table.Th>Created</Table.Th>
+              <Table.Th>Last seen</Table.Th>
+              <Table.Th>Expires</Table.Th>
+              <Table.Th>
+                <span className="visually-hidden">Actions</span>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((s) => (
+              <SessionRow key={s.id} s={s} tenantName={s.tenant_id ? tenantNames.get(s.tenant_id) : undefined} />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
     </Stack>
   )

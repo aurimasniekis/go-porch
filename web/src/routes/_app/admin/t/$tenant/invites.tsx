@@ -7,6 +7,7 @@ import { useAdminMutation } from '@/api/admin'
 import { createInvite, deleteInvite, invitesQuery, tenantKeys, when, type Invite } from '@/api/admin/tenant'
 import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, Tag } from '@/components/admin/tenant/common'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/invites')({
   component: InvitesPage,
@@ -56,26 +57,24 @@ function InviteList({ tenant }: { tenant: string }) {
           <EmptyState>No invitations yet.</EmptyState>
         )
       ) : (
-        <Table.ScrollContainer minWidth={640}>
-          <Table striped aria-label="Invitations">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>State</Table.Th>
-                <Table.Th>Sent</Table.Th>
-                <Table.Th>Expires / accepted</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((i) => (
-                <InviteRow key={i.id} tenant={tenant} invite={i} state={stateOf(i, now)} />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={640} striped aria-label="Invitations">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Email</Table.Th>
+              <Table.Th>State</Table.Th>
+              <Table.Th>Sent</Table.Th>
+              <Table.Th>Expires / accepted</Table.Th>
+              <Table.Th>
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((i) => (
+              <InviteRow key={i.id} tenant={tenant} invite={i} state={stateOf(i, now)} />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       )}
     </Section>
   )
@@ -155,7 +154,7 @@ function CreateInvite({ tenant }: { tenant: string }) {
               required
               autoComplete="off"
               maw={360}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 220 }}
               {...form.getInputProps('email')}
             />
             <Select label="Valid for" data={validity} allowDeselect={false} w={160} {...form.getInputProps('valid')} />

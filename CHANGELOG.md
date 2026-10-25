@@ -10,6 +10,16 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+### Changed
+
+- **Phones.** The web UI fits a phone screen without sideways scrolling:
+  - Administration navigation is a drawer opened from the header's menu button below tablet-landscape width.
+  - The launcher and account pages fold their top links into a menu.
+  - Lists (members, applications, audit log, sessions and the rest) show one card per row, each value labelled with
+    its column.
+  - Inputs next to a button wrap instead of shrinking.
+  - Checked at 390×844 by `web/e2e/mobile.spec.ts`: page width, drawer, menu and tap targets, plus axe.
+
 ## [0.1.1] - 2026-10-25
 
 Sign-in fixes for real Google and a direct Google sign-in page. **Database:** no migrations; upgrade by replacing the

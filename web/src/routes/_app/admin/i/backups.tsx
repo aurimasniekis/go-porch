@@ -5,6 +5,7 @@ import { adminQuery, useAdminMutation } from '@/api/admin'
 import { api, unwrap } from '@/api/client'
 import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
 import { CopyField } from '@/components/admin/tenant/common'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/backups')({
   component: Backups,
@@ -66,48 +67,46 @@ function Backups() {
       ) : null}
       {st?.runs.length === 0 ? <EmptyState>No backup has run yet.</EmptyState> : null}
       {st?.runs.length ? (
-        <Table.ScrollContainer minWidth={720}>
-          <Table striped aria-label="Backup runs" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Started</Table.Th>
-                <Table.Th>Trigger</Table.Th>
-                <Table.Th>Result</Table.Th>
-                <Table.Th>Database</Table.Th>
-                <Table.Th>Stored</Table.Th>
-                <Table.Th>KEK</Table.Th>
+        <ListTable minWidth={720} striped aria-label="Backup runs" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Started</Table.Th>
+              <Table.Th>Trigger</Table.Th>
+              <Table.Th>Result</Table.Th>
+              <Table.Th>Database</Table.Th>
+              <Table.Th>Stored</Table.Th>
+              <Table.Th>KEK</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {st.runs.map((r) => (
+              <Table.Tr key={r.id}>
+                <Table.Td>
+                  <Text size="sm">{new Date(r.started_at).toLocaleString()}</Text>
+                  <Text size="xs" c="dimmed">
+                    {r.id}
+                  </Text>
+                </Table.Td>
+                <Table.Td>{r.trigger}</Table.Td>
+                <Table.Td>
+                  <Group gap={4}>
+                    <Badge variant="light" color={r.ok === undefined ? 'gray' : r.ok ? 'green' : 'red'}>
+                      {r.ok === undefined ? 'running' : r.ok ? 'ok' : 'failed'}
+                    </Badge>
+                    {r.error ? (
+                      <Text size="xs" c="dimmed">
+                        {r.error}
+                      </Text>
+                    ) : null}
+                  </Group>
+                </Table.Td>
+                <Table.Td>{bytes(r.db_bytes)}</Table.Td>
+                <Table.Td>{bytes(r.stored_bytes)}</Table.Td>
+                <Table.Td>{r.kek_included ? 'included' : '—'}</Table.Td>
               </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {st.runs.map((r) => (
-                <Table.Tr key={r.id}>
-                  <Table.Td>
-                    <Text size="sm">{new Date(r.started_at).toLocaleString()}</Text>
-                    <Text size="xs" c="dimmed">
-                      {r.id}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>{r.trigger}</Table.Td>
-                  <Table.Td>
-                    <Group gap={4}>
-                      <Badge variant="light" color={r.ok === undefined ? 'gray' : r.ok ? 'green' : 'red'}>
-                        {r.ok === undefined ? 'running' : r.ok ? 'ok' : 'failed'}
-                      </Badge>
-                      {r.error ? (
-                        <Text size="xs" c="dimmed">
-                          {r.error}
-                        </Text>
-                      ) : null}
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>{bytes(r.db_bytes)}</Table.Td>
-                  <Table.Td>{bytes(r.stored_bytes)}</Table.Td>
-                  <Table.Td>{r.kek_included ? 'included' : '—'}</Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
     </Stack>
   )

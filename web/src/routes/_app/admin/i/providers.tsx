@@ -28,6 +28,7 @@ import { ManagedBy } from '@/components/admin/install/ManagedBy'
 import { StatusBadge } from '@/components/admin/install/StatusBadge'
 import { ConfirmAction } from '@/components/admin/install/ConfirmAction'
 import { Loading, Notice } from '@/components/admin/install/ui'
+import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/i/providers')({
   component: Providers,
@@ -62,37 +63,35 @@ function Providers() {
       {q.isPending ? <Loading label="Loading identity providers…" /> : null}
       {q.data?.length === 0 ? <EmptyState>No identity providers yet.</EmptyState> : null}
       {q.data?.length ? (
-        <Table.ScrollContainer minWidth={1000}>
-          <Table striped highlightOnHover aria-label="Identity providers" verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Kind</Table.Th>
-                <Table.Th>Issuer and client</Table.Th>
-                <Table.Th>Allowed domains</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Managed by</Table.Th>
-                {canWrite ? (
-                  <Table.Th>
-                    <span className="visually-hidden">Actions</span>
-                  </Table.Th>
-                ) : null}
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {q.data.map((p) => (
-                <ProviderRow
-                  key={p.id}
-                  p={p}
-                  canWrite={canWrite}
-                  onEdit={() => {
-                    setEditing(p)
-                  }}
-                />
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Table.ScrollContainer>
+        <ListTable minWidth={1000} striped highlightOnHover aria-label="Identity providers" verticalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Kind</Table.Th>
+              <Table.Th>Issuer and client</Table.Th>
+              <Table.Th>Allowed domains</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Managed by</Table.Th>
+              {canWrite ? (
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              ) : null}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {q.data.map((p) => (
+              <ProviderRow
+                key={p.id}
+                p={p}
+                canWrite={canWrite}
+                onEdit={() => {
+                  setEditing(p)
+                }}
+              />
+            ))}
+          </Table.Tbody>
+        </ListTable>
       ) : null}
       {q.data?.some((p) => p.enabled) ? (
         <SignInPageSettings providers={q.data.filter((p) => p.enabled)} canWrite={canWrite} />
