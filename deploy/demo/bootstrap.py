@@ -90,17 +90,22 @@ summary["owner_user_id"] = me.get("user_id")
 # Backup login for the owner (the setup session is fresh, so step-up passes).
 password = "Demo-" + secrets.token_urlsafe(18)
 pairs = [
-    {"title": "Demo answer one", "answer": "porch demo river"},
-    {"title": "Demo answer two", "answer": "porch demo lantern"},
-    {"title": "Demo answer three", "answer": "porch demo orchard"},
+    {"title": "Demo question 1", "answer": "porch demo river"},
+    {"title": "Demo question 2", "answer": "porch demo lantern"},
+    {"title": "Demo question 3", "answer": "porch demo orchard"},
 ]
 if call("PUT", "/me/backup-credential", {"password": password, "pairs": pairs, "confirm": [p["answer"] for p in pairs]},
         ok_missing=True) is not None:
     call("PUT", "/me/backup-handle", {"handle": "owner"}, ok_missing=True)
     write_private("owner.txt", "Porch demo owner backup login (DEMO ONLY)\n"
-                  f"  sign in at: {origin}/login  (backup login)\n"
-                  f"  handle:     owner   (or email owner@demo.localhost)\n"
-                  f"  password:   {password}\n" + "".join(f"  {p['title']}: {p['answer']}\n" for p in pairs))
+                  f"  1. Open {origin}/login and use the backup login form (not \"Continue with Google\").\n"
+                  "  2. Backup handle or email:  owner      (the handle; the email no longer works once a handle is set)\n"
+                  f"     Password:                 {password}\n"
+                  "  3. Porch then shows three questions. Type the answer next to each title:\n"
+                  + "".join(f"       {p['title']}  ->  {p['answer']}\n" for p in pairs)
+                  + "  A wrong password or answer locks the backup login for 6 hours (Google sign-in still works). To unlock:\n"
+                  "    cd deploy/demo && docker compose stop porch && \\\n"
+                  "    docker compose run --rm porch-init admin unlock-backup -user owner@demo.localhost && docker compose start porch\n")
     summary["owner_backup_login"] = True
 else:
     summary["owner_backup_login"] = False
