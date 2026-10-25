@@ -23,7 +23,7 @@
 </picture>
 
 > [!NOTE]
-> No version has been released yet: build from source (see [Deploy](#deploy)).
+> **Porch 0.1.0** is the first release: see the [changelog](CHANGELOG.md) and [Deploy](#deploy).
 
 ## Why
 
@@ -122,22 +122,25 @@ and whoami from her launcher. `up.sh` also prints the owner's backup login for t
 
 ### Deploy
 
-No version is released yet, so build from source. With Docker Compose (read-only container, UID 65532, all
-capabilities dropped):
+Releases publish a multi-arch image (linux/amd64, linux/arm64) to `ghcr.io/aurimasniekis/go-porch` and Docker Hub
+(`docker.io/aurimasniekis/porch`), and archives for
+linux/amd64, linux/arm64 and darwin/arm64 with `SHA256SUMS`, SBOMs and build provenance. With Docker Compose
+(read-only container, UID 65532, all capabilities dropped):
 
 ```sh
-cd deploy
+export V=0.1.0
+gh attestation verify oci://ghcr.io/aurimasniekis/go-porch:$V --repo aurimasniekis/go-porch
+git clone --depth 1 --branch v$V https://github.com/aurimasniekis/go-porch.git && cd go-porch/deploy
 cp .env.example .env && $EDITOR .env                       # PD_PUBLIC_URL=https://auth.example.com
-docker compose build
+printf 'PD_IMAGE=ghcr.io/aurimasniekis/go-porch\nPD_VERSION=%s\n' "$V" >> .env
+docker compose pull
 docker compose --profile init run --rm keygen              # secrets/porch.kek: back it up offline
 docker compose run --rm --no-deps porch admin setup-token  # one-time setup token
 docker compose up -d                                       # then open https://auth.example.com/setup
 ```
 
-Put a TLS reverse proxy in front of `127.0.0.1:28080`. For a binary with systemd and all the details, read
-[Install](https://aurimasniekis.github.io/go-porch/operators/quickstart). The
-[release pipeline](docs/RELEASING.md) will publish `ghcr.io/aurimasniekis/go-porch` images and archives with
-`SHA256SUMS`, SBOMs and build provenance.
+Put a TLS reverse proxy in front of `127.0.0.1:28080`. For the binary with systemd, building from source, and all the
+details, read [Install](https://aurimasniekis.github.io/go-porch/operators/quickstart).
 
 ## Connect your apps
 
@@ -187,7 +190,8 @@ resource "porch_role_assignment" "kids_media" {
 }
 ```
 
-See [API and Terraform](https://aurimasniekis.github.io/go-porch/guide/automation).
+The provider is on the [Terraform Registry](https://registry.terraform.io/providers/aurimasniekis/porch) as
+`aurimasniekis/porch`. See [API and Terraform](https://aurimasniekis.github.io/go-porch/guide/automation).
 
 ## Status
 

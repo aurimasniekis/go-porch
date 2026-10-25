@@ -4,6 +4,10 @@ Open items not yet scheduled into a milestone, plus known limitations. Items mov
 
 ## Open
 
+- A dedicated fault-injection suite (disk full, I/O errors, process killed mid-write). Today busy retries, failed
+  migrations with snapshot restore and corrupt databases are covered by `internal/store` tests.
+- Interop tests with third-party OIDC client libraries beyond the OpenID conformance suite, the demo app and the
+  Terraform provider.
 - Front-channel / back-channel logout for downstream apps (v1 is RP-initiated only, ADR-0013).
 - WebAuthn / passkeys as a second local factor or as the backup login.
 - HA / multi-node (v1 is single-writer SQLite).

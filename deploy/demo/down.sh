@@ -7,6 +7,7 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here"
+# shellcheck source=/dev/null # optional local settings
 [[ -f .env ]] && { set -a; . ./.env; set +a; }
 compose=(docker compose -f "$here/compose.yaml" --profile demo-app --profile init)
 

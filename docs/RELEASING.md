@@ -42,6 +42,7 @@ discovery with the configured issuer and exits 0 on SIGTERM.
 |---|---|
 | GHCR package `ghcr.io/aurimasniekis/go-porch` | Created by the first push as **private**. Make it public once (package settings → visibility) so it can be pulled anonymously. |
 | Docker Hub (optional) | A Docker Hub access token with **Read & Write** scope for `aurimasniekis/porch` in the repository secret `DOCKERHUB_TOKEN` (`gh secret set DOCKERHUB_TOKEN`); the user is `DOCKERHUB_USER` in the workflow. Without the secret the workflow publishes to GHCR only, warns, and the release notes list only GHCR. |
+| Terraform provider | [terraform-provider-porch](https://github.com/aurimasniekis/terraform-provider-porch) releases with its own `release.yml` (GoReleaser). Its checksums are signed with the GPG key in the secrets `GPG_PRIVATE_KEY` and `PASSPHRASE`; the public key and the repository are registered once in the [Terraform Registry](https://registry.terraform.io) (Publish → Provider, namespace `aurimasniekis`). |
 | Private vulnerability reporting | Repository settings → Security → enable "Private vulnerability reporting" ([SECURITY.md](../SECURITY.md) points reporters there). |
 | GitHub Actions artifact storage | Jobs pass the web build, archives and image archives as artifacts. Keep the account under its storage quota. |
 
@@ -49,14 +50,14 @@ discovery with the configured issuer and exits 0 on SIGTERM.
 
 1. **Release criteria.** Before calling a version stable (1.0 or later), all of these must hold: every planned
    milestone done and reachable ([PLAN.md](PLAN.md)); CI green; the acceptance script (M7) passing; every fuzz target
-   run for at least 10 minutes without crashers; `make test-fault` passing; a backup → clean-instance restore drill
+   run for at least 10 minutes without crashers; a backup → clean-instance restore drill
    (`scripts/backup-drill.sh`); an internal security review with every HIGH and MEDIUM finding fixed or accepted; an
    external review, or the "Not externally reviewed" note; [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md) honest
    and current. A version below 1.0 may ship with criteria unmet only when the CHANGELOG lists them as known
    limitations.
 2. **CI.** `main` is green on GitHub for the commit to be tagged: the `ci` workflow including the browser e2e job. Run
-   the slower local suites as well: `make test-fault`, `make test-oidc-interop`, `scripts/backup-drill.sh`, and the
-   release checks below.
+   the slower local suites as well: `scripts/acceptance.sh` (every suite plus the OpenID conformance suite, the backup
+   drill, the Terraform provider and, with a go-pulse checkout, a running pulsed), and the release checks below.
 3. **Changelog.** Move the `[Unreleased]` entries into `## [X.Y.Z] - YYYY-MM-DD` in [CHANGELOG.md](../CHANGELOG.md),
    add comparison links at the bottom, state whether the release contains database migrations, and keep the
    "Not externally reviewed" note. The release workflow refuses a tag without this section and uses it as the release
@@ -85,7 +86,10 @@ discovery with the configured issuer and exits 0 on SIGTERM.
 9. **Review and publish the draft.** Check the notes, the "Not externally reviewed" note, the attached archives,
    `SHA256SUMS`, both SBOMs, and any unfixed HIGH/CRITICAL findings in the `image-scan` logs. Pre-releases
    (`vX.Y.Z-rc.N`) do not move the `latest` image tag.
-10. **Verify what was published** from a clean machine:
+10. **Release the Terraform provider** when its resources changed or Porch's API did: point `PORCH_COMMIT` in the
+    provider's `Makefile` and `.github/workflows/test.yml` at the release commit, add its CHANGELOG section, wait for
+    its CI, tag it and publish its draft release; the Terraform Registry then ingests the version.
+11. **Verify what was published** from a clean machine:
 
     ```sh
     V=X.Y.Z
@@ -98,17 +102,17 @@ discovery with the configured issuer and exits 0 on SIGTERM.
     gh attestation verify "oci://docker.io/aurimasniekis/porch:$V" --repo aurimasniekis/go-porch
     ```
 
-11. **After the release**, add an empty `## [Unreleased]` section to the CHANGELOG if it is missing.
+12. **After the release**, add an empty `## [Unreleased]` section to the CHANGELOG if it is missing.
 
 ## What has been verified
 
 | Part | Status | Evidence |
 |---|---|---|
-| `scripts/release-build.sh` (three platforms, `SHA256SUMS`, static linux binaries, embedded UI, `version`) | tested locally | macOS arm64, Go 1.27.3, GNU tar, 2026-10-24 |
-| `scripts/container-smoke.sh` against a locally built image | tested locally | Docker Desktop 29.8.2 (arm64), 2026-10-24 |
-| `actionlint` (workflows), `shellcheck` (scripts) | tested locally | actionlint 1.7.12, ShellCheck 0.11.0 |
+| `scripts/release-build.sh` (three platforms, `SHA256SUMS`, static linux binaries, embedded UI, `version`) | tested locally | macOS arm64, Go 1.27.3, GNU tar, 2026-10-24 and 2026-10-25 (v0.1.0 preparation) |
+| `scripts/container-smoke.sh` against a locally built image | tested locally | Docker Desktop 29.8.2 (arm64), 2026-10-24 and 2026-10-25 |
+| `actionlint` (workflows), `shellcheck` (scripts) | tested locally | actionlint 1.7.12, ShellCheck 0.11.0, 2026-10-25 |
 | syft SBOM and Trivy scan | tested locally with the same tool versions as the workflow | syft v1.54.0, Trivy 0.70.0 (container images) |
-| Release workflow on GitHub-hosted runners, GHCR/Docker Hub push, attestations, draft release | **not verified** | nothing has been pushed or tagged yet |
+| Release workflow on GitHub-hosted runners, GHCR/Docker Hub push, attestations, draft release | **not verified** | `main` is pushed and CI is green; no `v*` tag has been pushed yet (first run: v0.1.0) |
 | Reproducibility of archives byte-for-byte across machines | **not verified** | same inputs give the same binaries by construction (`-trimpath`, empty build ID, `SOURCE_DATE_EPOCH`); not compared across hosts |
 
 ## If something goes wrong

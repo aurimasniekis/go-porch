@@ -40,6 +40,15 @@ memberships, identity providers and domain rules, applications and shares, group
 assignments and service accounts, with import for each.
 
 ```hcl
+terraform {
+  required_providers {
+    porch = {
+      source  = "aurimasniekis/porch"
+      version = "~> 0.1"
+    }
+  }
+}
+
 provider "porch" {
   endpoint = "https://auth.example.com" # or PORCH_ENDPOINT
   token    = var.porch_token            # or PORCH_TOKEN
@@ -63,8 +72,9 @@ resource "porch_role_assignment" "kids_media" {
 }
 ```
 
-The provider is not on the Terraform Registry yet: build it and use `dev_overrides`, as its
-[README](https://github.com/aurimasniekis/terraform-provider-porch#readme) explains. Its
+The provider is published to the
+[Terraform Registry](https://registry.terraform.io/providers/aurimasniekis/porch) (`terraform init` installs it; the
+checksums are GPG-signed). Its
 [`examples/families`](https://github.com/aurimasniekis/terraform-provider-porch/tree/main/examples/families) scenario
 sets up three families, shared applications, nested groups, a daytime-only policy and a service account (69
 resources). It is applied, re-planned with no changes and destroyed against a real Porch in CI.

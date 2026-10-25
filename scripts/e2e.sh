@@ -8,6 +8,7 @@ free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",
 PUB=$(free_port); MGMT=$(free_port); IDP=$(free_port)
 work=$(mktemp -d)
 chmod 700 "$work"
+# shellcheck disable=SC2329 # invoked by the EXIT trap below
 cleanup() {
   for p in "${porch_pid:-}" "${idp_pid:-}" "${fwd_pid:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null || true; done
   rm -rf "$work"
@@ -48,7 +49,8 @@ fwd_pid=$!
 for _ in $(seq 1 50); do bin/porch healthcheck --url "http://127.0.0.1:$MGMT/readyz" >/dev/null 2>&1 && break; sleep 0.2; done
 
 export PORCH_E2E_URL="http://localhost:$PUB" PORCH_E2E_SETUP_TOKEN="$token" PORCH_E2E_IDP="http://127.0.0.1:$IDP"
-export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT=$(free_port) PORCH_E2E_STATE="$work/e2e-state.json" PORCH_E2E_OWNER_STATE="$work/owner-state.json" PORCH_E2E_FWD="http://whoami.localhost:$FWD"
+PORCH_E2E_DEMO_PORT=$(free_port)
+export PORCH_E2E_MGMT="http://127.0.0.1:$MGMT" PORCH_E2E_DEMO_BIN="$root/bin/demo-app" PORCH_E2E_DEMO_PORT PORCH_E2E_STATE="$work/e2e-state.json" PORCH_E2E_OWNER_STATE="$work/owner-state.json" PORCH_E2E_FWD="http://whoami.localhost:$FWD"
 status=0
 (cd web && pnpm exec playwright test "$@") || status=$?
 if [[ $status -ne 0 ]]; then echo "--- porch log"; tail -50 "$work/porch.log"; echo "--- idp log"; tail -20 "$work/idp.log"; fi

@@ -10,7 +10,7 @@ GOVULNCHECK  ?= $(GO) run golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 .DEFAULT_GOAL := help
 .PHONY: help build build-go test race vet custom-vet lint fmt-check tools-test fuzz-smoke vuln secrets check clean \
-        sqlc sqlc-check api api-check web web-check site screenshots e2e test-oidc-interop test-fault
+        sqlc sqlc-check api api-check web web-check site screenshots e2e
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -104,11 +104,6 @@ api-check: ## Fail if api/openapi.json or the web types are not what the code ge
 e2e: ## Playwright (Chromium + axe) against a fresh porch serve and the fake Google provider
 	scripts/e2e.sh
 
-test-oidc-interop: ## OIDC interop tests (Docker)
-	$(GO) test -tags oidcinterop -count=1 -timeout 20m -v ./test/oidcinterop/...
-
-test-fault: ## Fault-injection tests
-	$(GO) test -tags fault -count=1 -timeout 20m ./test/fault/...
 
 clean: ## Remove build output
 	rm -rf $(BIN) dist

@@ -14,6 +14,7 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 cd "$here"
+# shellcheck source=/dev/null # optional local settings
 [[ -f .env ]] && { set -a; . ./.env; set +a; }
 export DEMO_HTTPS_PORT=${DEMO_HTTPS_PORT:-28443}
 export DEMO_SUBNET=${DEMO_SUBNET:-172.30.213.0/24}

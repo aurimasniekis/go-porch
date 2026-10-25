@@ -4,10 +4,10 @@ Porch is one binary with an embedded web UI and one SQLite database. Run **exact
 behind a TLS reverse proxy (or with Porch's own TLS). The key-encryption key (KEK) lives outside the data directory:
 without it the database cannot be read, so back it up offline as soon as you create it.
 
-::: tip No release yet
-No version has been published. Build the image or binary from source as shown below. The release pipeline
-([RELEASING.md](https://github.com/aurimasniekis/go-porch/blob/main/docs/RELEASING.md)) will publish
-`ghcr.io/aurimasniekis/go-porch` images and archives with `SHA256SUMS`, SBOMs and build provenance.
+::: tip Releases
+Porch 0.1.0 is the first release. Each release publishes the image `ghcr.io/aurimasniekis/go-porch` (also on Docker
+Hub as `docker.io/aurimasniekis/porch`; linux/amd64, linux/arm64) and archives for linux/amd64, linux/arm64 and darwin/arm64 on the
+[releases page](https://github.com/aurimasniekis/go-porch/releases), with `SHA256SUMS`, SBOMs and build provenance.
 :::
 
 Want to look around first? [Try it locally](../guide/try-locally) with the demo stack.
@@ -18,10 +18,13 @@ Want to look around first? [Try it locally](../guide/try-locally) with the demo 
 published on `127.0.0.1:28080` for your reverse proxy.
 
 ```sh
-git clone https://github.com/aurimasniekis/go-porch.git && cd go-porch/deploy
+export V=0.1.0
+gh attestation verify oci://ghcr.io/aurimasniekis/go-porch:$V --repo aurimasniekis/go-porch   # optional
+git clone --depth 1 --branch v$V https://github.com/aurimasniekis/go-porch.git && cd go-porch/deploy
 cp .env.example .env && $EDITOR .env                          # PD_PUBLIC_URL=https://auth.example.com
+printf 'PD_IMAGE=ghcr.io/aurimasniekis/go-porch\nPD_VERSION=%s\n' "$V" >> .env
 install -d -m 0700 secrets && sudo chown 65532:65532 secrets  # Linux; not needed with Docker Desktop
-docker compose build
+docker compose pull                                           # or `docker compose build` from source
 docker compose --profile init run --rm keygen                 # secrets/porch.kek (0400): back it up offline
 docker compose run --rm --no-deps porch admin setup-token     # one-time setup token; Porch must not be running
 docker compose up -d && docker compose ps

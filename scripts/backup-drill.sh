@@ -12,7 +12,8 @@ MINIO_IMAGE=${MINIO_IMAGE:-cgr.dev/chainguard/minio@sha256:32c504bea4574d8f29d71
 free_port() { python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()'; }
 work=$(mktemp -d); chmod 700 "$work"
 S3=$(free_port); PUB=$(free_port); MGMT=$(free_port)
-export S3_ACCESS_KEY="drill$RANDOM" S3_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
+S3_SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
+export S3_ACCESS_KEY="drill$RANDOM" S3_SECRET_KEY
 name="porch-drill-$$"
 cleanup() {
   [[ -n "${pid:-}" ]] && kill "$pid" 2>/dev/null || true

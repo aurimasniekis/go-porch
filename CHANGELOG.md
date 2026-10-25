@@ -10,7 +10,12 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
-No version has been released yet. This section summarizes milestones M0–M7 ([docs/PLAN.md](docs/PLAN.md)).
+## [0.1.0] - 2026-10-25
+
+The first release: milestones M0–M7 ([docs/PLAN.md](docs/PLAN.md)), the redesigned sign-in page and launcher, and
+installation tokens without expiry.
+
+**Database:** schema migrations 0001–0012 run on first start. There is no earlier release to upgrade from.
 
 > **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
 > no external security audit. An internal review (docs/SECURITY_REVIEW-2026-10-24.md) found 3 high and 11 medium
@@ -85,4 +90,7 @@ No version has been released yet. This section summarizes milestones M0–M7 ([d
 - **Release pipeline.** Release workflow for `v*` tags: race-test gate, reproducible static archives for linux/amd64,
   linux/arm64 and darwin/arm64 with `SHA256SUMS` and SPDX SBOMs, per-architecture image builds with Trivy and a
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
-  draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)). Not yet run on GitHub.
+  draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
+
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/aurimasniekis/go-porch/releases/tag/v0.1.0

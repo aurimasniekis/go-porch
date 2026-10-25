@@ -9,7 +9,7 @@
 # acceptance tests; a go-pulse checkout next to this repository (PULSE_REPO) for the running-pulsed check.
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-cd "$root"
+cd "$root" || exit 1
 quick=false; report=""
 while [[ $# -gt 0 ]]; do
   case $1 in
