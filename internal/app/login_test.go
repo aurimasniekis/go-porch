@@ -20,6 +20,7 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/clock"
 	"github.com/aurimasniekis/go-porch/internal/config"
 	"github.com/aurimasniekis/go-porch/internal/domain"
+	"github.com/aurimasniekis/go-porch/internal/identity"
 	"github.com/aurimasniekis/go-porch/internal/idp"
 	"github.com/aurimasniekis/go-porch/internal/idp/fakeidp"
 	"github.com/aurimasniekis/go-porch/internal/localauth"
@@ -624,5 +625,61 @@ func TestLoginCallbackThrottled(t *testing.T) {
 	}
 	if throttled == 0 || n > 60 {
 		t.Fatalf("callback flood: %d throttled, %d audit events", throttled, n)
+	}
+}
+
+// An installation owner who signs in with Google can issue an installation token that never expires (ADR-0046): it
+// works years later and without the provider confirming the owner, so automation survives a provider outage. Only
+// installation tokens qualify; an expiry and never_expires exclude each other.
+func TestOwnerTokenWithoutExpiry(t *testing.T) {
+	st := newStack(t)
+	tn := st.setupGoogle(nil, idp.RuleParams{Domain: "smith.example", EvidenceKind: idp.EvidenceWorkspaceHD, Mode: idp.ModeJIT})
+	st.google.AddUser(workspaceUser("g-olga", "olga@smith.example", "smith.example"))
+	olga := st.browser()
+	st.loginAs(olga, "g-olga")
+	olgaID := olga.me()["user_id"].(string)
+	if err := st.a.Store.W().Tx(context.Background(), func(tx *store.Tx) error {
+		return st.a.Users.GrantOperatorRoleTx(context.Background(), tx, domain.SystemChange, olgaID, identity.RoleOwner, "manual")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	st.loginAs(olga, "g-olga") // fresh sign-in: issuing tokens needs step-up
+	olga.me()                  // the new session's CSRF token
+	code, out := olga.api(http.MethodPost, "/api/v1/installation/automation-tokens", map[string]any{"name": "terraform", "role": "admin",
+		"never_expires": true, "expires_in_days": 30})
+	if code != http.StatusUnprocessableEntity {
+		t.Fatalf("expiry together with never_expires: %d %v", code, out)
+	}
+	code, tok := olga.api(http.MethodPost, "/api/v1/installation/automation-tokens", map[string]any{"name": "terraform", "role": "admin",
+		"never_expires": true})
+	if code != http.StatusCreated || tok["never_expires"] != true || tok["expires_at"] != nil {
+		t.Fatalf("token without expiry: %d %v", code, tok)
+	}
+	code, out = olga.api(http.MethodPost, "/api/v1/tenants/"+tn.Slug+"/automation-tokens", map[string]any{"name": "x", "permissions": []string{"group:manage"},
+		"never_expires": true})
+	if code != http.StatusUnprocessableEntity {
+		t.Fatalf("tenant token with never_expires: %d %v", code, out)
+	}
+	call := func() int {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, st.origin()+"/api/v1/tenants", nil)
+		req.Header.Set("Authorization", "Bearer "+tok["token"].(string))
+		resp, err := st.browser().c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	// Two years later, with no Google sign-in since: still valid (a 366-day token or the 30-day upstream rule would stop it).
+	st.clk.Advance(2 * 366 * 24 * time.Hour)
+	if c := call(); c != http.StatusOK {
+		t.Fatalf("token without expiry after two years without a Google sign-in: %d", c)
+	}
+	// Revocation still ends it at once (Olga's browser session itself expired long ago, so revoke through the service).
+	if err := st.a.Tokens.Revoke(context.Background(), domain.SystemChange, tok["id"].(string)); err != nil {
+		t.Fatal(err)
+	}
+	if c := call(); c != http.StatusUnauthorized {
+		t.Fatalf("revoked token: %d", c)
 	}
 }

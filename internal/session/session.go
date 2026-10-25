@@ -102,6 +102,9 @@ type TokenGrant struct {
 	// CreatorOperator is true while the creator of a tenant token holds installation owner or admin: such tokens act
 	// through the operator scope, still limited to their tenant and permissions.
 	CreatorOperator bool
+	// NeverExpires marks an owner's installation token without expiry (ADR-0046): it does not depend on the identity
+	// provider confirming its creator.
+	NeverExpires bool
 }
 
 // IsOperator reports whether the principal holds one of the given installation roles.

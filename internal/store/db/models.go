@@ -125,20 +125,21 @@ type AuthzEpoch struct {
 }
 
 type AutomationToken struct {
-	ID          string
-	Mac         []byte
-	Hint        string
-	Name        string
-	Kind        string
-	TenantID    sql.NullString
-	Role        sql.NullString
-	Permissions string
-	CreatedBy   string
-	CreatedAt   int64
-	ExpiresAt   int64
-	LastUsedAt  sql.NullInt64
-	LastUsedIp  string
-	RevokedAt   sql.NullInt64
+	ID           string
+	Mac          []byte
+	Hint         string
+	Name         string
+	Kind         string
+	TenantID     sql.NullString
+	Role         sql.NullString
+	Permissions  string
+	CreatedBy    string
+	CreatedAt    int64
+	ExpiresAt    int64
+	LastUsedAt   sql.NullInt64
+	LastUsedIp   string
+	RevokedAt    sql.NullInt64
+	NeverExpires int64
 }
 
 type BackupChallenge struct {

@@ -47,7 +47,7 @@ func (q *Queries) DeleteIdempotencyKey(ctx context.Context, keyMac []byte) error
 }
 
 const getAutomationToken = `-- name: GetAutomationToken :one
-SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at FROM automation_tokens WHERE id = ?
+SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires FROM automation_tokens WHERE id = ?
 `
 
 func (q *Queries) GetAutomationToken(ctx context.Context, id string) (AutomationToken, error) {
@@ -68,12 +68,13 @@ func (q *Queries) GetAutomationToken(ctx context.Context, id string) (Automation
 		&i.LastUsedAt,
 		&i.LastUsedIp,
 		&i.RevokedAt,
+		&i.NeverExpires,
 	)
 	return i, err
 }
 
 const getAutomationTokenByMAC = `-- name: GetAutomationTokenByMAC :one
-SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at FROM automation_tokens WHERE mac = ?
+SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires FROM automation_tokens WHERE mac = ?
 `
 
 func (q *Queries) GetAutomationTokenByMAC(ctx context.Context, mac []byte) (AutomationToken, error) {
@@ -94,6 +95,7 @@ func (q *Queries) GetAutomationTokenByMAC(ctx context.Context, mac []byte) (Auto
 		&i.LastUsedAt,
 		&i.LastUsedIp,
 		&i.RevokedAt,
+		&i.NeverExpires,
 	)
 	return i, err
 }
@@ -129,22 +131,23 @@ func (q *Queries) GetIdempotencyKey(ctx context.Context, arg GetIdempotencyKeyPa
 }
 
 const insertAutomationToken = `-- name: InsertAutomationToken :exec
-INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertAutomationTokenParams struct {
-	ID          string
-	Mac         []byte
-	Hint        string
-	Name        string
-	Kind        string
-	TenantID    sql.NullString
-	Role        sql.NullString
-	Permissions string
-	CreatedBy   string
-	CreatedAt   int64
-	ExpiresAt   int64
+	ID           string
+	Mac          []byte
+	Hint         string
+	Name         string
+	Kind         string
+	TenantID     sql.NullString
+	Role         sql.NullString
+	Permissions  string
+	CreatedBy    string
+	CreatedAt    int64
+	ExpiresAt    int64
+	NeverExpires int64
 }
 
 func (q *Queries) InsertAutomationToken(ctx context.Context, arg InsertAutomationTokenParams) error {
@@ -160,6 +163,7 @@ func (q *Queries) InsertAutomationToken(ctx context.Context, arg InsertAutomatio
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.ExpiresAt,
+		arg.NeverExpires,
 	)
 	return err
 }
@@ -196,27 +200,28 @@ func (q *Queries) InsertIdempotencyKey(ctx context.Context, arg InsertIdempotenc
 }
 
 const listAutomationTokens = `-- name: ListAutomationTokens :many
-SELECT t.id, t.mac, t.hint, t.name, t.kind, t.tenant_id, t.role, t.permissions, t.created_by, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, u.display_name AS creator_name FROM automation_tokens t JOIN users u ON u.id = t.created_by
+SELECT t.id, t.mac, t.hint, t.name, t.kind, t.tenant_id, t.role, t.permissions, t.created_by, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, t.never_expires, u.display_name AS creator_name FROM automation_tokens t JOIN users u ON u.id = t.created_by
 WHERE (?1 IS NULL AND t.tenant_id IS NULL) OR t.tenant_id = ?1
 ORDER BY t.created_at DESC
 `
 
 type ListAutomationTokensRow struct {
-	ID          string
-	Mac         []byte
-	Hint        string
-	Name        string
-	Kind        string
-	TenantID    sql.NullString
-	Role        sql.NullString
-	Permissions string
-	CreatedBy   string
-	CreatedAt   int64
-	ExpiresAt   int64
-	LastUsedAt  sql.NullInt64
-	LastUsedIp  string
-	RevokedAt   sql.NullInt64
-	CreatorName string
+	ID           string
+	Mac          []byte
+	Hint         string
+	Name         string
+	Kind         string
+	TenantID     sql.NullString
+	Role         sql.NullString
+	Permissions  string
+	CreatedBy    string
+	CreatedAt    int64
+	ExpiresAt    int64
+	LastUsedAt   sql.NullInt64
+	LastUsedIp   string
+	RevokedAt    sql.NullInt64
+	NeverExpires int64
+	CreatorName  string
 }
 
 func (q *Queries) ListAutomationTokens(ctx context.Context, tenantID interface{}) ([]ListAutomationTokensRow, error) {
@@ -243,6 +248,7 @@ func (q *Queries) ListAutomationTokens(ctx context.Context, tenantID interface{}
 			&i.LastUsedAt,
 			&i.LastUsedIp,
 			&i.RevokedAt,
+			&i.NeverExpires,
 			&i.CreatorName,
 		); err != nil {
 			return nil, err

@@ -8,6 +8,7 @@ import {
   NumberInput,
   Select,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -37,18 +38,18 @@ function fmt(v: string | undefined | null) {
 
 function status(t: Token, now: number) {
   if (t.revoked_at) return 'revoked'
-  if (new Date(t.expires_at).getTime() <= now) return 'expired'
+  if (!t.never_expires && t.expires_at && new Date(t.expires_at).getTime() <= now) return 'expired'
   return 'active'
 }
 
 function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: Schemas['CreatedToken']) => void }) {
   const [opened, { open, close }] = useDisclosure(false)
   const form = useForm({
-    initialValues: { name: '', role: 'admin', permissions: [] as string[], days: 90 },
+    initialValues: { name: '', role: 'admin', permissions: [] as string[], days: 90, never: false },
     validate: {
       name: (v) => (v.trim() ? null : 'Name is required'),
       permissions: (v) => (scope.kind === 'tenant' && v.length === 0 ? 'Choose at least one permission' : null),
-      days: (v) => (v >= 1 && v <= 366 ? null : 'Between 1 and 366 days'),
+      days: (v, values) => (values.never || (v >= 1 && v <= 366) ? null : 'Between 1 and 366 days'),
     },
   })
   const create = useAdminMutation({
@@ -56,7 +57,9 @@ function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: S
       if (scope.kind === 'installation') {
         return unwrap(
           await api.POST('/installation/automation-tokens', {
-            body: { name: v.name.trim(), role: v.role as 'admin' | 'auditor', expires_in_days: v.days },
+            body: v.never
+              ? { name: v.name.trim(), role: v.role as 'admin' | 'auditor', never_expires: true }
+              : { name: v.name.trim(), role: v.role as 'admin' | 'auditor', expires_in_days: v.days },
           }),
         )
       }
@@ -112,7 +115,21 @@ function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: S
                 {...form.getInputProps('permissions')}
               />
             )}
-            <NumberInput label="Expires in (days)" min={1} max={366} required {...form.getInputProps('days')} />
+            {scope.kind === 'installation' ? (
+              <Switch
+                label="Never expires"
+                description="For your own Terraform or break-glass automation: keeps working without an expiry and while the identity provider (Google) is unavailable. Only installation owners can issue it."
+                {...form.getInputProps('never', { type: 'checkbox' })}
+              />
+            ) : null}
+            {form.values.never ? (
+              <Alert color="orange" icon={<IconAlertTriangle size={18} />} title="A token that never expires">
+                Anyone who obtains it can manage the installation until you revoke it. Store it like a root password,
+                and revoke it here as soon as it is no longer needed.
+              </Alert>
+            ) : (
+              <NumberInput label="Expires in (days)" min={1} max={366} required {...form.getInputProps('days')} />
+            )}
             <Text size="xs" c="dimmed">
               Creating a token needs a recent sign-in. Tokens cannot create other tokens, change installation roles or
               rotate signing keys.
@@ -200,7 +217,15 @@ export function AutomationTokens({ scope, canManage }: { scope: TokenScope; canM
                       <Text size="sm">{t.role ? `installation ${t.role}` : t.permissions.join(', ')}</Text>
                     </Table.Td>
                     <Table.Td>{t.creator_name ?? t.created_by}</Table.Td>
-                    <Table.Td>{fmt(t.expires_at)}</Table.Td>
+                    <Table.Td>
+                      {t.never_expires ? (
+                        <Badge variant="light" color="orange">
+                          never
+                        </Badge>
+                      ) : (
+                        fmt(t.expires_at)
+                      )}
+                    </Table.Td>
                     <Table.Td>
                       {fmt(t.last_used_at)}
                       {t.last_used_ip ? (

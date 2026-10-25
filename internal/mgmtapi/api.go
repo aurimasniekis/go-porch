@@ -247,7 +247,9 @@ func (d *Deps) tokenPrincipal(ctx context.Context, raw, ip string) (*session.Pri
 	}
 	// Tokens of federated users follow the identity provider: when it has not confirmed the user for too long (they may
 	// have been removed upstream), tokens stop until the user signs in again (review L3).
-	if d.TokenUpstreamMaxAge > 0 {
+	// Owners' never-expiring installation tokens are exempt: they are the way back in when the provider is unavailable
+	// (ADR-0046).
+	if d.TokenUpstreamMaxAge > 0 && !g.NeverExpires {
 		ids, err := d.Store.R().ListUserIdentities(ctx, u.ID)
 		if err != nil {
 			return nil, err

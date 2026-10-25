@@ -1,6 +1,6 @@
 -- name: InsertAutomationToken :exec
-INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetAutomationTokenByMAC :one
 SELECT * FROM automation_tokens WHERE mac = ?;

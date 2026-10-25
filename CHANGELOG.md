@@ -26,6 +26,8 @@ No version has been released yet. This section summarizes milestones M0–M7 ([d
 
 ### Added
 
+- **Installation tokens without expiry (security-relevant, ADR-0046).** Installation owners can issue a token that
+  never expires and does not depend on the identity provider confirming them, for Terraform and break-glass access.
 - **Appearance.** Sign-in backgrounds mixed from several providers (Wikimedia Commons by category or file name,
   credited; Lorem Picsum; your own image URLs), fetched and re-encoded by Porch and served from its own origin; application icons (upload, image URL, theSVG brand logos
   or the dashboard-icons set; SVG is sanitized and kept as SVG) and launcher groups (ADR-0045).

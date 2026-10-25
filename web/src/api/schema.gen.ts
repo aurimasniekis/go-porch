@@ -1864,8 +1864,11 @@ export interface components {
             created_at: string;
             created_by: string;
             creator_name?: string;
-            /** Format: date-time */
-            expires_at: string;
+            /**
+             * Format: date-time
+             * @description Absent when the token never expires.
+             */
+            expires_at?: string;
             /** @description Last characters of the token. */
             hint: string;
             id: string;
@@ -1875,6 +1878,7 @@ export interface components {
             last_used_at?: string;
             last_used_ip?: string;
             name: string;
+            never_expires: boolean;
             permissions: string[];
             /** Format: date-time */
             revoked_at?: string;
@@ -2048,9 +2052,14 @@ export interface components {
             version: string;
         };
         InstallationTokenRequest: {
-            /** Format: int64 */
-            expires_in_days: number;
+            /**
+             * Format: int64
+             * @description 1–366; omit when never_expires is set.
+             */
+            expires_in_days?: number;
             name: string;
+            /** @description Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046). Revoke it when it is no longer needed. */
+            never_expires?: boolean;
             /**
              * @description admin manages every tenant and installation setting; auditor reads.
              * @enum {string}
@@ -2536,8 +2545,11 @@ export interface components {
             created_at: string;
             created_by: string;
             creator_name?: string;
-            /** Format: date-time */
-            expires_at: string;
+            /**
+             * Format: date-time
+             * @description Absent when the token never expires.
+             */
+            expires_at?: string;
             /** @description Last characters of the token. */
             hint: string;
             id: string;
@@ -2547,6 +2559,7 @@ export interface components {
             last_used_at?: string;
             last_used_ip?: string;
             name: string;
+            never_expires: boolean;
             permissions: string[];
             /** Format: date-time */
             revoked_at?: string;

@@ -18,7 +18,8 @@ import (
 type InstallationTokenRequest struct {
 	Name          string `json:"name" minLength:"1" maxLength:"200"`
 	Role          string `json:"role" enum:"admin,auditor" doc:"admin manages every tenant and installation setting; auditor reads."`
-	ExpiresInDays int    `json:"expires_in_days" minimum:"1" maximum:"366"`
+	ExpiresInDays int    `json:"expires_in_days,omitempty" minimum:"0" maximum:"366" doc:"1–366; omit when never_expires is set."`
+	NeverExpires  bool   `json:"never_expires,omitempty" doc:"Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046). Revoke it when it is no longer needed."`
 }
 
 // TenantTokenRequest creates a tenant automation token.
@@ -66,7 +67,7 @@ func registerTokens(api huma.API, d *Deps) {
 				return nil, err
 			}
 			t, secret, err := d.Tokens.Create(ctx, change(ctx, ""), automation.CreateParams{Name: in.Body.Name, Kind: automation.KindInstallation,
-				Role: in.Body.Role, Lifetime: days(in.Body.ExpiresInDays), CreatedBy: p.UserID})
+				Role: in.Body.Role, Lifetime: days(in.Body.ExpiresInDays), NeverExpires: in.Body.NeverExpires, CreatedBy: p.UserID})
 			if err != nil {
 				return nil, d.fail("create-token", err)
 			}

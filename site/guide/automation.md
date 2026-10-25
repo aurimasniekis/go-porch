@@ -15,9 +15,15 @@ Scripts and Terraform authenticate with an **automation token** (`porch_at_…`)
   administrators can issue tenant tokens for their tenant. A change that would grant more than the issuer holds fails
   with `403 privilege_escalation`.
 
-Every token has an expiry and can be revoked at any time. Porch stores only a hash of the token. Tokens of users who
-sign in with Google stop working when that person has not signed in to Google through Porch within
+Tokens expire after 1–366 days and can be revoked at any time. Porch stores only a hash of the token. Tokens of users
+who sign in with Google stop working when that person has not signed in to Google through Porch within
 `automation.upstream_max_age` (default 30 days).
+
+An installation owner can also issue an installation token that **never expires** ("Never expires" in the token
+dialog, or `"never_expires": true`). It keeps working without an expiry and without Google confirming the owner, so
+your Terraform still works during a Google outage, or while you repair the Google setup itself. Treat it like a root
+password: anyone holding it can manage the installation until you revoke it. It stops if its owner is disabled or
+loses the owner role.
 
 ```sh
 curl -fsS -H "Authorization: Bearer $PORCH_TOKEN" https://auth.example.com/api/v1/tenants/smith/members

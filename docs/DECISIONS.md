@@ -418,7 +418,7 @@ can repair. Delegation is enforced only in the API; the UI hides what `/me/admin
 duplicates or leak secrets twice.
 **Decision.**
 - `porch_at_<43 base64url chars>` bearer tokens (32 random bytes) stored as HMACs under the keyring token key (own MAC
-  domain), shown once, with a mandatory expiry of 1–366 days, `last_used_at`/`last_used_ip`, revocation, audit
+  domain), shown once, with a mandatory expiry of 1–366 days (except owners' installation tokens, ADR-0046), `last_used_at`/`last_used_ip`, revocation, audit
   (`actor_type: automation`, `auth_method: automation`, provenance `automation:<token id>`).
 - A token acts for its creator and never for more than the creator holds *now*: installation tokens carry `admin` or
   `auditor` and work only while the creator still holds an installation role that covers it (owner/admin for admin);
@@ -529,4 +529,25 @@ adds outbound requests and content that browsers render.
 **Consequences.** Tenant application managers can make Porch fetch public URLs (bounded by the guard, size and type
 limits). Icons and backgrounds are part of database backups. Picsum and Commons availability affect only refreshes;
 the stored pool keeps working offline.
+
+## ADR-0046 — Installation tokens without expiry for owners (security-relevant change)
+
+**Context.** ADR-0041 requires every automation token to expire within 366 days, and review L3 (ADR-0044) stops
+tokens of users who sign in through an identity provider when the provider has not confirmed them for
+`automation.upstream_max_age`. For the installation owner's own Terraform or break-glass automation this is a single
+point of failure: an expired token, or a Google outage or account problem, locks automation out of Porch exactly when
+it is needed to repair the identity provider configuration.
+**Decision.** An installation owner may issue an *installation* token with `never_expires: true` (UI: "Never
+expires"). Such a token:
+- has no expiry (`expires_at` is omitted in the API; the row stores a far-future value so every expiry comparison and
+  cleanup holds unchanged) and is exempt from the upstream-confirmation rule;
+- can only be issued interactively: installation tokens are owner-only, need a recent sign-in, and tokens never hold
+  the owner role, so no token can mint another;
+- still acts for its creator: it stops when the creator is disabled or loses the owner/admin role, and revocation ends
+  it immediately;
+- is audited (`automation_token.created` with `never_expires: true`) and shown with a "never" badge in the token list.
+Tenant tokens and non-owners keep the 1–366 day limit and the upstream rule.
+**Consequences.** **Security-relevant relaxation:** a leaked owner token stays valid until someone revokes it, and it
+keeps working for a creator removed from the upstream directory (but not for one disabled in Porch). Operators should
+store it like a root password, watch its last-used time and address, and revoke it when it is no longer needed.
 

@@ -51,6 +51,34 @@ test.describe.serial('M6: automation tokens', () => {
     expect(csp).toEqual([])
   })
 
+  test('an owner issues a token that never expires (ADR-0046)', async ({ request }) => {
+    await page.goto('/admin/i/tokens')
+    await page.getByRole('button', { name: 'New token' }).click()
+    const dialog = await openedDialog(page, 'New automation token')
+    await dialog.getByLabel('Name').fill('break-glass')
+    await dialog.getByRole('switch', { name: /Never expires/ }).check()
+    await expect(dialog.getByText('A token that never expires')).toBeVisible()
+    await expect(dialog.getByLabel('Expires in (days)')).toHaveCount(0)
+    await expectAccessible(page)
+    await dialog.getByRole('button', { name: 'Create token' }).click()
+    const shown = await openedDialog(page, 'Token created')
+    const token = (await shown.getByTestId('copy-Token').textContent())?.trim() ?? ''
+    await shown.getByRole('button', { name: 'I have stored the token' }).click()
+    await expect(page.getByRole('dialog', { name: 'Token created' })).toHaveCount(0) // fully closed before axe runs
+    expect(
+      (await request.get(`${BASE}/api/v1/tenants`, { headers: { Authorization: `Bearer ${token}` } })).status(),
+    ).toBe(200)
+
+    const row = page.getByRole('table', { name: 'Automation tokens' }).getByRole('row', { name: /break-glass/ })
+    await expect(row).toContainText('never')
+    await expect(row).toContainText('active')
+    await expectAccessible(page)
+    await row.getByRole('button', { name: 'Revoke' }).click()
+    await page.getByRole('dialog', { name: 'Revoke break-glass?' }).getByRole('button', { name: 'Revoke' }).click()
+    await expect(row).toContainText('revoked')
+    expect(csp).toEqual([])
+  })
+
   test('backups page explains how to enable backups', async () => {
     await page.goto('/admin/i/backups')
     await expect(page.getByRole('heading', { name: 'Backups' })).toBeVisible()

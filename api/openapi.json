@@ -1517,6 +1517,7 @@
             "type": "string"
           },
           "expires_at": {
+            "description": "Absent when the token never expires.",
             "format": "date-time",
             "type": "string"
           },
@@ -1543,6 +1544,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "never_expires": {
+            "type": "boolean"
           },
           "permissions": {
             "items": {
@@ -1579,7 +1583,7 @@
           "hint",
           "created_by",
           "created_at",
-          "expires_at"
+          "never_expires"
         ],
         "type": "object"
       },
@@ -2169,15 +2173,20 @@
         "additionalProperties": false,
         "properties": {
           "expires_in_days": {
+            "description": "1–366; omit when never_expires is set.",
             "format": "int64",
             "maximum": 366,
-            "minimum": 1,
+            "minimum": 0,
             "type": "integer"
           },
           "name": {
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
+          },
+          "never_expires": {
+            "description": "Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046). Revoke it when it is no longer needed.",
+            "type": "boolean"
           },
           "role": {
             "description": "admin manages every tenant and installation setting; auditor reads.",
@@ -2190,8 +2199,7 @@
         },
         "required": [
           "name",
-          "role",
-          "expires_in_days"
+          "role"
         ],
         "type": "object"
       },
@@ -3843,6 +3851,7 @@
             "type": "string"
           },
           "expires_at": {
+            "description": "Absent when the token never expires.",
             "format": "date-time",
             "type": "string"
           },
@@ -3869,6 +3878,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "never_expires": {
+            "type": "boolean"
           },
           "permissions": {
             "items": {
@@ -3900,7 +3912,7 @@
           "hint",
           "created_by",
           "created_at",
-          "expires_at"
+          "never_expires"
         ],
         "type": "object"
       },
