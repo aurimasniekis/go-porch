@@ -10,6 +10,11 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-26
+
+A small look-and-feel fix. **Database:** no migrations; upgrade by replacing the binary or image. **API and
+configuration:** unchanged.
+
 ### Changed
 
 - The launcher and account pages fade the background photo into the page instead of ending it in a hard edge.
@@ -141,7 +146,8 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/aurimasniekis/go-porch/releases/tag/v0.1.0
