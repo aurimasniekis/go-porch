@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { notifications } from '@mantine/notifications'
 import { actionUrl, api, ApiError, unwrap, type Schemas } from './client'
 
@@ -14,6 +14,25 @@ export const adminQuery = queryOptions({
 /** Whether the caller holds perm in the tenant (operators hold every management permission). */
 export function can(t: AdminTenant | undefined, perm: string): boolean {
   return !!t && t.permissions.includes(perm)
+}
+
+/**
+ * Whether the caller may read an area of the tenant (e.g. 'app'): its read permission or the matching manage
+ * permission, which also allows the reads (ADR-0048).
+ */
+export function canRead(t: AdminTenant | undefined, area: string): boolean {
+  return can(t, `${area}:read`) || can(t, `${area}:manage`)
+}
+
+/** Installation operators and inspectors read installation-wide configuration (domain rules, shares). */
+export function readsInstallationConfig(t: AdminTenant | undefined): boolean {
+  return t?.via === 'operator' || t?.via === 'inspector'
+}
+
+/** The caller's entry in /me/admin for a tenant (slug or ID); undefined while loading or without access. */
+export function useAdminTenant(tenant: string): AdminTenant | undefined {
+  const caps = useQuery(adminQuery)
+  return caps.data?.tenants.find((x) => x.slug === tenant || x.id === tenant)
 }
 
 /** Formats an ETag header value for If-Match from a resource version. */

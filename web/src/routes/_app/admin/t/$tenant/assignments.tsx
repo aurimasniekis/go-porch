@@ -16,7 +16,7 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { adminQuery, can, useAdminMutation } from '@/api/admin'
+import { can, canRead, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   applicationsQuery,
   assignmentsQuery,
@@ -35,7 +35,7 @@ import {
 import { api, check, unwrap } from '@/api/client'
 import { LoadingState, MutationError, Tag } from '@/components/admin/authz/common'
 import { localInputToISO, scopeText, toLocalInput, validResourceType } from '@/components/admin/authz/logic'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/assignments')({
@@ -50,15 +50,15 @@ const subjectTypeColor: Record<string, string> = { user: 'violet', group: 'teal'
 
 /** Loads everything needed to name subjects, roles, scopes and conditions — only what the caller may list. */
 function useDirectory(tenant: string) {
-  const caps = useQuery(adminQuery)
-  const t = caps.data?.tenants.find((x) => x.slug === tenant || x.id === tenant)
+  const t = useAdminTenant(tenant)
   const may = {
+    manage: can(t, 'role:manage'),
     members: mayListMembers(t),
-    groups: can(t, 'group:manage'),
-    sas: can(t, 'service_account:manage'),
-    policies: can(t, 'policy:manage'),
-    resources: can(t, 'resource:manage'),
-    apps: can(t, 'app:manage'),
+    groups: canRead(t, 'group'),
+    sas: canRead(t, 'service_account'),
+    policies: canRead(t, 'policy'),
+    resources: canRead(t, 'resource'),
+    apps: canRead(t, 'app'),
   }
   const roles = useQuery(rolesQuery(tenant))
   const members = useQuery({ ...membersQuery(tenant), enabled: may.members })
@@ -131,16 +131,19 @@ function AssignmentsPage() {
         title="Assignments"
         description="An assignment grants a role to a member, group or service account across the tenant, for one resource type, or for a single resource — optionally only while a condition policy holds, and optionally until a date."
         actions={
-          <Button
-            leftSection={<IconPlus size={16} aria-hidden />}
-            onClick={() => {
-              setCreating(true)
-            }}
-          >
-            New assignment
-          </Button>
+          dir.may.manage ? (
+            <Button
+              leftSection={<IconPlus size={16} aria-hidden />}
+              onClick={() => {
+                setCreating(true)
+              }}
+            >
+              New assignment
+            </Button>
+          ) : null
         }
       />
+      {dir.may.manage ? null : <ReadOnlyNote what="role assignments" />}
       <ErrorAlert error={assignments.error} title="Could not load assignments" />
       <ErrorAlert error={dir.roles.error} title="Could not load roles" />
       <Group mb="md" align="flex-end">
@@ -181,9 +184,11 @@ function AssignmentsPage() {
               <Table.Th>Condition</Table.Th>
               <Table.Th>Expires</Table.Th>
               <Table.Th>Source</Table.Th>
-              <Table.Th>
-                <span className="visually-hidden">Actions</span>
-              </Table.Th>
+              {dir.may.manage ? (
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -240,29 +245,31 @@ function AssignmentsPage() {
                   <Table.Td>
                     <Text size="sm">{a.source}</Text>
                   </Table.Td>
-                  <Table.Td>
-                    <Group justify="flex-end">
-                      <ConfirmButton
-                        variant="default"
-                        label="Remove"
-                        title="Remove this assignment?"
-                        confirmLabel="Remove assignment"
-                        loading={del.isPending}
-                        onConfirm={() => del.mutateAsync(a).catch(() => undefined)}
-                      >
-                        <Text size="sm">
-                          {subjectName(a)} loses the role {role?.name ?? a.role_id} granted by this assignment.
-                        </Text>
-                      </ConfirmButton>
-                    </Group>
-                  </Table.Td>
+                  {dir.may.manage ? (
+                    <Table.Td>
+                      <Group justify="flex-end">
+                        <ConfirmButton
+                          variant="default"
+                          label="Remove"
+                          title="Remove this assignment?"
+                          confirmLabel="Remove assignment"
+                          loading={del.isPending}
+                          onConfirm={() => del.mutateAsync(a).catch(() => undefined)}
+                        >
+                          <Text size="sm">
+                            {subjectName(a)} loses the role {role?.name ?? a.role_id} granted by this assignment.
+                          </Text>
+                        </ConfirmButton>
+                      </Group>
+                    </Table.Td>
+                  ) : null}
                 </Table.Tr>
               )
             })}
           </Table.Tbody>
         </ListTable>
       ) : null}
-      {creating ? (
+      {creating && dir.may.manage ? (
         <AssignmentDialog
           tenant={tenant}
           dir={dir}

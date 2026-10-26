@@ -20,11 +20,13 @@ import (
 	"github.com/aurimasniekis/go-porch/internal/store/db"
 )
 
-// Installation roles (ADR-0004). They never confer tenant roles.
+// Installation roles (ADR-0004). They never confer tenant roles. An inspector reads the configuration inside every
+// tenant and changes nothing (ADR-0048).
 const (
-	RoleOwner   = "owner"
-	RoleAdmin   = "admin"
-	RoleAuditor = "auditor"
+	RoleOwner     = "owner"
+	RoleAdmin     = "admin"
+	RoleAuditor   = "auditor"
+	RoleInspector = "inspector"
 )
 
 // Status values.
@@ -350,7 +352,7 @@ func (svc *Service) OperatorRoles(ctx context.Context, userID string) ([]string,
 
 // GrantOperatorRoleTx assigns an installation role inside tx.
 func (svc *Service) GrantOperatorRoleTx(ctx context.Context, tx *store.Tx, ch domain.Change, userID, role, source string) error {
-	if role != RoleOwner && role != RoleAdmin && role != RoleAuditor {
+	if role != RoleOwner && role != RoleAdmin && role != RoleAuditor && role != RoleInspector {
 		return apperr.New(apperr.CodeInvalid, "unknown installation role %q", role)
 	}
 	err := tx.Q.InsertOperatorRole(ctx, db.InsertOperatorRoleParams{ID: ids.New(ids.OperatorRole), UserID: userID, Role: role, Source: source,

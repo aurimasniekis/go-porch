@@ -4,7 +4,7 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAdminMutation } from '@/api/admin'
+import { can, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   deleteServiceAccount,
   rotateServiceAccountSecret,
@@ -15,7 +15,7 @@ import {
   type CreatedServiceAccount,
   type ServiceAccount,
 } from '@/api/admin/tenant'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { LoadingRows, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
 import { SecretModal, type OneTimeSecret } from '@/components/admin/tenant/SecretModal'
 import {
@@ -36,6 +36,7 @@ interface Revealed extends OneTimeSecret {
 function ServiceAccountsPage() {
   const { tenant } = Route.useParams()
   const q = useQuery(serviceAccountsQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'service_account:manage')
   const [creating, { open, close }] = useDisclosure(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [secret, setSecret] = useState<Revealed | null>(null)
@@ -62,11 +63,14 @@ function ServiceAccountsPage() {
           </>
         }
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={open}>
-            New service account
-          </Button>
+          manage ? (
+            <Button leftSection={<IconPlus size={16} />} onClick={open}>
+              New service account
+            </Button>
+          ) : null
         }
       />
+      {manage ? null : <ReadOnlyNote what="service accounts" mb={0} />}
       {q.error ? <ErrorAlert error={q.error} /> : null}
       {q.isPending ? (
         <LoadingRows />
@@ -86,9 +90,11 @@ function ServiceAccountsPage() {
                 <Table.Th>Secret</Table.Th>
                 <Table.Th>Last used</Table.Th>
                 <Table.Th>Managed by</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
+                {manage ? (
+                  <Table.Th>
+                    <VisuallyHidden>Actions</VisuallyHidden>
+                  </Table.Th>
+                ) : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -97,6 +103,7 @@ function ServiceAccountsPage() {
                   key={sa.id}
                   tenant={tenant}
                   sa={sa}
+                  manage={manage}
                   onEdit={() => {
                     setEditing(sa.id)
                   }}
@@ -114,14 +121,14 @@ function ServiceAccountsPage() {
       )}
       <CreateServiceAccountModal
         tenant={tenant}
-        opened={creating}
+        opened={creating && manage}
         onClose={close}
         onCreated={(sa: CreatedServiceAccount) => {
           close()
           reveal(sa, sa.client_secret, `${sa.name} created`)
         }}
       />
-      {editingSA ? (
+      {editingSA && manage ? (
         <EditServiceAccountModal
           key={editingSA.id}
           tenant={tenant}
@@ -143,30 +150,16 @@ function ServiceAccountsPage() {
   )
 }
 
-function SARow({
-  tenant,
-  sa,
-  onEdit,
-  onRotated,
-}: {
+interface SARowProps {
   tenant: string
   sa: ServiceAccount
+  manage: boolean
   onEdit: () => void
   onRotated: (secret: string) => void
-}) {
-  const rotate = useAdminMutation({
-    mutationFn: () => rotateServiceAccountSecret(tenant, sa.id),
-    success: 'New secret issued; the old one no longer works',
-    invalidate: [tenantKeys.serviceAccounts(tenant)],
-    onSuccess: (s) => {
-      onRotated(s.client_secret)
-    },
-  })
-  const del = useAdminMutation({
-    mutationFn: () => deleteServiceAccount(tenant, sa),
-    success: `Service account ${sa.name} deleted`,
-    invalidate: [tenantKeys.serviceAccounts(tenant)],
-  })
+}
+
+function SARow({ manage, ...props }: SARowProps) {
+  const { sa } = props
   return (
     <Table.Tr>
       <Table.Td>
@@ -212,34 +205,53 @@ function SARow({
       <Table.Td>
         <ProvenanceTag managedBy={sa.managed_by} lastChangedBy={sa.last_changed_by} />
       </Table.Td>
-      <Table.Td>
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Button size="xs" variant="default" onClick={onEdit} aria-label={`Edit ${sa.name}`}>
-            Edit
-          </Button>
-          <ConfirmButton
-            variant="default"
-            label="Rotate secret"
-            title={`Issue a new secret for ${sa.name}?`}
-            color="orange"
-            loading={rotate.isPending}
-            onConfirm={() => rotate.mutateAsync().catch(() => undefined)}
-          >
-            <Text size="sm">The current secret stops working immediately. This needs a recent sign-in.</Text>
-          </ConfirmButton>
-          <ConfirmButton
-            variant="default"
-            label="Delete"
-            title={`Delete ${sa.name}?`}
-            loading={del.isPending}
-            onConfirm={() => del.mutateAsync().catch(() => undefined)}
-          >
-            <Text size="sm">
-              The service account and its role assignments are removed; tokens can no longer be issued for it.
-            </Text>
-          </ConfirmButton>
-        </Group>
-      </Table.Td>
+      {manage ? <SAActions {...props} /> : null}
     </Table.Tr>
+  )
+}
+
+function SAActions({ tenant, sa, onEdit, onRotated }: Omit<SARowProps, 'manage'>) {
+  const rotate = useAdminMutation({
+    mutationFn: () => rotateServiceAccountSecret(tenant, sa.id),
+    success: 'New secret issued; the old one no longer works',
+    invalidate: [tenantKeys.serviceAccounts(tenant)],
+    onSuccess: (s) => {
+      onRotated(s.client_secret)
+    },
+  })
+  const del = useAdminMutation({
+    mutationFn: () => deleteServiceAccount(tenant, sa),
+    success: `Service account ${sa.name} deleted`,
+    invalidate: [tenantKeys.serviceAccounts(tenant)],
+  })
+  return (
+    <Table.Td>
+      <Group gap="xs" justify="flex-end" wrap="nowrap">
+        <Button size="xs" variant="default" onClick={onEdit} aria-label={`Edit ${sa.name}`}>
+          Edit
+        </Button>
+        <ConfirmButton
+          variant="default"
+          label="Rotate secret"
+          title={`Issue a new secret for ${sa.name}?`}
+          color="orange"
+          loading={rotate.isPending}
+          onConfirm={() => rotate.mutateAsync().catch(() => undefined)}
+        >
+          <Text size="sm">The current secret stops working immediately. This needs a recent sign-in.</Text>
+        </ConfirmButton>
+        <ConfirmButton
+          variant="default"
+          label="Delete"
+          title={`Delete ${sa.name}?`}
+          loading={del.isPending}
+          onConfirm={() => del.mutateAsync().catch(() => undefined)}
+        >
+          <Text size="sm">
+            The service account and its role assignments are removed; tokens can no longer be issued for it.
+          </Text>
+        </ConfirmButton>
+      </Group>
+    </Table.Td>
   )
 }

@@ -436,7 +436,7 @@ duplicates or leak secrets twice.
   (ADR-0010) — a token is itself issued under step-up by an owner or a tenant administrator and is short-lived by
   policy. To limit the blast radius, tokens are refused for: issuing tokens, granting or revoking installation roles,
   rotating signing keys, unlocking backup logins, logout and every state-changing `/me/*` operation (credentials,
-  linking, personal sessions).
+  linking, personal sessions). *(Amended by ADR-0048: tokens may issue narrower tokens.)*
 - `Idempotency-Key` (1–255 printable ASCII) on any authenticated POST: the key is scoped by a MAC of the presented
   credential and bound to a SHA-256 of method, path and body; a repeat returns the stored 2xx response
   (`Idempotent-Replayed: true`), a different request with the same key gets `422 idempotency_key_reused`, a concurrent
@@ -548,7 +548,8 @@ expires"). Such a token:
 - has no expiry (`expires_at` is omitted in the API; the row stores a far-future value so every expiry comparison and
   cleanup holds unchanged) and is exempt from the upstream-confirmation rule;
 - can only be issued interactively: installation tokens are owner-only, need a recent sign-in, and tokens never hold
-  the owner role, so no token can mint another;
+  the owner role, so no token can mint another *(amended by ADR-0048: a never-expiring token whose creator is an owner
+  may issue another one)*;
 - still acts for its creator: it stops when the creator is disabled or loses the owner/admin role, and revocation ends
   it immediately;
 - is audited (`automation_token.created` with `never_expires: true`) and shown with a "never" badge in the token list.
@@ -578,3 +579,42 @@ can complete a Google sign-in as the session's user now. That defeats a stolen P
 signed in; there, Google's own session policy (re-authentication settings, device lock) is the control. Relying
 parties that send `prompt=login` or `max_age` get the same guarantee for Google users. Users who need a stronger
 step-up use the backup credential.
+
+## ADR-0048 — Read-only access and tokens issued by tokens (security-relevant change)
+
+**Context.** A read-only integration (the Deed connector reading applications and service accounts) needed a write
+credential: Porch had no read-only tenant permission for applications or service accounts, and an installation
+`auditor` token reads health and the audit log but nothing inside a tenant. Terraform, which authenticates with an
+automation token, could not create the token for such an integration, because ADR-0041 made token issuance
+interactive-only.
+**Decision.**
+- **Read permissions.** `app:read`, `tenant:read`, `member:read`, `group:read`, `role:read`, `policy:read`,
+  `resource:read`, `invite:read` and `service_account:read` join the system catalogue. Each allows the management API's
+  reads of its area and nothing else; the matching `:manage` permission keeps allowing them. Shares and domain rules
+  stay readable only by installation operators and inspectors. `X:manage` does not imply `X:read` in the
+  authorization engine (custom permissions keep their exact meaning); the API accepts either for a read.
+- **Inspector role.** A new installation role `inspector`, for people and for installation tokens, reads the
+  configuration inside every tenant: the tenant, applications and their shares, service accounts, members, groups,
+  roles, the permission catalogue, assignments, effective permissions, resources, policies, invitations and domain
+  rules, plus the tenant list and identity providers. It reads through its own tenant scope (`via: inspector`), which no
+  write operation accepts, and gets no audit log, health, users, sessions or tokens (the `auditor` role keeps those,
+  unchanged). Responses never contain secrets, only their last characters. Only owners grant the role, interactively.
+  An inspector token works while its creator holds `owner`, `admin` or `inspector`.
+- **Tokens issued by tokens.** Token issuance is no longer interactive-only:
+  - an installation token may issue tokens only while its creator is an installation **owner**, and only tokens no
+    broader than itself: an `admin` token issues installation tokens of any role and tenant tokens; a token issued
+    with `never_expires` needs an issuer that never expires;
+  - a tenant token issues tenant tokens of its own tenant with permissions it holds (and its creator holds, as for
+    people);
+  - a **read-only** token (auditor, inspector, or a tenant token whose permissions all end in `:read`) issues nothing;
+  - an issued token never outlives its issuer, records it (`issued_by`), acts for the same creator, and is revoked
+    with it: revoking a token revokes every token it issued, transitively (at most 8 deep). A token can read and revoke
+    the tokens it issued, so Terraform can manage them.
+  People still need a recent sign-in to issue tokens; `issued_by` is in the audit details of `automation_token.created`.
+**Consequences.** **Security-relevant relaxation:** a stolen admin token whose creator is an owner can mint more
+tokens, including another never-expiring one when it never expires itself. Containment: every minted token is no
+broader than the stolen one, stops when the creator loses the owner role or is disabled, and is revoked together with
+the stolen token, so revoking the token found in a leak ends the whole tree. Read-only tokens cannot mint anything.
+The inspector role widens what a read-only installation credential sees (every tenant's configuration, including
+members' names and email addresses); grant it like an administrator role.
+

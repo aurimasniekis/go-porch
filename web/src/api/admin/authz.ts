@@ -62,9 +62,9 @@ export const assignmentsQuery = (t: string) =>
     queryFn: async () => unwrap(await api.GET('/tenants/{tenant}/assignments', path(t))),
   })
 
-/** Who may list tenant members (GET /tenants/{t}/members): member, group and role managers. */
+/** Who may list tenant members (GET /tenants/{t}/members): member readers and managers, group and role managers. */
 export function mayListMembers(t: AdminTenant | undefined): boolean {
-  return can(t, 'member:manage') || can(t, 'group:manage') || can(t, 'role:manage')
+  return can(t, 'member:read') || can(t, 'member:manage') || can(t, 'group:manage') || can(t, 'role:manage')
 }
 
 /** Every member of the tenant (follows next_cursor; bounded). */

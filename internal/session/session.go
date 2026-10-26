@@ -95,10 +95,12 @@ type Principal struct {
 type TokenGrant struct {
 	ID          string
 	TenantID    string   // empty for installation tokens
-	Role        string   // installation tokens: admin or auditor
+	Role        string   // installation tokens: admin, auditor or inspector
 	Permissions []string // tenant tokens
 	// CreatedAt is when the token was issued (its principal's auth_time: tokens never count as a fresh sign-in).
 	CreatedAt time.Time
+	// ExpiresAt is when the token stops working (meaningless when NeverExpires is set).
+	ExpiresAt time.Time
 	// CreatorOperator is true while the creator of a tenant token holds installation owner or admin: such tokens act
 	// through the operator scope, still limited to their tenant and permissions.
 	CreatorOperator bool

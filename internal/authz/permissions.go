@@ -21,9 +21,29 @@ const (
 	PermServiceAccount = "service_account:manage"
 )
 
+// Read-only counterparts of the management permissions (ADR-0048): each lets the management API read what the
+// matching :manage permission changes, and nothing else. A :manage permission also allows the reads.
+const (
+	PermAppRead            = "app:read"
+	PermTenantRead         = "tenant:read"
+	PermMemberRead         = "member:read"
+	PermGroupRead          = "group:read"
+	PermRoleRead           = "role:read"
+	PermPolicyRead         = "policy:read"
+	PermResourceRead       = "resource:read"
+	PermInviteRead         = "invite:read"
+	PermServiceAccountRead = "service_account:read"
+)
+
 // SystemPermissions lists the built-in catalogue.
 var SystemPermissions = []string{PermAppAccess, PermAppManage, PermTenantManage, PermMemberManage, PermGroupManage, PermRoleManage,
-	PermPolicyManage, PermResourceManage, PermInviteManage, PermAuditRead, PermAuthzSimulate, PermServiceAccount}
+	PermPolicyManage, PermResourceManage, PermInviteManage, PermAuditRead, PermAuthzSimulate, PermServiceAccount,
+	PermAppRead, PermTenantRead, PermMemberRead, PermGroupRead, PermRoleRead, PermPolicyRead, PermResourceRead, PermInviteRead,
+	PermServiceAccountRead}
+
+// ReadPermissions lists the read-only system permissions.
+var ReadPermissions = []string{PermAppRead, PermTenantRead, PermMemberRead, PermGroupRead, PermRoleRead, PermPolicyRead, PermResourceRead,
+	PermInviteRead, PermServiceAccountRead}
 
 // Built-in role slugs created in every tenant.
 const (

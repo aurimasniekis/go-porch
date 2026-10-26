@@ -3,7 +3,7 @@ import { useForm } from '@mantine/form'
 import { IconAlertTriangle } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { adminQuery, useAdminMutation } from '@/api/admin'
+import { readsInstallationConfig, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   createDomainRule,
   deleteDomainRule,
@@ -15,7 +15,7 @@ import {
   type DomainRule,
   type IdentityProvider,
 } from '@/api/admin/tenant'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, Notice, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
 import { ListTable } from '@/components/ListTable'
 
@@ -34,28 +34,29 @@ const modes = [
 
 function DomainsPage() {
   const { tenant } = Route.useParams()
-  const caps = useQuery(adminQuery)
+  const t = useAdminTenant(tenant)
+  const manage = t?.via === 'operator'
   return (
     <Stack gap="xl">
       <PageHeader
         title="Domain rules"
         description="Enroll everyone who signs in with an account from a domain. Domain rules are installation-wide (a domain belongs to one tenant), so only installation operators manage them. Creating and deleting rules needs a recent sign-in."
       />
-      {caps.data && !caps.data.installation ? (
+      {!readsInstallationConfig(t) ? (
         <Notice color="gray" title="Installation operators only">
           Ask an installation owner or administrator to change domain rules for this tenant.
         </Notice>
       ) : (
         <>
-          <CreateRule tenant={tenant} />
-          <RuleList tenant={tenant} />
+          {manage ? <CreateRule tenant={tenant} /> : <ReadOnlyNote what="domain rules" mb={0} />}
+          <RuleList tenant={tenant} manage={manage} />
         </>
       )}
     </Stack>
   )
 }
 
-function RuleList({ tenant }: { tenant: string }) {
+function RuleList({ tenant, manage }: { tenant: string; manage: boolean }) {
   const q = useQuery(domainRulesQuery(tenant))
   const providers = useQuery(providersQuery)
   const byId = new Map((providers.data ?? []).map((p) => [p.id, p]))
@@ -78,14 +79,16 @@ function RuleList({ tenant }: { tenant: string }) {
               <Table.Th>Mode</Table.Th>
               <Table.Th>Managed by</Table.Th>
               <Table.Th>Created</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Actions</VisuallyHidden>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <VisuallyHidden>Actions</VisuallyHidden>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {q.data.map((r) => (
-              <RuleRow key={r.id} tenant={tenant} rule={r} provider={byId.get(r.provider_id)} />
+              <RuleRow key={r.id} tenant={tenant} rule={r} provider={byId.get(r.provider_id)} manage={manage} />
             ))}
           </Table.Tbody>
         </ListTable>
@@ -94,12 +97,17 @@ function RuleList({ tenant }: { tenant: string }) {
   )
 }
 
-function RuleRow({ tenant, rule, provider }: { tenant: string; rule: DomainRule; provider?: IdentityProvider }) {
-  const del = useAdminMutation({
-    mutationFn: () => deleteDomainRule(tenant, rule),
-    success: `Rule for ${rule.domain} deleted`,
-    invalidate: [tenantKeys.domainRules(tenant), tenantKeys.members(tenant)],
-  })
+function RuleRow({
+  tenant,
+  rule,
+  provider,
+  manage,
+}: {
+  tenant: string
+  rule: DomainRule
+  provider?: IdentityProvider
+  manage: boolean
+}) {
   return (
     <Table.Tr>
       <Table.Td>
@@ -130,23 +138,34 @@ function RuleRow({ tenant, rule, provider }: { tenant: string; rule: DomainRule;
       <Table.Td>
         <Text size="sm">{when(rule.created_at)}</Text>
       </Table.Td>
-      <Table.Td>
-        <Group justify="flex-end">
-          <ConfirmButton
-            variant="default"
-            label="Delete"
-            title={`Delete the rule for ${rule.domain}?`}
-            loading={del.isPending}
-            onConfirm={() => del.mutateAsync().catch(() => undefined)}
-          >
-            <Text size="sm">
-              Memberships created by this rule are removed too: people from {rule.domain} lose access unless they were
-              added another way. This needs a recent sign-in.
-            </Text>
-          </ConfirmButton>
-        </Group>
-      </Table.Td>
+      {manage ? <RuleActions tenant={tenant} rule={rule} /> : null}
     </Table.Tr>
+  )
+}
+
+function RuleActions({ tenant, rule }: { tenant: string; rule: DomainRule }) {
+  const del = useAdminMutation({
+    mutationFn: () => deleteDomainRule(tenant, rule),
+    success: `Rule for ${rule.domain} deleted`,
+    invalidate: [tenantKeys.domainRules(tenant), tenantKeys.members(tenant)],
+  })
+  return (
+    <Table.Td>
+      <Group justify="flex-end">
+        <ConfirmButton
+          variant="default"
+          label="Delete"
+          title={`Delete the rule for ${rule.domain}?`}
+          loading={del.isPending}
+          onConfirm={() => del.mutateAsync().catch(() => undefined)}
+        >
+          <Text size="sm">
+            Memberships created by this rule are removed too: people from {rule.domain} lose access unless they were
+            added another way. This needs a recent sign-in.
+          </Text>
+        </ConfirmButton>
+      </Group>
+    </Table.Td>
   )
 }
 

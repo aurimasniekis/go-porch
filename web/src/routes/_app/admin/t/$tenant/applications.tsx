@@ -4,8 +4,9 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { can, useAdminTenant } from '@/api/admin'
 import { applicationsQuery, type Application } from '@/api/admin/tenant'
-import { EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { AppCreateModal } from '@/components/admin/tenant/AppCreateModal'
 import { AppDetail } from '@/components/admin/tenant/AppDetail'
 import { LoadingRows, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
@@ -23,6 +24,7 @@ function ApplicationsPage() {
   const { app } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const q = useQuery(applicationsQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'app:manage')
   const [creating, { open: openCreate, close: closeCreate }] = useDisclosure(false)
   const [secret, setSecret] = useState<OneTimeSecret | null>(null)
   const select = (id: string | undefined) => void navigate({ search: id ? { app: id } : {} })
@@ -33,17 +35,22 @@ function ApplicationsPage() {
         title="Applications"
         description="Applications people sign in to through Porch: OpenID Connect clients and services behind a forward-auth reverse proxy."
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-            New application
-          </Button>
+          manage ? (
+            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+              New application
+            </Button>
+          ) : null
         }
       />
+      {manage ? null : <ReadOnlyNote what="applications" mb={0} />}
       {q.error ? <ErrorAlert error={q.error} /> : null}
       {q.isPending ? (
         <LoadingRows />
       ) : !q.data?.length ? (
         q.error ? null : (
-          <EmptyState>No applications yet. Create one to let members sign in to it.</EmptyState>
+          <EmptyState>
+            {manage ? 'No applications yet. Create one to let members sign in to it.' : 'No applications yet.'}
+          </EmptyState>
         )
       ) : (
         <ListTable minWidth={760} striped highlightOnHover aria-label="Applications">
@@ -65,6 +72,7 @@ function ApplicationsPage() {
               <AppRow
                 key={a.id}
                 a={a}
+                manage={manage}
                 onOpen={() => {
                   select(a.id)
                 }}
@@ -75,7 +83,7 @@ function ApplicationsPage() {
       )}
       <AppCreateModal
         tenant={tenant}
-        opened={creating}
+        opened={creating && manage}
         onClose={closeCreate}
         onCreated={(a) => {
           closeCreate()
@@ -114,7 +122,7 @@ function ApplicationsPage() {
   )
 }
 
-function AppRow({ a, onOpen }: { a: Application; onOpen: () => void }) {
+function AppRow({ a, manage, onOpen }: { a: Application; manage: boolean; onOpen: () => void }) {
   return (
     <Table.Tr>
       <Table.Td>
@@ -156,8 +164,8 @@ function AppRow({ a, onOpen }: { a: Application; onOpen: () => void }) {
       </Table.Td>
       <Table.Td>
         <Group justify="flex-end">
-          <Button size="xs" variant="default" onClick={onOpen} aria-label={`Manage ${a.name}`}>
-            Manage
+          <Button size="xs" variant="default" onClick={onOpen} aria-label={`${manage ? 'Manage' : 'View'} ${a.name}`}>
+            {manage ? 'Manage' : 'View'}
           </Button>
         </Group>
       </Table.Td>

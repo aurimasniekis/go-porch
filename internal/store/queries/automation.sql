@@ -1,6 +1,7 @@
 -- name: InsertAutomationToken :exec
-INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires,
+  issued_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetAutomationTokenByMAC :one
 SELECT * FROM automation_tokens WHERE mac = ?;
@@ -18,6 +19,9 @@ UPDATE automation_tokens SET last_used_at = ?, last_used_ip = ? WHERE id = ?;
 
 -- name: RevokeAutomationToken :execrows
 UPDATE automation_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL;
+
+-- name: ListAutomationTokensIssuedBy :many
+SELECT id FROM automation_tokens WHERE issued_by = ?;
 
 -- name: RevokeUserAutomationTokens :execrows
 UPDATE automation_tokens SET revoked_at = ? WHERE created_by = ? AND revoked_at IS NULL;

@@ -66,7 +66,7 @@ erDiagram
 | `tenants` | id, slug (unique), name, status, session policy overrides |
 | `users` | Installation-wide user: id, public_id (`sub`), display_name, primary email, status, backup login handle |
 | `user_emails` | Email attributes with `verified` and provenance (never used for identity) |
-| `operators` / `installation_role_assignments` | Installation roles (`owner`, `admin`, `auditor`) — separate from tenant roles |
+| `operators` / `installation_role_assignments` | Installation roles (`owner`, `admin`, `auditor`, `inspector`) — separate from tenant roles |
 | `memberships` | (tenant, user) status, source |
 | `identity_providers` | Upstream OIDC providers (kind `google` / `oidc`), issuer, client id, sealed client secret, allowed `hd`s |
 | `external_identities` | (provider, issuer, subject) unique → user |
@@ -93,7 +93,7 @@ erDiagram
 | `client_redirect_uris` | Exact redirect URIs and post-logout URIs |
 | `app_shares` | (app, target tenant, granted_by) |
 | `service_accounts` | Tenant service accounts (migration 0006, ADR-0037): slug, name, enabled, secret MAC + hint, audiences, access-token TTL, last_used_at; ID doubles as `client_id` |
-| `automation_tokens` | `porch_at_` tokens: MAC, tenant, permissions, expiry |
+| `automation_tokens` | `porch_at_` tokens: MAC, tenant, role or permissions, expiry, issuing token (`issued_by`, ADR-0048) |
 | `auth_requests` | Pending authorize requests |
 | `auth_codes` | Single-use codes (MAC), bound to request, tenant, session |
 | `refresh_tokens` | MAC, family id, parent, state (`active`/`rotated`/`revoked`), client, tenant, user, scopes, expiry |

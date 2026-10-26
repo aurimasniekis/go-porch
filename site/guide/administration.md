@@ -19,6 +19,10 @@ who run Porch) can do everything; everyone else needs a role in the tenant that 
 | `authz:simulate` | use the access simulator |
 | `tenant:manage` | rename the tenant and change its session lifetimes |
 
+Each area also has a read-only permission: `app:read`, `member:read`, `invite:read`, `group:read`, `role:read`,
+`resource:read`, `policy:read`, `service_account:read` and `tenant:read`. It shows the area in the admin UI and the
+API without any way to change it. The matching `:manage` permission includes the read.
+
 The built-in **Administrator** role grants everything (`*:*`). The built-in **Member** role is what every member has.
 
 ## You can only hand out what you hold
@@ -42,6 +46,19 @@ flowchart LR
 
 Some things stay with installation operators because they affect every tenant: enabling or disabling a tenant,
 sharing an application with another tenant, domain rules, identity providers, user accounts and other users' sessions.
+
+## Installation roles
+
+Installation operators hold one of these roles, which owners grant under **Operators**:
+
+| Role | Can |
+|---|---|
+| `owner` | everything, including granting installation roles and rotating signing keys |
+| `admin` | manage every tenant, user, identity provider, domain rule and session |
+| `auditor` | read installation health, alerts, backups and the audit log |
+| `inspector` | read the configuration of every tenant (applications, service accounts, members, groups, roles, assignments, resources, policies, invitations, shares, domain rules) and the identity providers, without changing anything |
+
+Neither read-only role sees secrets: Porch shows client secrets only once, when they are created.
 
 ## Service accounts
 

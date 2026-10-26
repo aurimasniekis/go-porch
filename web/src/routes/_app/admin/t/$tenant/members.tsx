@@ -2,7 +2,7 @@ import { Button, Card, Group, Select, Stack, Table, Text, TextInput, Tooltip, Vi
 import { useForm } from '@mantine/form'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { adminQuery, useAdminMutation } from '@/api/admin'
+import { adminQuery, can, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   addMember,
   membersQuery,
@@ -13,7 +13,7 @@ import {
   when,
   type Member,
 } from '@/api/admin/tenant'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
 import { ListTable } from '@/components/ListTable'
 
@@ -25,14 +25,19 @@ function MembersPage() {
   const { tenant } = Route.useParams()
   const caps = useQuery(adminQuery)
   const operator = caps.data?.installation ?? false
+  const manage = can(useAdminTenant(tenant), 'member:manage')
   return (
     <Stack gap="xl">
       <PageHeader
         title="Members"
         description="People who belong to this tenant. Members can sign in to the tenant's applications; suspended members keep their history but cannot sign in here. Domain rules and invitations add members automatically."
       />
-      <AddMember tenant={tenant} operator={operator} />
-      <MemberList tenant={tenant} />
+      {manage ? (
+        <AddMember tenant={tenant} operator={operator} />
+      ) : (
+        <ReadOnlyNote what="this tenant's members" mb={0} />
+      )}
+      <MemberList tenant={tenant} manage={manage} />
     </Stack>
   )
 }
@@ -56,7 +61,7 @@ function SourceBadge({ source }: { source: string }) {
   return ref ? <Tooltip label={`${labels[kind] ?? kind} ${ref}`}>{badge}</Tooltip> : badge
 }
 
-function MemberList({ tenant }: { tenant: string }) {
+function MemberList({ tenant, manage }: { tenant: string; manage: boolean }) {
   const q = useInfiniteQuery(membersQuery(tenant))
   const members = q.data?.pages.flatMap((p) => p.items) ?? []
   return (
@@ -65,7 +70,9 @@ function MemberList({ tenant }: { tenant: string }) {
       {q.isPending ? (
         <LoadingRows />
       ) : members.length === 0 && !q.error ? (
-        <EmptyState>No members yet. Add a user above or create a domain rule or invitation.</EmptyState>
+        <EmptyState>
+          {manage ? 'No members yet. Add a user above or create a domain rule or invitation.' : 'No members yet.'}
+        </EmptyState>
       ) : (
         <ListTable minWidth={760} striped highlightOnHover aria-label="Tenant members">
           <Table.Thead>
@@ -75,14 +82,16 @@ function MemberList({ tenant }: { tenant: string }) {
               <Table.Th>Source</Table.Th>
               <Table.Th>Managed by</Table.Th>
               <Table.Th>Member since</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Actions</VisuallyHidden>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <VisuallyHidden>Actions</VisuallyHidden>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {members.map((m) => (
-              <MemberRow key={m.id} tenant={tenant} m={m} />
+              <MemberRow key={m.id} tenant={tenant} m={m} manage={manage} />
             ))}
           </Table.Tbody>
         </ListTable>
@@ -98,19 +107,8 @@ function MemberList({ tenant }: { tenant: string }) {
   )
 }
 
-function MemberRow({ tenant, m }: { tenant: string; m: Member }) {
+function MemberRow({ tenant, m, manage }: { tenant: string; m: Member; manage: boolean }) {
   const name = m.display_name ?? m.email ?? m.user_id
-  const status = useAdminMutation({
-    mutationFn: (s: Member['status']) => setMemberStatus(tenant, m, s),
-    success: (r) => `${name} is now ${r.status}`,
-    invalidate: [tenantKeys.members(tenant)],
-  })
-  const remove = useAdminMutation({
-    mutationFn: () => removeMember(tenant, m),
-    success: `${name} was removed from the tenant`,
-    invalidate: [tenantKeys.members(tenant)],
-  })
-  const next = m.status === 'active' ? 'suspended' : 'active'
   return (
     <Table.Tr>
       <Table.Td>
@@ -140,34 +138,51 @@ function MemberRow({ tenant, m }: { tenant: string; m: Member }) {
       <Table.Td>
         <Text size="sm">{when(m.created_at)}</Text>
       </Table.Td>
-      <Table.Td>
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Button
-            size="xs"
-            variant="default"
-            loading={status.isPending}
-            onClick={() => {
-              status.mutate(next)
-            }}
-            aria-label={`${next === 'suspended' ? 'Suspend' : 'Reactivate'} ${name}`}
-          >
-            {next === 'suspended' ? 'Suspend' : 'Reactivate'}
-          </Button>
-          <ConfirmButton
-            variant="default"
-            label="Remove"
-            title={`Remove ${name}?`}
-            loading={remove.isPending}
-            onConfirm={() => remove.mutateAsync().catch(() => undefined)}
-          >
-            <Text size="sm">
-              {name} loses access to this tenant's applications and their role assignments here stop applying. Members
-              added by a domain rule are added again at their next sign-in unless the rule is removed.
-            </Text>
-          </ConfirmButton>
-        </Group>
-      </Table.Td>
+      {manage ? <MemberActions tenant={tenant} m={m} name={name} /> : null}
     </Table.Tr>
+  )
+}
+
+function MemberActions({ tenant, m, name }: { tenant: string; m: Member; name: string }) {
+  const status = useAdminMutation({
+    mutationFn: (s: Member['status']) => setMemberStatus(tenant, m, s),
+    success: (r) => `${name} is now ${r.status}`,
+    invalidate: [tenantKeys.members(tenant)],
+  })
+  const remove = useAdminMutation({
+    mutationFn: () => removeMember(tenant, m),
+    success: `${name} was removed from the tenant`,
+    invalidate: [tenantKeys.members(tenant)],
+  })
+  const next = m.status === 'active' ? 'suspended' : 'active'
+  return (
+    <Table.Td>
+      <Group gap="xs" justify="flex-end" wrap="nowrap">
+        <Button
+          size="xs"
+          variant="default"
+          loading={status.isPending}
+          onClick={() => {
+            status.mutate(next)
+          }}
+          aria-label={`${next === 'suspended' ? 'Suspend' : 'Reactivate'} ${name}`}
+        >
+          {next === 'suspended' ? 'Suspend' : 'Reactivate'}
+        </Button>
+        <ConfirmButton
+          variant="default"
+          label="Remove"
+          title={`Remove ${name}?`}
+          loading={remove.isPending}
+          onConfirm={() => remove.mutateAsync().catch(() => undefined)}
+        >
+          <Text size="sm">
+            {name} loses access to this tenant's applications and their role assignments here stop applying. Members
+            added by a domain rule are added again at their next sign-in unless the rule is removed.
+          </Text>
+        </ConfirmButton>
+      </Group>
+    </Table.Td>
   )
 }
 

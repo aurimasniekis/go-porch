@@ -17,7 +17,7 @@ import { IconCheck, IconLock, IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
-import { ifMatch, useAdminMutation } from '@/api/admin'
+import { can, ifMatch, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   authzInvalidate,
   conflictAware,
@@ -30,7 +30,7 @@ import { api, check, unwrap } from '@/api/client'
 import { LoadingState, ManagedBy, MutationError, Perm, Tag } from '@/components/admin/authz/common'
 import { PermissionPicker } from '@/components/admin/authz/inputs'
 import { slugify, validSlug } from '@/components/admin/authz/logic'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/policies')({
@@ -45,6 +45,7 @@ const MAX_EXPRESSION = 2048
 function PoliciesPage() {
   const { tenant } = Route.useParams()
   const policies = useQuery(policiesQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'policy:manage')
   const [dialog, setDialog] = useState<OpenDialog>(null)
   const del = useAdminMutation({
     mutationFn: async (p: PolicyDef) => {
@@ -59,19 +60,25 @@ function PoliciesPage() {
         title="Policies"
         description="Condition policies restrict the assignments that reference them; deny policies override grants for their actions. Expressions use the expr language over the v1 environment."
         actions={
-          <Button
-            leftSection={<IconPlus size={16} aria-hidden />}
-            onClick={() => {
-              setDialog({ kind: 'create' })
-            }}
-          >
-            New policy
-          </Button>
+          manage ? (
+            <Button
+              leftSection={<IconPlus size={16} aria-hidden />}
+              onClick={() => {
+                setDialog({ kind: 'create' })
+              }}
+            >
+              New policy
+            </Button>
+          ) : null
         }
       />
-      <Alert color="gray" icon={<IconLock size={18} />} mb="md">
-        Creating, changing or deleting a policy needs a recent sign-in; you may be asked to sign in again.
-      </Alert>
+      {manage ? (
+        <Alert color="gray" icon={<IconLock size={18} />} mb="md">
+          Creating, changing or deleting a policy needs a recent sign-in; you may be asked to sign in again.
+        </Alert>
+      ) : (
+        <ReadOnlyNote what="policies" />
+      )}
       <ErrorAlert error={policies.error} title="Could not load policies" />
       {policies.isPending ? <LoadingState label="Loading policies…" /> : null}
       {policies.data?.length === 0 ? <EmptyState>No policies yet.</EmptyState> : null}
@@ -84,9 +91,11 @@ function PoliciesPage() {
               <Table.Th>Applies to</Table.Th>
               <Table.Th>Expression</Table.Th>
               <Table.Th>Managed by</Table.Th>
-              <Table.Th>
-                <span className="visually-hidden">Actions</span>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -116,47 +125,50 @@ function PoliciesPage() {
                 </Table.Td>
                 <Table.Td maw={360}>
                   <Code block style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {p.expression.length > 160 ? `${p.expression.slice(0, 160)}…` : p.expression}
+                    {/* Readers cannot open the editor, so they see the whole expression. */}
+                    {manage && p.expression.length > 160 ? `${p.expression.slice(0, 160)}…` : p.expression}
                   </Code>
                 </Table.Td>
                 <Table.Td>
                   <ManagedBy managedBy={p.managed_by} />
                 </Table.Td>
-                <Table.Td>
-                  <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    <Button
-                      size="xs"
-                      variant="default"
-                      aria-label={`Edit policy ${p.name}`}
-                      onClick={() => {
-                        setDialog({ kind: 'edit', policy: p })
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <ConfirmButton
-                      variant="default"
-                      label="Delete"
-                      title={`Delete policy ${p.name}?`}
-                      confirmLabel="Delete policy"
-                      loading={del.isPending}
-                      onConfirm={() => del.mutateAsync(p).catch(() => undefined)}
-                    >
-                      <Text size="sm">
-                        {p.effect === 'condition'
-                          ? 'Every conditional assignment that references this policy is removed as well.'
-                          : 'Its restriction is lifted: grants for its actions apply again.'}{' '}
-                        This cannot be undone.
-                      </Text>
-                    </ConfirmButton>
-                  </Group>
-                </Table.Td>
+                {manage ? (
+                  <Table.Td>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      <Button
+                        size="xs"
+                        variant="default"
+                        aria-label={`Edit policy ${p.name}`}
+                        onClick={() => {
+                          setDialog({ kind: 'edit', policy: p })
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <ConfirmButton
+                        variant="default"
+                        label="Delete"
+                        title={`Delete policy ${p.name}?`}
+                        confirmLabel="Delete policy"
+                        loading={del.isPending}
+                        onConfirm={() => del.mutateAsync(p).catch(() => undefined)}
+                      >
+                        <Text size="sm">
+                          {p.effect === 'condition'
+                            ? 'Every conditional assignment that references this policy is removed as well.'
+                            : 'Its restriction is lifted: grants for its actions apply again.'}{' '}
+                          This cannot be undone.
+                        </Text>
+                      </ConfirmButton>
+                    </Group>
+                  </Table.Td>
+                ) : null}
               </Table.Tr>
             ))}
           </Table.Tbody>
         </ListTable>
       ) : null}
-      {dialog ? (
+      {dialog && manage ? (
         <PolicyDialog
           tenant={tenant}
           policy={dialog.kind === 'edit' ? dialog.policy : undefined}

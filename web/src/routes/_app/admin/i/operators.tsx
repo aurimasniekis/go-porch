@@ -17,10 +17,11 @@ export const Route = createFileRoute('/_app/admin/i/operators')({
 const roleInfo: Record<string, string> = {
   owner: 'Full control, including key rotation',
   admin: 'Manages tenants, users, providers and sessions',
-  auditor: 'Read-only access to health, audit log and configuration',
+  auditor: 'Reads installation health, alerts, backups and the audit log',
+  inspector: 'Reads the configuration of every tenant; changes nothing',
 }
 
-type Role = 'owner' | 'admin' | 'auditor'
+type Role = 'owner' | 'admin' | 'auditor' | 'inspector'
 
 function GrantRole() {
   const users = useQuery({
@@ -67,6 +68,7 @@ function GrantRole() {
           data={[
             { value: 'admin', label: 'Admin' },
             { value: 'auditor', label: 'Auditor' },
+            { value: 'inspector', label: 'Inspector' },
             { value: 'owner', label: 'Owner' },
           ]}
           value={role}

@@ -3,9 +3,9 @@ import { useForm } from '@mantine/form'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAdminMutation } from '@/api/admin'
+import { can, useAdminMutation, useAdminTenant } from '@/api/admin'
 import { createInvite, deleteInvite, invitesQuery, tenantKeys, when, type Invite } from '@/api/admin/tenant'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Section, Tag } from '@/components/admin/tenant/common'
 import { ListTable } from '@/components/ListTable'
 
@@ -23,14 +23,15 @@ const validity = [
 
 function InvitesPage() {
   const { tenant } = Route.useParams()
+  const manage = can(useAdminTenant(tenant), 'invite:manage')
   return (
     <Stack gap="xl">
       <PageHeader
         title="Invitations"
         description="Allow a specific email address to join this tenant. The invitation is accepted the first time that person signs in with an identity provider account whose verified email matches exactly. Porch does not send email: tell them to sign in."
       />
-      <CreateInvite tenant={tenant} />
-      <InviteList tenant={tenant} />
+      {manage ? <CreateInvite tenant={tenant} /> : <ReadOnlyNote what="invitations" mb={0} />}
+      <InviteList tenant={tenant} manage={manage} />
     </Stack>
   )
 }
@@ -44,7 +45,7 @@ function stateOf(i: Invite, now: number): InviteState {
 
 const stateColor: Record<InviteState, string> = { pending: 'blue', accepted: 'green', expired: 'gray' }
 
-function InviteList({ tenant }: { tenant: string }) {
+function InviteList({ tenant, manage }: { tenant: string; manage: boolean }) {
   const q = useQuery(invitesQuery(tenant))
   const [now] = useState(() => Date.now())
   return (
@@ -64,14 +65,16 @@ function InviteList({ tenant }: { tenant: string }) {
               <Table.Th>State</Table.Th>
               <Table.Th>Sent</Table.Th>
               <Table.Th>Expires / accepted</Table.Th>
-              <Table.Th>
-                <VisuallyHidden>Actions</VisuallyHidden>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <VisuallyHidden>Actions</VisuallyHidden>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {q.data.map((i) => (
-              <InviteRow key={i.id} tenant={tenant} invite={i} state={stateOf(i, now)} />
+              <InviteRow key={i.id} tenant={tenant} invite={i} state={stateOf(i, now)} manage={manage} />
             ))}
           </Table.Tbody>
         </ListTable>
@@ -80,12 +83,17 @@ function InviteList({ tenant }: { tenant: string }) {
   )
 }
 
-function InviteRow({ tenant, invite, state }: { tenant: string; invite: Invite; state: InviteState }) {
-  const del = useAdminMutation({
-    mutationFn: () => deleteInvite(tenant, invite.id),
-    success: state === 'pending' ? `Invitation for ${invite.email} revoked` : 'Invitation deleted',
-    invalidate: [tenantKeys.invites(tenant)],
-  })
+function InviteRow({
+  tenant,
+  invite,
+  state,
+  manage,
+}: {
+  tenant: string
+  invite: Invite
+  state: InviteState
+  manage: boolean
+}) {
   return (
     <Table.Tr>
       <Table.Td>
@@ -102,24 +110,35 @@ function InviteRow({ tenant, invite, state }: { tenant: string; invite: Invite; 
       <Table.Td>
         <Text size="sm">{state === 'accepted' ? when(invite.consumed_at) : when(invite.expires_at)}</Text>
       </Table.Td>
-      <Table.Td>
-        <Group justify="flex-end">
-          <ConfirmButton
-            variant="default"
-            label={state === 'pending' ? 'Revoke' : 'Delete'}
-            title={state === 'pending' ? `Revoke the invitation for ${invite.email}?` : 'Delete this invitation?'}
-            loading={del.isPending}
-            onConfirm={() => del.mutateAsync().catch(() => undefined)}
-          >
-            <Text size="sm">
-              {state === 'pending'
-                ? 'The invitation stops working immediately. People who already joined stay members.'
-                : 'Removes the record. Membership created by an accepted invitation is not affected.'}
-            </Text>
-          </ConfirmButton>
-        </Group>
-      </Table.Td>
+      {manage ? <InviteActions tenant={tenant} invite={invite} state={state} /> : null}
     </Table.Tr>
+  )
+}
+
+function InviteActions({ tenant, invite, state }: { tenant: string; invite: Invite; state: InviteState }) {
+  const del = useAdminMutation({
+    mutationFn: () => deleteInvite(tenant, invite.id),
+    success: state === 'pending' ? `Invitation for ${invite.email} revoked` : 'Invitation deleted',
+    invalidate: [tenantKeys.invites(tenant)],
+  })
+  return (
+    <Table.Td>
+      <Group justify="flex-end">
+        <ConfirmButton
+          variant="default"
+          label={state === 'pending' ? 'Revoke' : 'Delete'}
+          title={state === 'pending' ? `Revoke the invitation for ${invite.email}?` : 'Delete this invitation?'}
+          loading={del.isPending}
+          onConfirm={() => del.mutateAsync().catch(() => undefined)}
+        >
+          <Text size="sm">
+            {state === 'pending'
+              ? 'The invitation stops working immediately. People who already joined stay members.'
+              : 'Removes the record. Membership created by an accepted invitation is not affected.'}
+          </Text>
+        </ConfirmButton>
+      </Group>
+    </Table.Td>
   )
 }
 

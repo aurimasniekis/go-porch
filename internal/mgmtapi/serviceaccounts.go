@@ -60,7 +60,7 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-service-accounts", Method: http.MethodGet, Path: "/tenants/{tenant}/service-accounts",
 		Summary: "Service accounts of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []ServiceAccount }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, perm)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermServiceAccountRead, perm)
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +107,7 @@ func registerServiceAccounts(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-service-account", Method: http.MethodGet, Path: "/tenants/{tenant}/service-accounts/{sa}",
 		Summary: "Get a service account", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *ServiceAccountRef) (*withETag[ServiceAccount], error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, perm)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermServiceAccountRead, perm)
 			if err != nil {
 				return nil, err
 			}
@@ -233,7 +233,7 @@ type AdminTenant struct {
 	ID          string   `json:"id"`
 	Slug        string   `json:"slug"`
 	Name        string   `json:"name"`
-	Via         string   `json:"via" enum:"operator,delegated"`
+	Via         string   `json:"via" enum:"operator,inspector,delegated"`
 	Permissions []string `json:"permissions" doc:"Management permissions held at tenant scope (system catalogue subset)."`
 }
 
@@ -242,6 +242,7 @@ type AdminCapabilities struct {
 	OperatorRoles []string      `json:"operator_roles"`
 	Installation  bool          `json:"installation" doc:"Installation administration (owner or admin)."`
 	Auditor       bool          `json:"auditor" doc:"Installation-wide audit and health (owner, admin or auditor)."`
+	Inspector     bool          `json:"inspector" doc:"Reads the configuration of every tenant (installation inspector, ADR-0048)."`
 	Tenants       []AdminTenant `json:"tenants"`
 }
 
@@ -252,7 +253,8 @@ func registerAdminCapabilities(api huma.API, d *Deps) {
 			p := Principal(ctx)
 			out := AdminCapabilities{OperatorRoles: nonNilStrings(p.OperatorRoles), Tenants: []AdminTenant{},
 				Installation: p.IsOperator(identity.RoleOwner, identity.RoleAdmin),
-				Auditor:      p.IsOperator(identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor)}
+				Auditor:      p.IsOperator(identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor),
+				Inspector:    p.IsOperator(identity.RoleInspector)}
 			mgmt := slices.DeleteFunc(slices.Clone(authz.SystemPermissions), func(s string) bool { return s == authz.PermAppAccess })
 			if out.Installation {
 				rows, err := d.Store.R().ListAllTenants(ctx)
@@ -263,6 +265,19 @@ func registerAdminCapabilities(api huma.API, d *Deps) {
 					out.Tenants = append(out.Tenants, AdminTenant{ID: t.ID, Slug: t.Slug, Name: t.Name, Via: "operator", Permissions: mgmt})
 				}
 				return &struct{ Body AdminCapabilities }{Body: out}, nil
+			}
+			// Inspectors read every tenant; where they also administer a tenant, they keep those permissions too.
+			inspected := map[string]int{}
+			if out.Inspector {
+				rows, err := d.Store.R().ListAllTenants(ctx)
+				if err != nil {
+					return nil, d.fail("me-admin", err)
+				}
+				for _, t := range rows {
+					inspected[t.ID] = len(out.Tenants)
+					out.Tenants = append(out.Tenants, AdminTenant{ID: t.ID, Slug: t.Slug, Name: t.Name, Via: "inspector",
+						Permissions: slices.Clone(authz.ReadPermissions)})
+				}
 			}
 			rows, err := d.Tenants.UserMemberships(ctx, p.UserID)
 			if err != nil {
@@ -281,6 +296,12 @@ func registerAdminCapabilities(api huma.API, d *Deps) {
 					if ok {
 						held = append(held, perm)
 					}
+				}
+				if i, ok := inspected[m.TenantID]; ok {
+					merged := append(out.Tenants[i].Permissions, held...)
+					slices.Sort(merged)
+					out.Tenants[i].Permissions = slices.Compact(merged)
+					continue
 				}
 				if len(held) > 0 {
 					out.Tenants = append(out.Tenants, AdminTenant{ID: m.TenantID, Slug: m.TenantSlug, Name: m.TenantName, Via: "delegated", Permissions: held})

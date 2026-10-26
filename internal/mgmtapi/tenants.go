@@ -87,7 +87,7 @@ func registerTenants(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-tenants", Method: http.MethodGet, Path: "/tenants", Summary: "List tenants",
 		Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *struct{ Pagination }) (*struct{ Body TenantList }, error) {
-			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor); err != nil {
+			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor, identity.RoleInspector); err != nil {
 				return nil, err
 			}
 			page, err := in.Page()
@@ -125,7 +125,7 @@ func registerTenants(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-tenant", Method: http.MethodGet, Path: "/tenants/{tenant}", Summary: "Get a tenant",
 		Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*tenantOutput, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermTenantManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermTenantRead, authz.PermTenantManage)
 			if err != nil {
 				return nil, err
 			}

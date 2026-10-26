@@ -68,7 +68,7 @@ func registerMembers(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-members", Method: http.MethodGet, Path: "/tenants/{tenant}/members",
 		Summary: "List tenant members (member, group or role managers)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *listInput) (*struct{ Body MemberList }, error) {
-			sc, err := d.tenantAdminAny(ctx, in.Tenant, authz.PermMemberManage, authz.PermGroupManage, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermMemberRead, authz.PermMemberManage, authz.PermGroupManage, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}

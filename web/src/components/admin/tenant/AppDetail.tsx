@@ -1,8 +1,20 @@
-import { Button, Card, Divider, Group, Select, Stack, Table, Text, Title, VisuallyHidden } from '@mantine/core'
+import {
+  Button,
+  Card,
+  Divider,
+  Fieldset,
+  Group,
+  Select,
+  Stack,
+  Table,
+  Text,
+  Title,
+  VisuallyHidden,
+} from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { adminQuery, useAdminMutation } from '@/api/admin'
+import { adminQuery, can, readsInstallationConfig, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   applicationQuery,
   deleteApplication,
@@ -18,7 +30,7 @@ import {
   type Application,
   type UpdateApplicationRequest,
 } from '@/api/admin/tenant'
-import { ConfirmButton, EmptyState, ErrorAlert } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 import {
   ClientFields,
@@ -42,10 +54,15 @@ import {
 } from './LauncherFields'
 import { SecretModal, type OneTimeSecret } from './SecretModal'
 
-/** Edits one application: connection details, settings, client, forward-auth, sharing and deletion. */
+/**
+ * Edits one application: connection details, settings, client, forward-auth, sharing and deletion. Without app:manage
+ * everything is shown read-only; sharing is listed for installation operators and inspectors and changed by operators.
+ */
 export function AppDetail({ tenant, appId, onDeleted }: { tenant: string; appId: string; onDeleted: () => void }) {
   const q = useQuery(applicationQuery(tenant, appId))
-  const caps = useQuery(adminQuery)
+  const t = useAdminTenant(tenant)
+  const manage = can(t, 'app:manage')
+  const readOnly = !manage
   if (q.error) return <ErrorAlert error={q.error} />
   if (!q.data) return <LoadingRows rows={6} />
   const a = q.data
@@ -62,18 +79,67 @@ export function AppDetail({ tenant, appId, onDeleted }: { tenant: string; appId:
           Slug {a.slug} · updated {when(a.updated_at)}
         </Text>
       </Group>
-      {a.client ? <Connection tenant={tenant} app={a} /> : null}
-      <GeneralSection tenant={tenant} app={a} reload={reload} />
-      <LauncherSection tenant={tenant} app={a} reload={reload} />
-      {a.kind === 'oidc' ? <ClientSection tenant={tenant} app={a} reload={reload} /> : null}
-      {a.kind === 'forward_auth' ? <ForwardSection tenant={tenant} app={a} reload={reload} /> : null}
-      {caps.data?.installation ? <Shares tenant={tenant} app={a} /> : null}
-      <DangerZone tenant={tenant} app={a} onDeleted={onDeleted} reload={reload} />
+      {readOnly ? <ReadOnlyNote what="this application" mb={0} /> : null}
+      {a.client ? <Connection tenant={tenant} app={a} readOnly={readOnly} /> : null}
+      <GeneralSection tenant={tenant} app={a} reload={reload} readOnly={readOnly} />
+      <LauncherSection tenant={tenant} app={a} reload={reload} readOnly={readOnly} />
+      {a.kind === 'oidc' ? <ClientSection tenant={tenant} app={a} reload={reload} readOnly={readOnly} /> : null}
+      {a.kind === 'forward_auth' ? (
+        <ForwardSection tenant={tenant} app={a} reload={reload} readOnly={readOnly} />
+      ) : null}
+      {readsInstallationConfig(t) ? <Shares tenant={tenant} app={a} manage={t?.via === 'operator'} /> : null}
+      {manage ? <DangerZone tenant={tenant} app={a} onDeleted={onDeleted} reload={reload} /> : null}
     </Stack>
   )
 }
 
 type Reload = () => Promise<Application | undefined>
+
+interface SectionProps {
+  tenant: string
+  app: Application
+  reload: Reload
+  /** Shows the values without letting them be changed (no app:manage). */
+  readOnly: boolean
+}
+
+/** The form's inputs; disabled (shown as values) when read-only. */
+function Fields({ readOnly, children }: { readOnly: boolean; children: ReactNode }) {
+  return (
+    <Fieldset disabled={readOnly} variant="unstyled" p={0} m={0}>
+      {children}
+    </Fieldset>
+  )
+}
+
+/** The save row of a section form (hidden when read-only). */
+function SaveRow({
+  readOnly,
+  error,
+  onReload,
+  loading,
+  dirty,
+  label,
+}: {
+  readOnly: boolean
+  error: unknown
+  onReload: () => Promise<void>
+  loading: boolean
+  dirty: boolean
+  label: string
+}) {
+  if (readOnly) return null
+  return (
+    <>
+      <MutationError error={error} onReload={onReload} />
+      <Group justify="flex-end">
+        <Button type="submit" loading={loading} disabled={!dirty}>
+          {label}
+        </Button>
+      </Group>
+    </>
+  )
+}
 
 /** Saves a partial update with the app's version, then refreshes the cached copies. */
 function useAppUpdate(tenant: string, app: Application, success: string, onSaved: (a: Application) => void) {
@@ -100,7 +166,7 @@ function SectionCard({ title, children }: { title: string; children: ReactNode }
   )
 }
 
-function Connection({ tenant, app }: { tenant: string; app: Application }) {
+function Connection({ tenant, app, readOnly }: { tenant: string; app: Application; readOnly: boolean }) {
   const c = app.client
   const [secret, setSecret] = useState<OneTimeSecret | null>(null)
   const rotate = useAdminMutation({
@@ -123,19 +189,21 @@ function Connection({ tenant, app }: { tenant: string; app: Application }) {
             <Text size="sm" c="dimmed">
               Client secret {c.secret_hint ? `ending in …${c.secret_hint}` : 'set'} (never shown again)
             </Text>
-            <ConfirmButton
-              variant="default"
-              label="Rotate secret"
-              title="Issue a new client secret?"
-              color="orange"
-              loading={rotate.isPending}
-              onConfirm={() => rotate.mutateAsync().catch(() => undefined)}
-            >
-              <Text size="sm">
-                The current secret stops working immediately. Update the application with the new secret right away.
-                This needs a recent sign-in.
-              </Text>
-            </ConfirmButton>
+            {readOnly ? null : (
+              <ConfirmButton
+                variant="default"
+                label="Rotate secret"
+                title="Issue a new client secret?"
+                color="orange"
+                loading={rotate.isPending}
+                onConfirm={() => rotate.mutateAsync().catch(() => undefined)}
+              >
+                <Text size="sm">
+                  The current secret stops working immediately. Update the application with the new secret right away.
+                  This needs a recent sign-in.
+                </Text>
+              </ConfirmButton>
+            )}
           </Group>
         ) : (
           <Text size="sm" c="dimmed">
@@ -153,7 +221,7 @@ function Connection({ tenant, app }: { tenant: string; app: Application }) {
   )
 }
 
-function GeneralSection({ tenant, app, reload }: { tenant: string; app: Application; reload: Reload }) {
+function GeneralSection({ tenant, app, reload, readOnly }: SectionProps) {
   const form = useForm({
     initialValues: toGeneralForm(app),
     validate: { name: (v) => (v.trim() ? null : 'Required') },
@@ -179,26 +247,27 @@ function GeneralSection({ tenant, app, reload }: { tenant: string; app: Applicat
         })}
       >
         <Stack>
-          <GeneralFields form={form} edit />
-          <MutationError
+          <Fields readOnly={readOnly}>
+            <GeneralFields form={form} edit />
+          </Fields>
+          <SaveRow
+            readOnly={readOnly}
             error={save.error}
             onReload={async () => {
               reset(await reload())
               save.reset()
             }}
+            loading={save.isPending}
+            dirty={form.isDirty()}
+            label="Save settings"
           />
-          <Group justify="flex-end">
-            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
-              Save settings
-            </Button>
-          </Group>
         </Stack>
       </form>
     </SectionCard>
   )
 }
 
-function LauncherSection({ tenant, app, reload }: { tenant: string; app: Application; reload: Reload }) {
+function LauncherSection({ tenant, app, reload, readOnly }: SectionProps) {
   const qc = useQueryClient()
   const form = useForm({
     initialValues: toLauncherForm(app),
@@ -230,26 +299,27 @@ function LauncherSection({ tenant, app, reload }: { tenant: string; app: Applica
         })}
       >
         <Stack>
-          <LauncherFields form={form} current={app} />
-          <MutationError
+          <Fields readOnly={readOnly}>
+            <LauncherFields form={form} current={app} />
+          </Fields>
+          <SaveRow
+            readOnly={readOnly}
             error={save.error}
             onReload={async () => {
               reset(await reload())
               save.reset()
             }}
+            loading={save.isPending}
+            dirty={form.isDirty()}
+            label="Save launcher settings"
           />
-          <Group justify="flex-end">
-            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
-              Save launcher settings
-            </Button>
-          </Group>
         </Stack>
       </form>
     </SectionCard>
   )
 }
 
-function ClientSection({ tenant, app, reload }: { tenant: string; app: Application; reload: Reload }) {
+function ClientSection({ tenant, app, reload, readOnly }: SectionProps) {
   const form = useForm({ initialValues: toClientForm(app.client) })
   const reset = (a: Application | undefined) => {
     if (!a) return
@@ -265,26 +335,27 @@ function ClientSection({ tenant, app, reload }: { tenant: string; app: Applicati
         })}
       >
         <Stack>
-          <ClientFields form={form} edit />
-          <MutationError
+          <Fields readOnly={readOnly}>
+            <ClientFields form={form} edit />
+          </Fields>
+          <SaveRow
+            readOnly={readOnly}
             error={save.error}
             onReload={async () => {
               reset(await reload())
               save.reset()
             }}
+            loading={save.isPending}
+            dirty={form.isDirty()}
+            label="Save client"
           />
-          <Group justify="flex-end">
-            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
-              Save client
-            </Button>
-          </Group>
         </Stack>
       </form>
     </SectionCard>
   )
 }
 
-function ForwardSection({ tenant, app, reload }: { tenant: string; app: Application; reload: Reload }) {
+function ForwardSection({ tenant, app, reload, readOnly }: SectionProps) {
   const form = useForm({
     initialValues: toForwardForm(app),
     validate: { hosts: (v) => (lines(v).length ? null : 'Add at least one host') },
@@ -303,28 +374,31 @@ function ForwardSection({ tenant, app, reload }: { tenant: string; app: Applicat
         })}
       >
         <Stack>
-          <HostsField form={form} />
-          <HeadersField form={form} />
-          <MutationError
+          <Fields readOnly={readOnly}>
+            <Stack>
+              <HostsField form={form} />
+              <HeadersField form={form} readOnly={readOnly} />
+            </Stack>
+          </Fields>
+          <SaveRow
+            readOnly={readOnly}
             error={save.error}
             onReload={async () => {
               reset(await reload())
               save.reset()
             }}
+            loading={save.isPending}
+            dirty={form.isDirty()}
+            label="Save forward-auth"
           />
-          <Group justify="flex-end">
-            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
-              Save forward-auth
-            </Button>
-          </Group>
         </Stack>
       </form>
     </SectionCard>
   )
 }
 
-/** Cross-tenant sharing (installation operators only, ADR-0004). */
-function Shares({ tenant, app }: { tenant: string; app: Application }) {
+/** Cross-tenant sharing (installation operators change it, ADR-0004; inspectors read it, ADR-0048). */
+function Shares({ tenant, app, manage }: { tenant: string; app: Application; manage: boolean }) {
   const q = useQuery(sharesQuery(tenant, app.id))
   const caps = useQuery(adminQuery)
   const [target, setTarget] = useState<string | null>(null)
@@ -365,9 +439,11 @@ function Shares({ tenant, app }: { tenant: string; app: Application }) {
               <Table.Tr>
                 <Table.Th>Tenant</Table.Th>
                 <Table.Th>Since</Table.Th>
-                <Table.Th>
-                  <VisuallyHidden>Actions</VisuallyHidden>
-                </Table.Th>
+                {manage ? (
+                  <Table.Th>
+                    <VisuallyHidden>Actions</VisuallyHidden>
+                  </Table.Th>
+                ) : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -380,47 +456,51 @@ function Shares({ tenant, app }: { tenant: string; app: Application }) {
                     </Text>
                   </Table.Td>
                   <Table.Td>{when(s.created_at)}</Table.Td>
-                  <Table.Td>
-                    <Group justify="flex-end">
-                      <ConfirmButton
-                        variant="default"
-                        label="Stop sharing"
-                        title={`Stop sharing with ${s.tenant_name}?`}
-                        loading={unshare.isPending}
-                        onConfirm={() => unshare.mutateAsync(s.tenant_slug).catch(() => undefined)}
-                      >
-                        <Text size="sm">Members of {s.tenant_name} lose access to this application.</Text>
-                      </ConfirmButton>
-                    </Group>
-                  </Table.Td>
+                  {manage ? (
+                    <Table.Td>
+                      <Group justify="flex-end">
+                        <ConfirmButton
+                          variant="default"
+                          label="Stop sharing"
+                          title={`Stop sharing with ${s.tenant_name}?`}
+                          loading={unshare.isPending}
+                          onConfirm={() => unshare.mutateAsync(s.tenant_slug).catch(() => undefined)}
+                        >
+                          <Text size="sm">Members of {s.tenant_name} lose access to this application.</Text>
+                        </ConfirmButton>
+                      </Group>
+                    </Table.Td>
+                  ) : null}
                 </Table.Tr>
               ))}
             </Table.Tbody>
           </ListTable>
         )}
-        <Group align="flex-end">
-          <Select
-            label="Share with tenant"
-            placeholder="Choose a tenant"
-            data={options}
-            value={target}
-            onChange={setTarget}
-            searchable
-            nothingFoundMessage="No other tenant"
-            style={{ flex: 1, minWidth: 220 }}
-            maw={360}
-          />
-          <Button
-            variant="default"
-            disabled={!target}
-            loading={share.isPending}
-            onClick={() => {
-              if (target) share.mutate(target)
-            }}
-          >
-            Share
-          </Button>
-        </Group>
+        {manage ? (
+          <Group align="flex-end">
+            <Select
+              label="Share with tenant"
+              placeholder="Choose a tenant"
+              data={options}
+              value={target}
+              onChange={setTarget}
+              searchable
+              nothingFoundMessage="No other tenant"
+              style={{ flex: 1, minWidth: 220 }}
+              maw={360}
+            />
+            <Button
+              variant="default"
+              disabled={!target}
+              loading={share.isPending}
+              onClick={() => {
+                if (target) share.mutate(target)
+              }}
+            >
+              Share
+            </Button>
+          </Group>
+        ) : null}
       </Stack>
     </SectionCard>
   )

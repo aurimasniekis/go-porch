@@ -3,13 +3,13 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAdminMutation, ifMatch } from '@/api/admin'
+import { can, ifMatch, useAdminMutation, useAdminTenant } from '@/api/admin'
 import { authzInvalidate, conflictAware, permissionsQuery, rolesQuery, type Role } from '@/api/admin/authz'
 import { api, check, unwrap } from '@/api/client'
 import { LoadingState, ManagedBy, MutationError, Perm, Tag } from '@/components/admin/authz/common'
 import { PermissionPicker } from '@/components/admin/authz/inputs'
 import { slugify, validSlug } from '@/components/admin/authz/logic'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/roles')({
@@ -21,6 +21,7 @@ type Editing = { mode: 'create' } | { mode: 'edit'; role: Role } | null
 function RolesPage() {
   const { tenant } = Route.useParams()
   const roles = useQuery(rolesQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'role:manage')
   const [editing, setEditing] = useState<Editing>(null)
   const del = useAdminMutation({
     mutationFn: async (r: Role) => {
@@ -36,16 +37,19 @@ function RolesPage() {
         title="Roles"
         description="A role bundles permissions (and optionally other roles). Assign roles to members, groups or service accounts on the Assignments page."
         actions={
-          <Button
-            leftSection={<IconPlus size={16} aria-hidden />}
-            onClick={() => {
-              setEditing({ mode: 'create' })
-            }}
-          >
-            New role
-          </Button>
+          manage ? (
+            <Button
+              leftSection={<IconPlus size={16} aria-hidden />}
+              onClick={() => {
+                setEditing({ mode: 'create' })
+              }}
+            >
+              New role
+            </Button>
+          ) : null
         }
       />
+      {manage ? null : <ReadOnlyNote what="roles" />}
       <ErrorAlert error={roles.error} title="Could not load roles" />
       {roles.isPending ? <LoadingState label="Loading roles…" /> : null}
       {roles.data?.length === 0 ? <EmptyState>No roles yet.</EmptyState> : null}
@@ -57,9 +61,11 @@ function RolesPage() {
               <Table.Th>Permissions</Table.Th>
               <Table.Th>Includes roles</Table.Th>
               <Table.Th>Managed by</Table.Th>
-              <Table.Th>
-                <span className="visually-hidden">Actions</span>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -100,41 +106,43 @@ function RolesPage() {
                 <Table.Td>
                   <ManagedBy managedBy={r.managed_by} />
                 </Table.Td>
-                <Table.Td>
-                  <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    <Button
-                      size="xs"
-                      variant="default"
-                      aria-label={`Edit role ${r.name}`}
-                      onClick={() => {
-                        setEditing({ mode: 'edit', role: r })
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    {r.built_in ? null : (
-                      <ConfirmButton
+                {manage ? (
+                  <Table.Td>
+                    <Group gap="xs" justify="flex-end" wrap="nowrap">
+                      <Button
+                        size="xs"
                         variant="default"
-                        label="Delete"
-                        title={`Delete role ${r.name}?`}
-                        confirmLabel="Delete role"
-                        loading={del.isPending}
-                        onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
+                        aria-label={`Edit role ${r.name}`}
+                        onClick={() => {
+                          setEditing({ mode: 'edit', role: r })
+                        }}
                       >
-                        <Text size="sm">
-                          Every assignment of <b>{r.name}</b> is removed and roles that include it no longer grant its
-                          permissions. This cannot be undone.
-                        </Text>
-                      </ConfirmButton>
-                    )}
-                  </Group>
-                </Table.Td>
+                        Edit
+                      </Button>
+                      {r.built_in ? null : (
+                        <ConfirmButton
+                          variant="default"
+                          label="Delete"
+                          title={`Delete role ${r.name}?`}
+                          confirmLabel="Delete role"
+                          loading={del.isPending}
+                          onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
+                        >
+                          <Text size="sm">
+                            Every assignment of <b>{r.name}</b> is removed and roles that include it no longer grant its
+                            permissions. This cannot be undone.
+                          </Text>
+                        </ConfirmButton>
+                      )}
+                    </Group>
+                  </Table.Td>
+                ) : null}
               </Table.Tr>
             ))}
           </Table.Tbody>
         </ListTable>
       ) : null}
-      {editing ? (
+      {editing && manage ? (
         <RoleDialog
           tenant={tenant}
           role={editing.mode === 'edit' ? editing.role : undefined}

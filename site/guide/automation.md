@@ -10,10 +10,13 @@ Scripts and Terraform authenticate with an **automation token** (`porch_at_…`)
 `Authorization: Bearer porch_at_…`. Issue one in the admin UI under **Automation tokens**. It is shown once.
 
 - An **installation token** with role `admin` manages everything, including tenants, users, identity providers and
-  domain rules. Only an installation owner can issue one, and only after a recent sign-in.
+  domain rules. With role `inspector` it reads the configuration of every tenant and changes nothing; with role
+  `auditor` it reads installation health and the audit log. Only an installation owner can issue one, and only after
+  a recent sign-in.
 - A **tenant token** is limited to one tenant and to a list of permissions its issuer holds. Delegated
   administrators can issue tenant tokens for their tenant. A change that would grant more than the issuer holds fails
-  with `403 privilege_escalation`.
+  with `403 privilege_escalation`. A token with only `:read` permissions (for example `app:read` and
+  `service_account:read`) can look but not change anything.
 
 Tokens expire after 1–366 days and can be revoked at any time. Porch stores only a hash of the token. Tokens of users
 who sign in with Google stop working when that person has not signed in to Google through Porch within
@@ -24,6 +27,29 @@ dialog, or `"never_expires": true`). It keeps working without an expiry and with
 your Terraform still works during a Google outage, or while you repair the Google setup itself. Treat it like a root
 password: anyone holding it can manage the installation until you revoke it. It stops if its owner is disabled or
 loses the owner role.
+
+### Tokens that issue tokens
+
+A token can issue other tokens, so Terraform can create the tokens your integrations need:
+
+- an installation `admin` token issued by an owner issues installation tokens of any role and tenant tokens; a tenant
+  token issues tenant tokens for its own tenant, with permissions it holds;
+- read-only tokens (`auditor`, `inspector`, or tenant tokens with only `:read` permissions) issue nothing;
+- an issued token never outlives the token that issued it, and only a token that never expires can issue one that
+  never expires;
+- revoking a token also revokes every token it issued, so revoking a leaked token ends everything minted from it.
+
+The token list shows which token issued each one.
+
+With Terraform (provider 0.2 and later), `porch_automation_token` issues such a token and keeps its secret in state:
+
+```hcl
+resource "porch_automation_token" "catalogue" {
+  name            = "catalogue"
+  role            = "inspector"
+  expires_in_days = 180
+}
+```
 
 ```sh
 curl -fsS -H "Authorization: Bearer $PORCH_TOKEN" https://auth.example.com/api/v1/tenants/smith/members

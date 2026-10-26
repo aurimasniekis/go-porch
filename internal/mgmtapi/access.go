@@ -63,6 +63,32 @@ func (d *Deps) tenantAdminAny(ctx context.Context, ref string, perms ...string) 
 	return sc, nil
 }
 
+// tenantReader resolves a tenant scope for a read operation. Installation owners and admins act as operators;
+// inspectors (people and inspector tokens, ADR-0048) read every tenant; anyone else needs one of perms, as for
+// tenantAdminAny. Pass the read permission together with the management permissions that also allow the read. With
+// no perms, only operators and inspectors may read.
+func (d *Deps) tenantReader(ctx context.Context, ref string, perms ...string) (tenancy.Scope, error) {
+	p := Principal(ctx)
+	if p == nil {
+		return tenancy.Scope{}, huma.Error401Unauthorized("authentication required")
+	}
+	if p.IsOperator(identity.RoleOwner, identity.RoleAdmin) {
+		return d.operatorScope(ctx, ref)
+	}
+	if p.IsOperator(identity.RoleInspector) {
+		sc, err := d.Tenants.ResolveForInspector(ctx, p.UserID, ref)
+		if err != nil {
+			return sc, d.fail("tenant-reader", err)
+		}
+		return sc, nil
+	}
+	if len(perms) == 0 {
+		_, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleInspector)
+		return tenancy.Scope{}, err
+	}
+	return d.tenantAdminAny(ctx, ref, perms...)
+}
+
 // tokenCovers reports whether an automation token's grant allows perm in tenantID. Installation admin tokens act as
 // operators; tenant tokens cover their own tenant and permissions only.
 func tokenCovers(g *session.TokenGrant, tenantID, perm string) bool {

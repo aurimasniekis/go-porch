@@ -327,7 +327,8 @@ export function HostsField({ form }: { form: UseFormReturnType<ForwardForm> }) {
   )
 }
 
-export function HeadersField({ form }: { form: UseFormReturnType<ForwardForm> }) {
+/** The identity headers; readOnly hides the add and remove buttons. */
+export function HeadersField({ form, readOnly }: { form: UseFormReturnType<ForwardForm>; readOnly?: boolean }) {
   return (
     <Stack gap="xs">
       <Text size="sm" fw={500}>
@@ -352,31 +353,35 @@ export function HeadersField({ form }: { form: UseFormReturnType<ForwardForm> })
             w={140}
             {...form.getInputProps(`headers.${i}.claim`)}
           />
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            size="lg"
-            aria-label={`Remove header ${i + 1}`}
-            onClick={() => {
-              form.removeListItem('headers', i)
-            }}
-          >
-            <IconTrash size={16} />
-          </ActionIcon>
+          {readOnly ? null : (
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="lg"
+              aria-label={`Remove header ${i + 1}`}
+              onClick={() => {
+                form.removeListItem('headers', i)
+              }}
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          )}
         </Group>
       ))}
-      <Group>
-        <Button
-          variant="default"
-          size="xs"
-          leftSection={<IconPlus size={14} />}
-          onClick={() => {
-            form.insertListItem('headers', { name: '', claim: 'sub' })
-          }}
-        >
-          Add header
-        </Button>
-      </Group>
+      {readOnly ? null : (
+        <Group>
+          <Button
+            variant="default"
+            size="xs"
+            leftSection={<IconPlus size={14} />}
+            onClick={() => {
+              form.insertListItem('headers', { name: '', claim: 'sub' })
+            }}
+          >
+            Add header
+          </Button>
+        </Group>
+      )}
     </Stack>
   )
 }

@@ -1,6 +1,6 @@
 import { Alert, Badge, Button, Group, Modal, Stack, Text, Title, Tooltip } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconAlertTriangle, IconLock } from '@tabler/icons-react'
+import { IconAlertTriangle, IconEye, IconLock } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { actionUrl, ApiError } from '@/api/client'
 
@@ -133,6 +133,21 @@ export function Provenance({ managedBy, lastChangedBy }: { managedBy?: string; l
     >
       {badge}
     </Tooltip>
+  )
+}
+
+/**
+ * Says a page is shown read-only because the caller may view but not change it (read permissions and installation
+ * inspectors, ADR-0048). `what` completes "you can view but not change …".
+ */
+export function ReadOnlyNote({ what, mb = 'md' }: { what: ReactNode; mb?: string | number }) {
+  return (
+    <Group gap={6} wrap="nowrap" mb={mb} data-testid="read-only-note">
+      <IconEye size={16} aria-hidden color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
+      <Text size="sm" c="dimmed">
+        Read-only: you can view but not change {what}.
+      </Text>
+    </Group>
   )
 }
 

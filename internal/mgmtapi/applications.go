@@ -219,7 +219,7 @@ func registerApplications(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-application-shares", Method: http.MethodGet, Path: "/tenants/{tenant}/applications/{app}/shares",
 		Summary: "Tenants an application is shared with", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *AppRef) (*struct{ Body []AppShare }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantReader(ctx, in.Tenant)
 			if err != nil {
 				return nil, err
 			}
@@ -274,7 +274,7 @@ func registerApplications(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-applications", Method: http.MethodGet, Path: "/tenants/{tenant}/applications",
 		Summary: "Applications of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []Application }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermAppRead, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}
@@ -353,7 +353,7 @@ func registerApplications(api huma.API, d *Deps) {
 			ETag string `header:"ETag"`
 			Body Application
 		}, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermAppManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermAppRead, authz.PermAppManage)
 			if err != nil {
 				return nil, err
 			}

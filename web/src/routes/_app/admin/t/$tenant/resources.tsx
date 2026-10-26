@@ -3,7 +3,7 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { ifMatch, useAdminMutation } from '@/api/admin'
+import { can, ifMatch, useAdminMutation, useAdminTenant } from '@/api/admin'
 import { authzInvalidate, conflictAware, resourcesQuery, type ResourceDef } from '@/api/admin/authz'
 import { api, check, unwrap } from '@/api/client'
 import { LoadingState, ManagedBy, MutationError, Tag } from '@/components/admin/authz/common'
@@ -18,7 +18,7 @@ import {
   validSlug,
   type AttributeRow,
 } from '@/components/admin/authz/logic'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/resources')({
@@ -32,6 +32,7 @@ type OpenDialog = { kind: 'create' } | { kind: 'edit'; resource: ResourceDef } |
 function ResourcesPage() {
   const { tenant } = Route.useParams()
   const resources = useQuery(resourcesQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'resource:manage')
   const [dialog, setDialog] = useState<OpenDialog>(null)
   const del = useAdminMutation({
     mutationFn: async (r: ResourceDef) => {
@@ -51,16 +52,19 @@ function ResourcesPage() {
         title="Resources"
         description="Resources are things your applications protect (documents, projects, environments…). Assignments can be scoped to a resource type or to one resource; a grant on a resource also covers the resources below it. Applications are resources of type app automatically."
         actions={
-          <Button
-            leftSection={<IconPlus size={16} aria-hidden />}
-            onClick={() => {
-              setDialog({ kind: 'create' })
-            }}
-          >
-            New resource
-          </Button>
+          manage ? (
+            <Button
+              leftSection={<IconPlus size={16} aria-hidden />}
+              onClick={() => {
+                setDialog({ kind: 'create' })
+              }}
+            >
+              New resource
+            </Button>
+          ) : null
         }
       />
+      {manage ? null : <ReadOnlyNote what="resources" />}
       <ErrorAlert error={resources.error} title="Could not load resources" />
       {resources.isPending ? <LoadingState label="Loading resources…" /> : null}
       {resources.data?.length === 0 ? <EmptyState>No resources yet.</EmptyState> : null}
@@ -79,9 +83,11 @@ function ResourcesPage() {
               <Table.Th>Slug</Table.Th>
               <Table.Th>Attributes</Table.Th>
               <Table.Th>Managed by</Table.Th>
-              <Table.Th>
-                <span className="visually-hidden">Actions</span>
-              </Table.Th>
+              {manage ? (
+                <Table.Th>
+                  <span className="visually-hidden">Actions</span>
+                </Table.Th>
+              ) : null}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -133,48 +139,50 @@ function ResourcesPage() {
                   <Table.Td>
                     <ManagedBy managedBy={r.managed_by} />
                   </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end" wrap="nowrap">
-                      <Button
-                        size="xs"
-                        variant="default"
-                        aria-label={`Edit resource ${r.name}`}
-                        onClick={() => {
-                          setDialog({ kind: 'edit', resource: r })
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <ConfirmButton
-                        variant="default"
-                        label="Delete"
-                        title={`Delete resource ${r.name}?`}
-                        confirmLabel="Delete resource"
-                        loading={del.isPending}
-                        onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
-                      >
-                        <Stack gap="xs">
-                          <Text size="sm">
-                            Every assignment scoped to <b>{r.name}</b> is removed.
-                          </Text>
-                          {descendants > 0 ? (
-                            <Text size="sm" fw={600}>
-                              Its {descendants} child resource{descendants > 1 ? 's are' : ' is'} deleted too, with
-                              their assignments.
+                  {manage ? (
+                    <Table.Td>
+                      <Group gap="xs" justify="flex-end" wrap="nowrap">
+                        <Button
+                          size="xs"
+                          variant="default"
+                          aria-label={`Edit resource ${r.name}`}
+                          onClick={() => {
+                            setDialog({ kind: 'edit', resource: r })
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <ConfirmButton
+                          variant="default"
+                          label="Delete"
+                          title={`Delete resource ${r.name}?`}
+                          confirmLabel="Delete resource"
+                          loading={del.isPending}
+                          onConfirm={() => del.mutateAsync(r).catch(() => undefined)}
+                        >
+                          <Stack gap="xs">
+                            <Text size="sm">
+                              Every assignment scoped to <b>{r.name}</b> is removed.
                             </Text>
-                          ) : null}
-                          <Text size="sm">This cannot be undone.</Text>
-                        </Stack>
-                      </ConfirmButton>
-                    </Group>
-                  </Table.Td>
+                            {descendants > 0 ? (
+                              <Text size="sm" fw={600}>
+                                Its {descendants} child resource{descendants > 1 ? 's are' : ' is'} deleted too, with
+                                their assignments.
+                              </Text>
+                            ) : null}
+                            <Text size="sm">This cannot be undone.</Text>
+                          </Stack>
+                        </ConfirmButton>
+                      </Group>
+                    </Table.Td>
+                  ) : null}
                 </Table.Tr>
               )
             })}
           </Table.Tbody>
         </ListTable>
       ) : null}
-      {dialog ? (
+      {dialog && manage ? (
         <ResourceDialog
           tenant={tenant}
           resources={list}

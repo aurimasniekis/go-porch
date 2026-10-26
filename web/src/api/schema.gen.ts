@@ -259,7 +259,7 @@ export interface paths {
         /** Installation automation tokens (owner, admin or auditor) */
         get: operations["list-installation-tokens"];
         put?: never;
-        /** Issue an installation automation token (owner; needs a recent sign-in) */
+        /** Issue an installation automation token (owner with a recent sign-in, or an installation token an owner created) */
         post: operations["create-installation-token"];
         delete?: never;
         options?: never;
@@ -274,10 +274,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** An installation automation token (owner, admin or auditor, or the token that issued it) */
+        get: operations["get-installation-token"];
         put?: never;
         post?: never;
-        /** Revoke an installation automation token (owner) */
+        /** Revoke an installation automation token and every token it issued (owner, or the token that issued it) */
         delete: operations["revoke-installation-token"];
         options?: never;
         head?: never;
@@ -940,7 +941,7 @@ export interface paths {
         /** Automation tokens of a tenant (tenant:manage) */
         get: operations["list-tenant-tokens"];
         put?: never;
-        /** Issue a tenant automation token with permissions you hold (needs a recent sign-in) */
+        /** Issue a tenant automation token with permissions you hold (needs a recent sign-in; from a token, no broader than it) */
         post: operations["create-tenant-token"];
         delete?: never;
         options?: never;
@@ -955,10 +956,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** A tenant automation token (tenant:manage, or the token that issued it) */
+        get: operations["get-tenant-token"];
         put?: never;
         post?: never;
-        /** Revoke a tenant automation token (its creator or tenant:manage) */
+        /** Revoke a tenant automation token and every token it issued (its creator, tenant:manage, or the token that issued it) */
         delete: operations["revoke-tenant-token"];
         options?: never;
         head?: never;
@@ -1433,6 +1435,8 @@ export interface components {
         AdminCapabilities: {
             /** @description Installation-wide audit and health (owner, admin or auditor). */
             auditor: boolean;
+            /** @description Reads the configuration of every tenant (installation inspector, ADR-0048). */
+            inspector: boolean;
             /** @description Installation administration (owner or admin). */
             installation: boolean;
             operator_roles: string[];
@@ -1464,7 +1468,7 @@ export interface components {
             permissions: string[];
             slug: string;
             /** @enum {string} */
-            via: "operator" | "delegated";
+            via: "operator" | "inspector" | "delegated";
         };
         Alert: {
             /** Format: date-time */
@@ -1890,6 +1894,8 @@ export interface components {
             /** @description Last characters of the token. */
             hint: string;
             id: string;
+            /** @description The automation token that issued this one (absent when a person did). Revoking it revokes this token. */
+            issued_by?: string;
             /** @enum {string} */
             kind: "installation" | "tenant";
             /** Format: date-time */
@@ -1901,7 +1907,7 @@ export interface components {
             /** Format: date-time */
             revoked_at?: string;
             /** @enum {string} */
-            role?: "admin" | "auditor" | "";
+            role?: "admin" | "auditor" | "inspector" | "";
             tenant_id?: string;
             /** @description Send as Authorization: Bearer <token>. Shown only in this response. */
             token: string;
@@ -2072,17 +2078,17 @@ export interface components {
         InstallationTokenRequest: {
             /**
              * Format: int64
-             * @description 1–366; omit when never_expires is set.
+             * @description 1–366; omit when never_expires is set. A token issued by another token cannot outlive it.
              */
             expires_in_days?: number;
             name: string;
-            /** @description Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046). Revoke it when it is no longer needed. */
+            /** @description Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046; from a token, only one that never expires). Revoke it when it is no longer needed. */
             never_expires?: boolean;
             /**
-             * @description admin manages every tenant and installation setting; auditor reads.
+             * @description admin manages every tenant and installation setting; auditor reads installation health and the audit log; inspector reads the configuration of every tenant.
              * @enum {string}
              */
-            role: "admin" | "auditor";
+            role: "admin" | "auditor" | "inspector";
         };
         Invite: {
             /** Format: date-time */
@@ -2234,7 +2240,7 @@ export interface components {
         };
         OperatorGrant: {
             /** @enum {string} */
-            role: "owner" | "admin" | "auditor";
+            role: "owner" | "admin" | "auditor" | "inspector";
             user_id: string;
         };
         PermissionCatalogue: {
@@ -2557,10 +2563,13 @@ export interface components {
             next_cursor?: string;
         };
         TenantTokenRequest: {
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description A token issued by another token cannot outlive it.
+             */
             expires_in_days: number;
             name: string;
-            /** @description Tenant permissions; you must hold each of them. */
+            /** @description Tenant permissions; you (and the issuing token, if any) must hold each of them. */
             permissions: string[];
         };
         Token: {
@@ -2576,6 +2585,8 @@ export interface components {
             /** @description Last characters of the token. */
             hint: string;
             id: string;
+            /** @description The automation token that issued this one (absent when a person did). Revoking it revokes this token. */
+            issued_by?: string;
             /** @enum {string} */
             kind: "installation" | "tenant";
             /** Format: date-time */
@@ -2587,7 +2598,7 @@ export interface components {
             /** Format: date-time */
             revoked_at?: string;
             /** @enum {string} */
-            role?: "admin" | "auditor" | "";
+            role?: "admin" | "auditor" | "inspector" | "";
             tenant_id?: string;
         };
         Trace: {
@@ -3347,6 +3358,37 @@ export interface operations {
             };
         };
     };
+    "get-installation-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     "revoke-installation-token": {
         parameters: {
             query?: never;
@@ -3591,7 +3633,7 @@ export interface operations {
             header?: never;
             path: {
                 user: string;
-                role: "owner" | "admin" | "auditor";
+                role: "owner" | "admin" | "auditor" | "inspector";
             };
             cookie?: never;
         };
@@ -5110,6 +5152,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedToken"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    "get-tenant-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tenant ID or slug. */
+                tenant: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Token"];
                 };
             };
             /** @description Error */

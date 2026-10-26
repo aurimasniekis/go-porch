@@ -25,6 +25,7 @@ import { CopyField } from '@/components/admin/tenant/common'
 import { ListTable } from '@/components/ListTable'
 
 type Token = Schemas['Token']
+type InstallationRole = Schemas['InstallationTokenRequest']['role']
 
 /** Where tokens live: the installation, or one tenant (slug) with the permissions the caller may delegate. */
 export type TokenScope = { kind: 'installation' } | { kind: 'tenant'; tenant: string; permissions: string[] }
@@ -59,8 +60,8 @@ function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: S
         return unwrap(
           await api.POST('/installation/automation-tokens', {
             body: v.never
-              ? { name: v.name.trim(), role: v.role as 'admin' | 'auditor', never_expires: true }
-              : { name: v.name.trim(), role: v.role as 'admin' | 'auditor', expires_in_days: v.days },
+              ? { name: v.name.trim(), role: v.role as InstallationRole, never_expires: true }
+              : { name: v.name.trim(), role: v.role as InstallationRole, expires_in_days: v.days },
           }),
         )
       }
@@ -99,10 +100,11 @@ function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: S
             {scope.kind === 'installation' ? (
               <Select
                 label="Role"
-                description="admin manages every tenant and installation setting; auditor only reads."
+                description="admin manages everything; auditor reads installation health and the audit log; inspector reads every tenant's configuration."
                 data={[
                   { value: 'admin', label: 'Admin' },
                   { value: 'auditor', label: 'Auditor' },
+                  { value: 'inspector', label: 'Inspector' },
                 ]}
                 allowDeselect={false}
                 {...form.getInputProps('role')}
@@ -132,8 +134,8 @@ function CreateToken({ scope, onCreated }: { scope: TokenScope; onCreated: (t: S
               <NumberInput label="Expires in (days)" min={1} max={366} required {...form.getInputProps('days')} />
             )}
             <Text size="xs" c="dimmed">
-              Creating a token needs a recent sign-in. Tokens cannot create other tokens, change installation roles or
-              rotate signing keys.
+              Creating a token needs a recent sign-in. Tokens cannot change installation roles or rotate signing keys; a
+              token can issue only tokens no broader than itself, and revoking it revokes them too.
             </Text>
             <Group justify="flex-end">
               <Button variant="default" onClick={close}>
@@ -174,6 +176,7 @@ export function AutomationTokens({ scope, canManage }: { scope: TokenScope; canM
     invalidate: [tokensKey(scope)],
   })
   const [now] = useState(() => Date.now())
+  const byId = new Map((q.data ?? []).map((t) => [t.id, t]))
   return (
     <Stack>
       <PageHeader
@@ -212,6 +215,11 @@ export function AutomationTokens({ scope, canManage }: { scope: TokenScope; canM
                     <Text size="xs" c="dimmed">
                       …{t.hint}
                     </Text>
+                    {t.issued_by ? (
+                      <Text size="xs" c="dimmed">
+                        Issued by token {byId.get(t.issued_by)?.name ?? t.issued_by}
+                      </Text>
+                    ) : null}
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{t.role ? `installation ${t.role}` : t.permissions.join(', ')}</Text>
@@ -248,7 +256,7 @@ export function AutomationTokens({ scope, canManage }: { scope: TokenScope; canM
                           loading={revoke.isPending}
                           onConfirm={() => revoke.mutateAsync(t.id)}
                         >
-                          Requests using this token fail immediately.
+                          Requests using this token fail immediately. Tokens it issued are revoked with it.
                         </ConfirmButton>
                       ) : null}
                     </Table.Td>

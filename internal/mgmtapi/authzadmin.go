@@ -147,7 +147,7 @@ func registerRoles(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-permissions", Method: http.MethodGet, Path: "/tenants/{tenant}/permissions",
 		Summary: "Known permissions (system catalogue and custom ones in use)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body PermissionCatalogue }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -169,7 +169,7 @@ func registerRoles(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-roles", Method: http.MethodGet, Path: "/tenants/{tenant}/roles",
 		Summary: "Roles of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []authz.Role }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -203,7 +203,7 @@ func registerRoles(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-role", Method: http.MethodGet, Path: "/tenants/{tenant}/roles/{role}",
 		Summary: "Get a role", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *RoleRef) (*withETag[authz.Role], error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -297,7 +297,7 @@ func registerGroups(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-groups", Method: http.MethodGet, Path: "/tenants/{tenant}/groups",
 		Summary: "Groups of a tenant (direct members and parents)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []authz.Group }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermGroupManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermGroupRead, authz.PermGroupManage)
 			if err != nil {
 				return nil, err
 			}
@@ -327,7 +327,7 @@ func registerGroups(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-group", Method: http.MethodGet, Path: "/tenants/{tenant}/groups/{group}",
 		Summary: "Get a group", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *GroupRef) (*withETag[authz.Group], error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermGroupManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermGroupRead, authz.PermGroupManage)
 			if err != nil {
 				return nil, err
 			}
@@ -470,7 +470,7 @@ func registerResources(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-resources", Method: http.MethodGet, Path: "/tenants/{tenant}/resources",
 		Summary: "Resources of a tenant (assignment scopes; parents form a hierarchy)", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []authz.ResourceDef }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermResourceManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermResourceRead, authz.PermResourceManage)
 			if err != nil {
 				return nil, err
 			}
@@ -502,7 +502,7 @@ func registerResources(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-resource", Method: http.MethodGet, Path: "/tenants/{tenant}/resources/{resource}",
 		Summary: "Get a resource", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *ResourceRef) (*withETag[authz.ResourceDef], error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermResourceManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermResourceRead, authz.PermResourceManage)
 			if err != nil {
 				return nil, err
 			}
@@ -616,7 +616,7 @@ func registerPolicies(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-policies", Method: http.MethodGet, Path: "/tenants/{tenant}/policies",
 		Summary: "Policies of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []authz.PolicyDef }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermPolicyManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermPolicyRead, authz.PermPolicyManage)
 			if err != nil {
 				return nil, err
 			}
@@ -654,7 +654,7 @@ func registerPolicies(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-policy", Method: http.MethodGet, Path: "/tenants/{tenant}/policies/{policy}",
 		Summary: "Get a policy", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *PolicyRef) (*withETag[authz.PolicyDef], error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermPolicyManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermPolicyRead, authz.PermPolicyManage)
 			if err != nil {
 				return nil, err
 			}
@@ -777,7 +777,7 @@ func registerAssignments(api huma.API, d *Deps) {
 			SubjectID   string `query:"subject_id" maxLength:"64" required:"false"`
 			RoleID      string `query:"role_id" maxLength:"64" required:"false"`
 		}) (*struct{ Body []authz.Assignment }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -854,7 +854,7 @@ func registerAssignments(api huma.API, d *Deps) {
 			SubjectType string `query:"subject_type" enum:"user,service_account" required:"true"`
 			SubjectID   string `query:"subject_id" minLength:"1" maxLength:"64" required:"true"`
 		}) (*struct{ Body []authz.EffectiveGrant }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}

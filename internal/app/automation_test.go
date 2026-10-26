@@ -57,7 +57,6 @@ func TestAutomationTokens(t *testing.T) {
 	expect(t, tf(http.MethodPost, "/api/v1/tenants/doe/policies", map[string]any{"slug": "p", "name": "p", "effect": "condition", "expression": "true"}),
 		http.StatusCreated)
 	for _, x := range []struct{ method, path string }{
-		{http.MethodPost, "/api/v1/installation/automation-tokens"},
 		{http.MethodPost, "/api/v1/installation/operators"},
 		{http.MethodPost, "/api/v1/installation/signing-keys/rotate"},
 		{http.MethodPut, "/api/v1/me/backup-handle"},

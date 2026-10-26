@@ -22,6 +22,10 @@
             "description": "Installation-wide audit and health (owner, admin or auditor).",
             "type": "boolean"
           },
+          "inspector": {
+            "description": "Reads the configuration of every tenant (installation inspector, ADR-0048).",
+            "type": "boolean"
+          },
           "installation": {
             "description": "Installation administration (owner or admin).",
             "type": "boolean"
@@ -43,6 +47,7 @@
           "operator_roles",
           "installation",
           "auditor",
+          "inspector",
           "tenants"
         ],
         "type": "object"
@@ -129,6 +134,7 @@
           "via": {
             "enum": [
               "operator",
+              "inspector",
               "delegated"
             ],
             "type": "string"
@@ -1528,6 +1534,10 @@
           "id": {
             "type": "string"
           },
+          "issued_by": {
+            "description": "The automation token that issued this one (absent when a person did). Revoking it revokes this token.",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "installation",
@@ -1562,6 +1572,7 @@
             "enum": [
               "admin",
               "auditor",
+              "inspector",
               ""
             ],
             "type": "string"
@@ -2173,7 +2184,7 @@
         "additionalProperties": false,
         "properties": {
           "expires_in_days": {
-            "description": "1–366; omit when never_expires is set.",
+            "description": "1–366; omit when never_expires is set. A token issued by another token cannot outlive it.",
             "format": "int64",
             "maximum": 366,
             "minimum": 0,
@@ -2185,14 +2196,15 @@
             "type": "string"
           },
           "never_expires": {
-            "description": "Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046). Revoke it when it is no longer needed.",
+            "description": "Issue a token that never expires and does not depend on the identity provider confirming you (installation owners only, ADR-0046; from a token, only one that never expires). Revoke it when it is no longer needed.",
             "type": "boolean"
           },
           "role": {
-            "description": "admin manages every tenant and installation setting; auditor reads.",
+            "description": "admin manages every tenant and installation setting; auditor reads installation health and the audit log; inspector reads the configuration of every tenant.",
             "enum": [
               "admin",
-              "auditor"
+              "auditor",
+              "inspector"
             ],
             "type": "string"
           }
@@ -2745,7 +2757,8 @@
             "enum": [
               "owner",
               "admin",
-              "auditor"
+              "auditor",
+              "inspector"
             ],
             "type": "string"
           },
@@ -3828,6 +3841,7 @@
         "additionalProperties": false,
         "properties": {
           "expires_in_days": {
+            "description": "A token issued by another token cannot outlive it.",
             "format": "int64",
             "maximum": 366,
             "minimum": 1,
@@ -3839,7 +3853,7 @@
             "type": "string"
           },
           "permissions": {
-            "description": "Tenant permissions; you must hold each of them.",
+            "description": "Tenant permissions; you (and the issuing token, if any) must hold each of them.",
             "items": {
               "type": "string"
             },
@@ -3880,6 +3894,10 @@
           "id": {
             "type": "string"
           },
+          "issued_by": {
+            "description": "The automation token that issued this one (absent when a person did). Revoking it revokes this token.",
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "installation",
@@ -3914,6 +3932,7 @@
             "enum": [
               "admin",
               "auditor",
+              "inspector",
               ""
             ],
             "type": "string"
@@ -5379,7 +5398,7 @@
             "automationToken": []
           }
         ],
-        "summary": "Issue an installation automation token (owner; needs a recent sign-in)",
+        "summary": "Issue an installation automation token (owner with a recent sign-in, or an installation token an owner created)",
         "tags": [
           "automation"
         ]
@@ -5422,7 +5441,55 @@
             "automationToken": []
           }
         ],
-        "summary": "Revoke an installation automation token (owner)",
+        "summary": "Revoke an installation automation token and every token it issued (owner, or the token that issued it)",
+        "tags": [
+          "automation"
+        ]
+      },
+      "get": {
+        "operationId": "get-installation-token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "An installation automation token (owner, admin or auditor, or the token that issued it)",
         "tags": [
           "automation"
         ]
@@ -5732,7 +5799,8 @@
               "enum": [
                 "owner",
                 "admin",
-                "auditor"
+                "auditor",
+                "inspector"
               ],
               "type": "string"
             }
@@ -8487,7 +8555,7 @@
             "automationToken": []
           }
         ],
-        "summary": "Issue a tenant automation token with permissions you hold (needs a recent sign-in)",
+        "summary": "Issue a tenant automation token with permissions you hold (needs a recent sign-in; from a token, no broader than it)",
         "tags": [
           "automation"
         ]
@@ -8541,7 +8609,66 @@
             "automationToken": []
           }
         ],
-        "summary": "Revoke a tenant automation token (its creator or tenant:manage)",
+        "summary": "Revoke a tenant automation token and every token it issued (its creator, tenant:manage, or the token that issued it)",
+        "tags": [
+          "automation"
+        ]
+      },
+      "get": {
+        "operationId": "get-tenant-token",
+        "parameters": [
+          {
+            "description": "Tenant ID or slug.",
+            "in": "path",
+            "name": "tenant",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID or slug.",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "automationToken": []
+          }
+        ],
+        "summary": "A tenant automation token (tenant:manage, or the token that issued it)",
         "tags": [
           "automation"
         ]

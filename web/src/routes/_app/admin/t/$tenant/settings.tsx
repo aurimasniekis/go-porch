@@ -1,12 +1,12 @@
-import { Button, Card, Group, Modal, NumberInput, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
+import { Button, Card, Fieldset, Group, Modal, NumberInput, Stack, Switch, Text, TextInput, Title } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useDisclosure } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { adminQuery, useAdminMutation } from '@/api/admin'
+import { adminQuery, can, useAdminMutation, useAdminTenant } from '@/api/admin'
 import { deleteTenant, tenantKeys, tenantQuery, updateTenant, when, type Tenant } from '@/api/admin/tenant'
-import { ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { LoadingRows, MutationError, Notice, ProvenanceTag, Tag } from '@/components/admin/tenant/common'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/settings')({
@@ -18,6 +18,7 @@ function SettingsPage() {
   const q = useQuery(tenantQuery(tenant))
   const caps = useQuery(adminQuery)
   const operator = caps.data?.installation ?? false
+  const manage = can(useAdminTenant(tenant), 'tenant:manage')
   return (
     <Stack gap="lg" maw={880}>
       <PageHeader title="Settings" description="The tenant's name and session limits." />
@@ -34,7 +35,14 @@ function SettingsPage() {
               Slug {q.data.slug} · ID {q.data.id} · updated {when(q.data.updated_at)}
             </Text>
           </Group>
-          <SettingsForm key={q.data.id} t={q.data} operator={operator} reload={async () => (await q.refetch()).data} />
+          {manage ? null : <ReadOnlyNote what="this tenant's settings" mb={0} />}
+          <SettingsForm
+            key={q.data.id}
+            t={q.data}
+            operator={operator}
+            readOnly={!manage}
+            reload={async () => (await q.refetch()).data}
+          />
           {operator ? <DeleteTenant t={q.data} /> : null}
         </>
       ) : null}
@@ -59,10 +67,13 @@ const toValues = (t: Tenant): Values => ({
 function SettingsForm({
   t,
   operator,
+  readOnly,
   reload,
 }: {
   t: Tenant
   operator: boolean
+  /** Shows the settings without letting them be changed (no tenant:manage). */
+  readOnly: boolean
   reload: () => Promise<Tenant | undefined>
 }) {
   const form = useForm<Values>({
@@ -103,51 +114,59 @@ function SettingsForm({
         })}
       >
         <Stack>
-          <TextInput label="Tenant name" required {...form.getInputProps('name')} />
-          <Title order={2} size="h5" mt="sm">
-            Session limits
-          </Title>
-          <Text size="sm" c="dimmed">
-            Shorten how long members' sessions last. 0 uses the installation default. A session belongs to the person,
-            not the tenant, so members of several tenants get the strictest limits; overrides never lengthen sessions.
-            New limits apply from the next sign-in.
-          </Text>
-          <Group grow align="flex-start" wrap="wrap">
-            <NumberInput
-              label="Idle timeout (minutes)"
-              description="Sign out after this much inactivity"
-              min={0}
-              allowNegative={false}
-              {...form.getInputProps('idleMinutes')}
-            />
-            <NumberInput
-              label="Absolute lifetime (hours)"
-              description="Sign out after this long regardless of activity"
-              min={0}
-              allowNegative={false}
-              decimalScale={2}
-              {...form.getInputProps('absoluteHours')}
-            />
-          </Group>
-          {operator ? (
-            <Switch
-              label="Tenant enabled"
-              description="A disabled tenant's members cannot sign in to its applications (installation operators only)"
-              {...form.getInputProps('enabled', { type: 'checkbox' })}
-            />
-          ) : null}
-          <MutationError
-            error={save.error}
-            onReload={async () => {
-              reset(await reload())
-              save.reset()
-            }}
-          />
-          <Group justify="flex-end">
-            <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
-              Save settings
-            </Button>
-          </Group>
+          <Fieldset disabled={readOnly} variant="unstyled" p={0} m={0}>
+            <Stack>
+              <TextInput label="Tenant name" required {...form.getInputProps('name')} />
+              <Title order={2} size="h5" mt="sm">
+                Session limits
+              </Title>
+              <Text size="sm" c="dimmed">
+                Shorten how long members' sessions last. 0 uses the installation default. A session belongs to the
+                person, not the tenant, so members of several tenants get the strictest limits; overrides never lengthen
+                sessions. New limits apply from the next sign-in.
+              </Text>
+              <Group grow align="flex-start" wrap="wrap">
+                <NumberInput
+                  label="Idle timeout (minutes)"
+                  description="Sign out after this much inactivity"
+                  min={0}
+                  allowNegative={false}
+                  {...form.getInputProps('idleMinutes')}
+                />
+                <NumberInput
+                  label="Absolute lifetime (hours)"
+                  description="Sign out after this long regardless of activity"
+                  min={0}
+                  allowNegative={false}
+                  decimalScale={2}
+                  {...form.getInputProps('absoluteHours')}
+                />
+              </Group>
+              {operator ? (
+                <Switch
+                  label="Tenant enabled"
+                  description="A disabled tenant's members cannot sign in to its applications (installation operators only)"
+                  {...form.getInputProps('enabled', { type: 'checkbox' })}
+                />
+              ) : null}
+            </Stack>
+          </Fieldset>
+          {readOnly ? null : (
+            <>
+              <MutationError
+                error={save.error}
+                onReload={async () => {
+                  reset(await reload())
+                  save.reset()
+                }}
+              />
+              <Group justify="flex-end">
+                <Button type="submit" loading={save.isPending} disabled={!form.isDirty()}>
+                  Save settings
+                </Button>
+              </Group>
+            </>
+          )}
         </Stack>
       </form>
     </Card>

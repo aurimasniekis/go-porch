@@ -16,7 +16,7 @@ import { IconPlus } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { adminQuery, ifMatch, useAdminMutation } from '@/api/admin'
+import { can, ifMatch, useAdminMutation, useAdminTenant } from '@/api/admin'
 import {
   authzInvalidate,
   conflictAware,
@@ -29,7 +29,7 @@ import {
 import { api, check, unwrap } from '@/api/client'
 import { LoadingState, ManagedBy, MutationError } from '@/components/admin/authz/common'
 import { groupDescendants, slugify, validSlug } from '@/components/admin/authz/logic'
-import { ConfirmButton, EmptyState, ErrorAlert, PageHeader } from '@/components/admin/kit'
+import { ConfirmButton, EmptyState, ErrorAlert, PageHeader, ReadOnlyNote } from '@/components/admin/kit'
 import { ListTable } from '@/components/ListTable'
 
 export const Route = createFileRoute('/_app/admin/t/$tenant/groups')({
@@ -41,6 +41,7 @@ type OpenDialog = { kind: 'create' } | { kind: 'edit'; id: string } | { kind: 'm
 function GroupsPage() {
   const { tenant } = Route.useParams()
   const groups = useQuery(groupsQuery(tenant))
+  const manage = can(useAdminTenant(tenant), 'group:manage')
   const [dialog, setDialog] = useState<OpenDialog>(null)
   const del = useAdminMutation({
     mutationFn: async (g: GroupT) => {
@@ -58,19 +59,24 @@ function GroupsPage() {
         title="Groups"
         description="Groups collect members. Roles assigned to a group reach its members and the members of groups nested inside it."
         actions={
-          <Button
-            leftSection={<IconPlus size={16} aria-hidden />}
-            onClick={() => {
-              setDialog({ kind: 'create' })
-            }}
-          >
-            New group
-          </Button>
+          manage ? (
+            <Button
+              leftSection={<IconPlus size={16} aria-hidden />}
+              onClick={() => {
+                setDialog({ kind: 'create' })
+              }}
+            >
+              New group
+            </Button>
+          ) : null
         }
       />
+      {manage ? null : <ReadOnlyNote what="groups, their members or nesting" />}
       <ErrorAlert error={groups.error} title="Could not load groups" />
       {groups.isPending ? <LoadingState label="Loading groups…" /> : null}
-      {groups.data?.length === 0 ? <EmptyState>No groups yet. Create one to organise members.</EmptyState> : null}
+      {groups.data?.length === 0 ? (
+        <EmptyState>{manage ? 'No groups yet. Create one to organise members.' : 'No groups yet.'}</EmptyState>
+      ) : null}
       {list.length > 0 ? (
         <ListTable minWidth={720} striped highlightOnHover aria-label="Groups" verticalSpacing="sm">
           <Table.Thead>
@@ -114,29 +120,33 @@ function GroupsPage() {
                     >
                       Members & nesting
                     </Button>
-                    <Button
-                      size="xs"
-                      variant="default"
-                      aria-label={`Rename ${g.name}`}
-                      onClick={() => {
-                        setDialog({ kind: 'edit', id: g.id })
-                      }}
-                    >
-                      Rename
-                    </Button>
-                    <ConfirmButton
-                      variant="default"
-                      label="Delete"
-                      title={`Delete group ${g.name}?`}
-                      confirmLabel="Delete group"
-                      loading={del.isPending}
-                      onConfirm={() => del.mutateAsync(g).catch(() => undefined)}
-                    >
-                      <Text size="sm">
-                        Its memberships, nesting and role assignments are removed; members lose what the group granted
-                        them. This cannot be undone.
-                      </Text>
-                    </ConfirmButton>
+                    {manage ? (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="default"
+                          aria-label={`Rename ${g.name}`}
+                          onClick={() => {
+                            setDialog({ kind: 'edit', id: g.id })
+                          }}
+                        >
+                          Rename
+                        </Button>
+                        <ConfirmButton
+                          variant="default"
+                          label="Delete"
+                          title={`Delete group ${g.name}?`}
+                          confirmLabel="Delete group"
+                          loading={del.isPending}
+                          onConfirm={() => del.mutateAsync(g).catch(() => undefined)}
+                        >
+                          <Text size="sm">
+                            Its memberships, nesting and role assignments are removed; members lose what the group
+                            granted them. This cannot be undone.
+                          </Text>
+                        </ConfirmButton>
+                      </>
+                    ) : null}
                   </Group>
                 </Table.Td>
               </Table.Tr>
@@ -144,7 +154,7 @@ function GroupsPage() {
           </Table.Tbody>
         </ListTable>
       ) : null}
-      {dialog?.kind === 'create' ? (
+      {dialog?.kind === 'create' && manage ? (
         <GroupForm
           tenant={tenant}
           onClose={() => {
@@ -152,7 +162,7 @@ function GroupsPage() {
           }}
         />
       ) : null}
-      {dialog?.kind === 'edit' && current ? (
+      {dialog?.kind === 'edit' && current && manage ? (
         <GroupForm
           tenant={tenant}
           group={current}
@@ -166,6 +176,7 @@ function GroupsPage() {
           tenant={tenant}
           group={current}
           groups={list}
+          manage={manage}
           onClose={() => {
             setDialog(null)
           }}
@@ -268,19 +279,21 @@ function GroupForm({ tenant, group, onClose }: { tenant: string; group?: GroupT;
   )
 }
 
+/** A group's direct members and nesting; changing them needs group:manage. */
 function ManageGroup({
   tenant,
   group,
   groups,
+  manage,
   onClose,
 }: {
   tenant: string
   group: GroupT
   groups: GroupT[]
+  manage: boolean
   onClose: () => void
 }) {
-  const caps = useQuery(adminQuery)
-  const mayList = mayListMembers(caps.data?.tenants.find((t) => t.slug === tenant || t.id === tenant))
+  const mayList = mayListMembers(useAdminTenant(tenant))
   const members = useQuery({ ...membersQuery(tenant), enabled: mayList })
   const [pickMember, setPickMember] = useState<string | null>(null)
   const [pickParent, setPickParent] = useState<string | null>(null)
@@ -368,9 +381,11 @@ function ManageGroup({
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Member</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
+                {manage ? (
+                  <Table.Th>
+                    <span className="visually-hidden">Actions</span>
+                  </Table.Th>
+                ) : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -380,52 +395,56 @@ function ManageGroup({
                 return (
                   <Table.Tr key={u}>
                     <Table.Td>{label}</Table.Td>
-                    <Table.Td>
-                      <Group justify="flex-end">
-                        <Button
-                          size="xs"
-                          variant="default"
-                          aria-label={`Remove ${label} from ${group.name}`}
-                          loading={removeMember.isPending && removeMember.variables === u}
-                          onClick={() => {
-                            removeMember.mutate(u)
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </Group>
-                    </Table.Td>
+                    {manage ? (
+                      <Table.Td>
+                        <Group justify="flex-end">
+                          <Button
+                            size="xs"
+                            variant="default"
+                            aria-label={`Remove ${label} from ${group.name}`}
+                            loading={removeMember.isPending && removeMember.variables === u}
+                            onClick={() => {
+                              removeMember.mutate(u)
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Group>
+                      </Table.Td>
+                    ) : null}
                   </Table.Tr>
                 )
               })}
             </Table.Tbody>
           </ListTable>
         )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (pickMember) addMember.mutate(pickMember)
-          }}
-        >
-          <Group align="flex-end">
-            <Select
-              label="Add a member"
-              placeholder={members.isPending && mayList ? 'Loading members…' : 'Search members'}
-              data={memberOptions}
-              value={pickMember}
-              onChange={setPickMember}
-              searchable
-              clearable
-              clearButtonProps={{ 'aria-label': 'Clear member selection' }}
-              disabled={!mayList}
-              nothingFoundMessage="No other members"
-              style={{ flex: 1, minWidth: 220 }}
-            />
-            <Button type="submit" disabled={!pickMember} loading={addMember.isPending}>
-              Add member
-            </Button>
-          </Group>
-        </form>
+        {manage ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (pickMember) addMember.mutate(pickMember)
+            }}
+          >
+            <Group align="flex-end">
+              <Select
+                label="Add a member"
+                placeholder={members.isPending && mayList ? 'Loading members…' : 'Search members'}
+                data={memberOptions}
+                value={pickMember}
+                onChange={setPickMember}
+                searchable
+                clearable
+                clearButtonProps={{ 'aria-label': 'Clear member selection' }}
+                disabled={!mayList}
+                nothingFoundMessage="No other members"
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <Button type="submit" disabled={!pickMember} loading={addMember.isPending}>
+                Add member
+              </Button>
+            </Group>
+          </form>
+        ) : null}
         <MutationError error={addMember.error ?? removeMember.error} />
 
         <Divider />
@@ -445,9 +464,11 @@ function ManageGroup({
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Parent group</Table.Th>
-                <Table.Th>
-                  <span className="visually-hidden">Actions</span>
-                </Table.Th>
+                {manage ? (
+                  <Table.Th>
+                    <span className="visually-hidden">Actions</span>
+                  </Table.Th>
+                ) : null}
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -456,51 +477,55 @@ function ManageGroup({
                 return (
                   <Table.Tr key={p}>
                     <Table.Td>{name}</Table.Td>
-                    <Table.Td>
-                      <Group justify="flex-end">
-                        <Button
-                          size="xs"
-                          variant="default"
-                          aria-label={`Unnest ${group.name} from ${name}`}
-                          loading={unnest.isPending && unnest.variables === p}
-                          onClick={() => {
-                            unnest.mutate(p)
-                          }}
-                        >
-                          Unnest
-                        </Button>
-                      </Group>
-                    </Table.Td>
+                    {manage ? (
+                      <Table.Td>
+                        <Group justify="flex-end">
+                          <Button
+                            size="xs"
+                            variant="default"
+                            aria-label={`Unnest ${group.name} from ${name}`}
+                            loading={unnest.isPending && unnest.variables === p}
+                            onClick={() => {
+                              unnest.mutate(p)
+                            }}
+                          >
+                            Unnest
+                          </Button>
+                        </Group>
+                      </Table.Td>
+                    ) : null}
                   </Table.Tr>
                 )
               })}
             </Table.Tbody>
           </ListTable>
         )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (pickParent) nest.mutate(pickParent)
-          }}
-        >
-          <Group align="flex-end">
-            <Select
-              label="Nest into group"
-              placeholder="Choose a parent group"
-              data={parentOptions}
-              value={pickParent}
-              onChange={setPickParent}
-              searchable
-              clearable
-              clearButtonProps={{ 'aria-label': 'Clear parent group selection' }}
-              nothingFoundMessage="No eligible groups"
-              style={{ flex: 1, minWidth: 220 }}
-            />
-            <Button type="submit" disabled={!pickParent} loading={nest.isPending}>
-              Nest
-            </Button>
-          </Group>
-        </form>
+        {manage ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (pickParent) nest.mutate(pickParent)
+            }}
+          >
+            <Group align="flex-end">
+              <Select
+                label="Nest into group"
+                placeholder="Choose a parent group"
+                data={parentOptions}
+                value={pickParent}
+                onChange={setPickParent}
+                searchable
+                clearable
+                clearButtonProps={{ 'aria-label': 'Clear parent group selection' }}
+                nothingFoundMessage="No eligible groups"
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <Button type="submit" disabled={!pickParent} loading={nest.isPending}>
+                Nest
+              </Button>
+            </Group>
+          </form>
+        ) : null}
         <MutationError error={nest.error ?? unnest.error} />
         {children.length > 0 ? (
           <Text size="sm">

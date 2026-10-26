@@ -60,7 +60,7 @@ func registerDomainRules(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-domain-rules", Method: http.MethodGet, Path: "/tenants/{tenant}/domain-rules",
 		Summary: "Domain enrollment rules of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []DomainRule }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantReader(ctx, in.Tenant)
 			if err != nil {
 				return nil, err
 			}
@@ -132,7 +132,7 @@ func registerDomainRules(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-invites", Method: http.MethodGet, Path: "/tenants/{tenant}/invites",
 		Summary: "Invitations of a tenant", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *TenantRef) (*struct{ Body []Invite }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermInviteManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermInviteRead, authz.PermInviteManage)
 			if err != nil {
 				return nil, err
 			}

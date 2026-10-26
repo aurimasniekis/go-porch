@@ -20,7 +20,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { adminQuery, can } from '@/api/admin'
+import { adminQuery, can, canRead, useAdminTenant } from '@/api/admin'
 import {
   applicationsQuery,
   effectiveQuery,
@@ -46,14 +46,14 @@ export const Route = createFileRoute('/_app/admin/t/$tenant/access')({
 
 function useTenantCaps(tenant: string) {
   const caps = useQuery(adminQuery)
-  const t = caps.data?.tenants.find((x) => x.slug === tenant || x.id === tenant)
+  const t = useAdminTenant(tenant)
   return {
     effective: can(t, 'role:manage'),
     simulate: can(t, 'authz:simulate'),
     members: mayListMembers(t),
-    sas: can(t, 'service_account:manage'),
-    apps: can(t, 'app:manage'),
-    resources: can(t, 'resource:manage'),
+    sas: canRead(t, 'service_account'),
+    apps: canRead(t, 'app'),
+    resources: canRead(t, 'resource'),
     loaded: !!caps.data,
   }
 }

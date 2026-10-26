@@ -215,11 +215,10 @@ func (d *Deps) authenticate(api huma.API) func(huma.Context, func(huma.Context))
 	}
 }
 
-// interactiveOnly operations refuse automation tokens: credentials, installation roles, keys and token issuance stay
-// with people who signed in (and passed step-up).
+// interactiveOnly operations refuse automation tokens: credentials, installation roles and keys stay with people who
+// signed in (and passed step-up). Tokens may issue narrower tokens under the rules of ADR-0048.
 var interactiveOnly = map[string]bool{
-	"create-installation-token": true, "create-tenant-token": true, "grant-operator-role": true, "revoke-operator-role": true,
-	"rotate-signing-key": true, "unlock-backup-login": true, "logout": true,
+	"grant-operator-role": true, "revoke-operator-role": true, "rotate-signing-key": true, "unlock-backup-login": true, "logout": true,
 }
 
 // bearerToken returns an automation token from the Authorization header.
@@ -272,6 +271,12 @@ func (d *Deps) tokenPrincipal(ctx context.Context, raw, ip string) (*session.Pri
 		}
 		if g.Role == identity.RoleAuditor && len(roles) > 0 {
 			p.OperatorRoles = []string{identity.RoleAuditor}
+		}
+		// An inspector token reads every tenant while its creator still holds owner, admin or inspector (ADR-0048).
+		if g.Role == identity.RoleInspector && slices.ContainsFunc(roles, func(r string) bool {
+			return r == identity.RoleOwner || r == identity.RoleAdmin || r == identity.RoleInspector
+		}) {
+			p.OperatorRoles = []string{identity.RoleInspector}
 		}
 	}
 	return p, nil

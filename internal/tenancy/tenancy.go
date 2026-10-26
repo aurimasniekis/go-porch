@@ -33,6 +33,7 @@ const (
 	ViaMembership Via = "membership" // the principal is an active member of the tenant
 	ViaOperator   Via = "operator"   // an installation owner/admin acting on the tenant (audited)
 	ViaDelegated  Via = "delegated"  // an active member holding the tenant permission the operation needs (ADR-0038)
+	ViaInspector  Via = "inspector"  // an installation inspector reading the tenant's configuration (ADR-0048)
 	ViaSystem     Via = "system"     // Porch itself (jobs, enrollment)
 )
 
@@ -159,6 +160,23 @@ func (svc *Service) ResolveForOperator(ctx context.Context, userID, ref string) 
 		return Scope{}, err
 	}
 	return Scope{tenantID: t.ID, slug: t.Slug, via: ViaOperator}, nil
+}
+
+// ResolveForInspector returns a scope for reading a tenant's configuration when userID holds installation role owner,
+// admin or inspector (ADR-0048). The management API uses it for read operations only.
+func (svc *Service) ResolveForInspector(ctx context.Context, userID, ref string) (Scope, error) {
+	n, err := svc.s.R().HasOperatorRole(ctx, db.HasOperatorRoleParams{UserID: userID, Roles: []string{"owner", "admin", "inspector"}})
+	if err != nil {
+		return Scope{}, err
+	}
+	if n == 0 {
+		return Scope{}, ErrNoAccess
+	}
+	t, err := svc.lookup(ctx, svc.s.R(), ref)
+	if err != nil {
+		return Scope{}, err
+	}
+	return Scope{tenantID: t.ID, slug: t.Slug, via: ViaInspector}, nil
 }
 
 // SystemScope is for Porch-internal work (enrollment, jobs) on a tenant ID that came from the database, never from

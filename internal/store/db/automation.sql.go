@@ -47,7 +47,7 @@ func (q *Queries) DeleteIdempotencyKey(ctx context.Context, keyMac []byte) error
 }
 
 const getAutomationToken = `-- name: GetAutomationToken :one
-SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires FROM automation_tokens WHERE id = ?
+SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires, issued_by FROM automation_tokens WHERE id = ?
 `
 
 func (q *Queries) GetAutomationToken(ctx context.Context, id string) (AutomationToken, error) {
@@ -69,12 +69,13 @@ func (q *Queries) GetAutomationToken(ctx context.Context, id string) (Automation
 		&i.LastUsedIp,
 		&i.RevokedAt,
 		&i.NeverExpires,
+		&i.IssuedBy,
 	)
 	return i, err
 }
 
 const getAutomationTokenByMAC = `-- name: GetAutomationTokenByMAC :one
-SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires FROM automation_tokens WHERE mac = ?
+SELECT id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, last_used_at, last_used_ip, revoked_at, never_expires, issued_by FROM automation_tokens WHERE mac = ?
 `
 
 func (q *Queries) GetAutomationTokenByMAC(ctx context.Context, mac []byte) (AutomationToken, error) {
@@ -96,6 +97,7 @@ func (q *Queries) GetAutomationTokenByMAC(ctx context.Context, mac []byte) (Auto
 		&i.LastUsedIp,
 		&i.RevokedAt,
 		&i.NeverExpires,
+		&i.IssuedBy,
 	)
 	return i, err
 }
@@ -131,8 +133,9 @@ func (q *Queries) GetIdempotencyKey(ctx context.Context, arg GetIdempotencyKeyPa
 }
 
 const insertAutomationToken = `-- name: InsertAutomationToken :exec
-INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO automation_tokens (id, mac, hint, name, kind, tenant_id, role, permissions, created_by, created_at, expires_at, never_expires,
+  issued_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertAutomationTokenParams struct {
@@ -148,6 +151,7 @@ type InsertAutomationTokenParams struct {
 	CreatedAt    int64
 	ExpiresAt    int64
 	NeverExpires int64
+	IssuedBy     sql.NullString
 }
 
 func (q *Queries) InsertAutomationToken(ctx context.Context, arg InsertAutomationTokenParams) error {
@@ -164,6 +168,7 @@ func (q *Queries) InsertAutomationToken(ctx context.Context, arg InsertAutomatio
 		arg.CreatedAt,
 		arg.ExpiresAt,
 		arg.NeverExpires,
+		arg.IssuedBy,
 	)
 	return err
 }
@@ -200,7 +205,7 @@ func (q *Queries) InsertIdempotencyKey(ctx context.Context, arg InsertIdempotenc
 }
 
 const listAutomationTokens = `-- name: ListAutomationTokens :many
-SELECT t.id, t.mac, t.hint, t.name, t.kind, t.tenant_id, t.role, t.permissions, t.created_by, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, t.never_expires, u.display_name AS creator_name FROM automation_tokens t JOIN users u ON u.id = t.created_by
+SELECT t.id, t.mac, t.hint, t.name, t.kind, t.tenant_id, t.role, t.permissions, t.created_by, t.created_at, t.expires_at, t.last_used_at, t.last_used_ip, t.revoked_at, t.never_expires, t.issued_by, u.display_name AS creator_name FROM automation_tokens t JOIN users u ON u.id = t.created_by
 WHERE (?1 IS NULL AND t.tenant_id IS NULL) OR t.tenant_id = ?1
 ORDER BY t.created_at DESC
 `
@@ -221,6 +226,7 @@ type ListAutomationTokensRow struct {
 	LastUsedIp   string
 	RevokedAt    sql.NullInt64
 	NeverExpires int64
+	IssuedBy     sql.NullString
 	CreatorName  string
 }
 
@@ -249,11 +255,39 @@ func (q *Queries) ListAutomationTokens(ctx context.Context, tenantID interface{}
 			&i.LastUsedIp,
 			&i.RevokedAt,
 			&i.NeverExpires,
+			&i.IssuedBy,
 			&i.CreatorName,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAutomationTokensIssuedBy = `-- name: ListAutomationTokensIssuedBy :many
+SELECT id FROM automation_tokens WHERE issued_by = ?
+`
+
+func (q *Queries) ListAutomationTokensIssuedBy(ctx context.Context, issuedBy sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAutomationTokensIssuedBy, issuedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

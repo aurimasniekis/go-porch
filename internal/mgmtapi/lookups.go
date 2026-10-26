@@ -16,7 +16,7 @@ func registerLookups(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-identity-provider", Method: http.MethodGet, Path: "/identity-providers/{provider}",
 		Summary: "Get an identity provider", Tags: []string{"identity-providers"}, Security: sessionSecurity},
 		func(ctx context.Context, in *ProviderRef) (*providerOutput, error) {
-			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor); err != nil {
+			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor, identity.RoleInspector); err != nil {
 				return nil, err
 			}
 			p, err := d.IDP.Provider(ctx, d.providerID(ctx, in.Provider))
@@ -34,7 +34,7 @@ func registerLookups(api huma.API, d *Deps) {
 			ETag string `header:"ETag"`
 			Body DomainRule
 		}, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantReader(ctx, in.Tenant)
 			if err != nil {
 				return nil, err
 			}
@@ -58,7 +58,7 @@ func registerLookups(api huma.API, d *Deps) {
 			TenantRef
 			Invite string `path:"invite" maxLength:"64"`
 		}) (*struct{ Body Invite }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermInviteManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermInviteRead, authz.PermInviteManage)
 			if err != nil {
 				return nil, err
 			}
@@ -77,7 +77,7 @@ func registerLookups(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "get-member", Method: http.MethodGet, Path: "/tenants/{tenant}/members/{member}",
 		Summary: "Get a membership (by membership ID or user ID)", Tags: []string{"members"}, Security: sessionSecurity},
 		func(ctx context.Context, in *MemberRef) (*memberOutput, error) {
-			sc, err := d.tenantAdminAny(ctx, in.Tenant, authz.PermMemberManage, authz.PermGroupManage, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermMemberRead, authz.PermMemberManage, authz.PermGroupManage, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +93,7 @@ func registerLookups(api huma.API, d *Deps) {
 			TenantRef
 			Assignment string `path:"assignment" maxLength:"64"`
 		}) (*struct{ Body authz.Assignment }, error) {
-			sc, err := d.tenantAdmin(ctx, in.Tenant, authz.PermRoleManage)
+			sc, err := d.tenantReader(ctx, in.Tenant, authz.PermRoleRead, authz.PermRoleManage)
 			if err != nil {
 				return nil, err
 			}
@@ -109,7 +109,7 @@ func registerLookups(api huma.API, d *Deps) {
 			AppRef
 			Target string `path:"target" maxLength:"64"`
 		}) (*struct{ Body AppShare }, error) {
-			sc, err := d.operatorScope(ctx, in.Tenant)
+			sc, err := d.tenantReader(ctx, in.Tenant)
 			if err != nil {
 				return nil, err
 			}

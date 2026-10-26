@@ -36,7 +36,7 @@ type Operator struct {
 // OperatorGrant gives a user an installation role.
 type OperatorGrant struct {
 	UserID string `json:"user_id" minLength:"1" maxLength:"64"`
-	Role   string `json:"role" enum:"owner,admin,auditor"`
+	Role   string `json:"role" enum:"owner,admin,auditor,inspector"`
 }
 
 // AuditVerification is the result of verifying the audit hash chain.
@@ -107,7 +107,7 @@ func registerInstallation(api huma.API, d *Deps) {
 		Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, in *struct {
 			User string `path:"user" maxLength:"64"`
-			Role string `path:"role" enum:"owner,admin,auditor"`
+			Role string `path:"role" enum:"owner,admin,auditor,inspector"`
 		}) (*struct{}, error) {
 			if _, err := requireOperator(ctx, identity.RoleOwner); err != nil {
 				return nil, err

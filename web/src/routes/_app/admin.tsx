@@ -4,7 +4,7 @@ import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouterState }
 import { adminQuery, type AdminCapabilities } from '@/api/admin'
 import { ErrorAlert } from '@/components/admin/kit'
 import { AppLayout } from '@/components/AppLayout'
-import { installationSections, tenantSections } from '@/lib/adminNav'
+import { installationSections, visibleTenantSections as sectionsOf } from '@/lib/adminNav'
 
 export const Route = createFileRoute('/_app/admin')({
   loader: ({ context }) => context.queryClient.query(adminQuery),
@@ -12,11 +12,7 @@ export const Route = createFileRoute('/_app/admin')({
 })
 
 function visibleTenantSections(caps: AdminCapabilities, tenant: string | undefined) {
-  const t = caps.tenants.find((x) => x.slug === tenant || x.id === tenant)
-  if (!t) return []
-  return tenantSections.filter((s) =>
-    s.operatorOnly ? t.via === 'operator' : s.perms.some((p) => t.permissions.includes(p)),
-  )
+  return sectionsOf(caps.tenants.find((x) => x.slug === tenant || x.id === tenant))
 }
 
 function AdminLayout() {

@@ -2,14 +2,14 @@ import { Card, SimpleGrid, Stack, Text } from '@mantine/core'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { adminQuery } from '@/api/admin'
 import { PageHeader } from '@/components/admin/kit'
-import { tenantSections } from '@/lib/adminNav'
+import { visibleTenantSections } from '@/lib/adminNav'
 
 export const Route = createFileRoute('/_app/admin/')({
   beforeLoad: async ({ context }) => {
     const caps = await context.queryClient.query(adminQuery)
     if (caps.auditor) throw redirect({ to: '/admin/i/health' })
     const t = caps.tenants.at(0)
-    const first = t && tenantSections.find((s) => !s.operatorOnly && s.perms.some((p) => t.permissions.includes(p)))
+    const first = visibleTenantSections(t).at(0)
     if (t && first)
       throw redirect({ to: `/admin/t/$tenant/${first.slug}` as '/admin/t/$tenant/members', params: { tenant: t.slug } })
   },

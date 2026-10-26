@@ -116,7 +116,7 @@ func registerProviders(api huma.API, d *Deps) {
 	huma.Register(api, huma.Operation{OperationID: "list-identity-providers", Method: http.MethodGet, Path: "/identity-providers",
 		Summary: "List upstream identity providers", Tags: tags, Security: sessionSecurity},
 		func(ctx context.Context, _ *struct{}) (*struct{ Body []IdentityProvider }, error) {
-			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor); err != nil {
+			if _, err := requireOperator(ctx, identity.RoleOwner, identity.RoleAdmin, identity.RoleAuditor, identity.RoleInspector); err != nil {
 				return nil, err
 			}
 			ps, err := d.IDP.Providers(ctx)

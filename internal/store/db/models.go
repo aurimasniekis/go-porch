@@ -140,6 +140,7 @@ type AutomationToken struct {
 	LastUsedIp   string
 	RevokedAt    sql.NullInt64
 	NeverExpires int64
+	IssuedBy     sql.NullString
 }
 
 type BackupChallenge struct {
