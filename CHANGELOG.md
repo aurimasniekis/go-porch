@@ -10,6 +10,33 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-26
+
+Read-only access for integrations, and Terraform-managed automation tokens.
+
+**Database:** migration 0013 rebuilds `installation_role_assignments` and `automation_tokens` (rows are copied
+unchanged; Porch snapshots the database before migrating). **API:** additions only.
+
+### Added
+
+- **Read-only permissions.** `app:read`, `member:read`, `invite:read`, `group:read`, `role:read`, `resource:read`,
+  `policy:read`, `service_account:read` and `tenant:read` let a role or a tenant token see an area without changing it.
+  The matching `:manage` permission includes the read.
+- **Inspector role.** A new installation role, for people and installation tokens, that reads the configuration of
+  every tenant (applications, shares, service accounts, members, groups, roles, assignments, resources, policies,
+  invitations, domain rules) and the identity providers, and changes nothing. Owners grant it under **Operators**.
+- **Tokens that issue tokens.** An installation admin token created by an owner can issue other tokens, and a tenant
+  token can issue narrower tokens for its tenant, so Terraform can create the tokens other integrations use. Issued
+  tokens are never broader than the token that issued them and never outlive it, and revoking a token revokes
+  everything it issued. Read-only tokens issue nothing. `GET` on a single token is new.
+  This relaxes a security rule; see [ADR-0048](docs/DECISIONS.md). Terraform provider 0.2.0 adds
+  `porch_automation_token`.
+- **Admin UI.** Tenant pages are read-only (no create, edit or delete controls) for inspectors and for people holding
+  only read permissions; the token list shows which token issued each one.
+
+> **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
+> no external security audit (see 0.1.0).
+
 ## [0.2.1] - 2026-10-26
 
 A small look-and-feel fix. **Database:** no migrations; upgrade by replacing the binary or image. **API and
@@ -146,7 +173,8 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/aurimasniekis/go-porch/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/aurimasniekis/go-porch/compare/v0.1.0...v0.1.1
