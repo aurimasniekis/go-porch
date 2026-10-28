@@ -41,6 +41,8 @@ A token can issue other tokens, so Terraform can create the tokens your integrat
 
 The token list shows which token issued each one.
 
+<Shot name="tokens" alt="Automation tokens, one issued by the Terraform token" caption="app-catalogue was issued by the terraform token" />
+
 With Terraform (provider 0.2 and later), `porch_automation_token` issues such a token and keeps its secret in state:
 
 ```hcl

@@ -3,6 +3,8 @@
 A tenant (a family, a friend group, a homelab) is administered by its own members. Installation operators (the people
 who run Porch) can do everything; everyone else needs a role in the tenant that grants the right permission.
 
+<Shot name="members" alt="Tenant members: active and suspended, added by a domain rule or by hand" caption="Members, with how each one joined" />
+
 ## Who can do what
 
 | Permission | Lets you |
@@ -24,6 +26,23 @@ Each area also has a read-only permission: `app:read`, `member:read`, `invite:re
 API without any way to change it. The matching `:manage` permission includes the read.
 
 The built-in **Administrator** role grants everything (`*:*`). The built-in **Member** role is what every member has.
+
+People holding only read permissions see the same pages without any control to change them:
+
+<Shot name="readonly" alt="Applications page as an inspector sees it: read-only, with View instead of Manage" caption="A read-only view of the applications" />
+
+## Groups, roles and assignments
+
+Groups nest (a group's members are members of its parent groups too), roles bundle permissions, and an assignment
+gives a role to a member, a group or a service account: across the tenant, for one resource type, or for one resource
+and everything below it, optionally only while a condition policy holds and optionally until a date.
+
+<div class="pc-gallery">
+<Shot name="groups" alt="Group dialog: direct members and the parent group it is nested in" caption="Parents is nested in Family" />
+<Shot name="assignments" alt="Role assignments to groups, a member and a service account, with conditions, scopes and an expiry" caption="Assignments with scopes, a condition and an expiry" />
+<Shot name="resources" alt="Resources indented by parent: albums inside a photo library" caption="Resources: albums inside a photo library" />
+<Shot name="simulator" alt="Access simulator explaining why a request is allowed" caption="The simulator explains every decision" />
+</div>
 
 ## You can only hand out what you hold
 
@@ -59,6 +78,8 @@ Installation operators hold one of these roles, which owners grant under **Opera
 | `inspector` | read the configuration of every tenant (applications, service accounts, members, groups, roles, assignments, resources, policies, invitations, shares, domain rules) and the identity providers, without changing anything |
 
 Neither read-only role sees secrets: Porch shows client secrets only once, when they are created.
+
+<Shot name="operators" alt="Installation operators: owner, admin and inspector" caption="Installation operators" />
 
 ## Service accounts
 

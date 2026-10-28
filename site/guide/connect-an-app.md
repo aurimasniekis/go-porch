@@ -49,6 +49,21 @@ The response contains `client.client_id` and — **only this once** — `client_
 | PKCE | S256 (required by default) |
 | Signing algorithm | ES256 (set `signing_alg: RS256` on the client for apps that only support RSA) |
 
+## 3. Decide who may open it
+
+Every application, OpenID Connect or forward-auth, has an access mode (`access_mode`, **Access** in the admin UI):
+
+| Mode | Who may open the app |
+|---|---|
+| `all_members` (default) | every active member of the tenant, and of the tenants the app is [shared](./concepts) with |
+| `assigned` | only people (or groups) holding `app:access` on that application through an assignment |
+
+For `assigned`, create a role with the `app:access` permission and assign it on **Assignments** with the scope
+*a single resource* of type `app`, the application itself. Deny policies on `app:access` apply in both modes, so a
+condition such as "only from the home network" can narrow an app that every member may otherwise open.
+
+<Shot name="applications" alt="Applications of a tenant: OIDC and forward-auth, open to all members or only to assigned people" caption="Grafana and Vaultwarden are open only to the people assigned to them" />
+
 ## What the app receives
 
 - `sub`: a stable Porch user ID (`u_…`) — never an email.

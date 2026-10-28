@@ -55,6 +55,18 @@ html:not(.dark) .pc-shot .pc-dark {
   margin: 8px 0;
 }
 
+/* Phone captures (390 px wide): side by side at a phone-like size instead of a full gallery column. */
+.pc-phones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 280px));
+  justify-content: center;
+  gap: 8px 24px;
+}
+
+.pc-phones .pc-shot {
+  margin: 8px 0;
+}
+
 .pc-home {
   max-width: 1152px;
   margin: 0 auto;

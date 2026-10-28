@@ -78,10 +78,17 @@ flowchart LR
   Every decision comes with an explain trace, and a simulator tries "what if" contexts.
 - **Delegated administration.** Hand a parent the right to manage their family's members and apps. Nobody can grant
   more than they hold, and tenant roles never confer installation rights.
+- **Read-only access.** Read permissions (`app:read`, `member:read`, …) and the installation **inspector** role let a
+  person or an integration see the configuration without any way to change it; the admin UI hides every edit control
+  for them.
 - **Forward-auth** for Caddy `forward_auth`, Traefik `ForwardAuth` and nginx `auth_request`, with host-only cookies,
   validated redirects and configurable identity headers.
 - **Built for automation.** A management API with an OpenAPI 3.1 document, `ETag`/`If-Match`, `Idempotency-Key`,
   scoped automation tokens and a [Terraform provider](https://github.com/aurimasniekis/terraform-provider-porch).
+  Tokens can issue narrower tokens, so Terraform creates the tokens your other integrations use; revoking a token
+  revokes everything it issued.
+- **A launcher people use.** Applications grouped with their logos (brand logos, dashboard icons or your own upload),
+  background photos with their credits served from Porch itself, light and dark themes, and a layout that fits a phone.
 - **Backups Porch itself cannot read.** Snapshots are age-encrypted to an offline recipient and uploaded to
   S3-compatible storage (tested with MinIO, versioning and object lock). A restore drill invalidates every session
   and replaces the signing keys.
@@ -97,11 +104,15 @@ not a boundary against someone who controls the host.
 
 | | |
 |---|---|
-| <img src="site/public/screenshots/login-light.png" alt="Sign-in page with Google and the backup login"><br>**Sign in with Google or the backup login** | <img src="site/public/screenshots/account-light.png" alt="Account page with sessions and the backup login"><br>**Your sessions and backup login** |
-| <img src="site/public/screenshots/members-light.png" alt="Tenant members with their source: manual, invitation or domain rule"><br>**Members and where they came from** | <img src="site/public/screenshots/applications-light.png" alt="Applications of a tenant: OIDC and forward-auth"><br>**OIDC and forward-auth applications** |
-| <img src="site/public/screenshots/roles-light.png" alt="Role editor with the permission picker"><br>**Roles from permissions** | <img src="site/public/screenshots/policy-light.png" alt="Condition policy with an expr expression and live validation"><br>**Conditions with live validation** |
-| <img src="site/public/screenshots/simulator-light.png" alt="Access simulator explaining why a request is allowed"><br>**Every decision explained** | <img src="site/public/screenshots/assignments-light.png" alt="Role assignments to groups with conditions"><br>**Assignments with conditions** |
-| <img src="site/public/screenshots/audit-light.png" alt="Audit explorer with an expanded event"><br>**Hash-chained audit log** | <img src="site/public/screenshots/health-light.png" alt="System health: checks, keyring and storage"><br>**System health** |
+| <img src="site/public/screenshots/login-light.png" alt="Sign-in page with Google and the backup login"><br>**Sign in with Google or the backup login** | <img src="site/public/screenshots/account-light.png" alt="Account page with the linked Google account, the backup login and signed-in browsers"><br>**Your account, backup login and sessions** |
+| <img src="site/public/screenshots/members-light.png" alt="Tenant members: active and suspended, added by a domain rule or by hand"><br>**Members and where they came from** | <img src="site/public/screenshots/applications-light.png" alt="Applications of a tenant: OIDC and forward-auth, open to all members or only to assigned people"><br>**OIDC and forward-auth applications** |
+| <img src="site/public/screenshots/groups-light.png" alt="Group dialog: direct members and the parent group it is nested in"><br>**Nested groups** | <img src="site/public/screenshots/roles-light.png" alt="Role editor with the permission picker"><br>**Roles from permissions** |
+| <img src="site/public/screenshots/assignments-light.png" alt="Role assignments to groups, a member and a service account, with conditions, scopes and an expiry"><br>**Assignments with scopes, conditions and expiry** | <img src="site/public/screenshots/resources-light.png" alt="Resources indented by parent: albums inside a photo library"><br>**Resource hierarchies** |
+| <img src="site/public/screenshots/policy-light.png" alt="Condition policy with an expr expression and live validation"><br>**Conditions with live validation** | <img src="site/public/screenshots/simulator-light.png" alt="Access simulator explaining why a request is allowed"><br>**Every decision explained** |
+| <img src="site/public/screenshots/readonly-light.png" alt="Applications page as an inspector sees it: read-only, with View instead of Manage"><br>**Read-only access for inspectors** | <img src="site/public/screenshots/tokens-light.png" alt="Automation tokens, one issued by the Terraform token"><br>**Tokens that issue tokens** |
+| <img src="site/public/screenshots/operators-light.png" alt="Installation operators: owner, admin and inspector"><br>**Installation roles** | <img src="site/public/screenshots/audit-light.png" alt="Audit explorer with an expanded event"><br>**Hash-chained audit log** |
+| <img src="site/public/screenshots/health-light.png" alt="System health: checks, keyring and storage"><br>**System health** | <img src="site/public/screenshots/appearance-light.png" alt="Appearance settings: image providers and the current background with its credit"><br>**Backgrounds with credits** |
+| <img src="site/public/screenshots/mobile-launcher-light.png" width="260" alt="The launcher on a phone"><br>**The launcher on a phone** | <img src="site/public/screenshots/mobile-admin-light.png" width="260" alt="Administration on a phone: one card per application"><br>**Administration on a phone** |
 
 ## Quick start
 
@@ -201,7 +212,7 @@ Milestones M0–M7 of the [plan](docs/PLAN.md) are implemented and tested. Every
 
 | Area | Evidence |
 |---|---|
-| Sign-in, sessions, backup login, OIDC, forward-auth, admin UI | Go race tests, 36 Playwright browser tests with axe (WCAG 2.1 AA) and zero CSP violations |
+| Sign-in, sessions, backup login, OIDC, forward-auth, admin UI | Go race tests, 51 Playwright browser tests with axe (WCAG 2.1 AA) and CSP-violation checks |
 | OpenID Connect | OpenID conformance suite, Basic and Config OP: 0 failures (local run, not certification) |
 | Backups | encrypt, upload to MinIO, verify and restore into a clean data directory |
 | Terraform | provider acceptance tests and a 69-resource scenario against a real Porch, in CI |

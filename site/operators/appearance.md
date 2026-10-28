@@ -39,6 +39,8 @@ Content-Type: application/json
 }
 ```
 
+<Shot name="appearance" alt="Appearance settings: image providers and the current background images with credits" caption="Installation → Appearance" />
+
 ## Application icons and groups
 
 On an application's page (or in the API: `group` and `icon`), choose:

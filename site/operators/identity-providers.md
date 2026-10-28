@@ -38,6 +38,8 @@ Memberships created by a rule carry `source: domain_rule:<id>`. When the evidenc
 Workspace, the rule is deleted), Porch removes those memberships; manual memberships are never removed automatically.
 The `hd=` hint Porch sends to Google only pre-selects the account picker and is never trusted.
 
+<Shot name="domains" alt="Domain rules: everyone with a smith.example Google Workspace account joins on first sign-in" caption="A Workspace domain rule in the admin UI" />
+
 ## Invites
 
 `POST /api/v1/tenants/{tenant}/invites` with an email. The invite is consumed by the first upstream login whose
