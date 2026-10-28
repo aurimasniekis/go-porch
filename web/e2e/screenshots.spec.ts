@@ -79,12 +79,14 @@ test.describe.serial('Documentation screenshots', () => {
       await apiCall(r, 'POST', '/tenants/smith/members', { user_id: u?.id })
     }
     await apiCall(r, 'POST', '/tenants', { slug: 'jones', name: 'Jones family' })
+    let jane = ''
     for (const [name, email] of [
       ['Jane Jones', 'jane@jones.example'],
       ['Tom Jones', 'tom@jones.example'],
     ]) {
       const u = await apiCall(r, 'POST', '/users', { display_name: name, primary_email: email })
       await apiCall(r, 'POST', '/tenants/jones/members', { user_id: u?.id })
+      if (name === 'Jane Jones') jane = String(u?.id)
     }
     const members = await list(page, '/tenants/smith/members')
     const id = (name: string) => String(members.find((m) => m.display_name === name)?.user_id)
@@ -110,7 +112,7 @@ test.describe.serial('Documentation screenshots', () => {
       slug: 'photos',
       name: 'Photo library',
     })
-    await apiCall(r, 'POST', '/tenants/smith/resources', {
+    const holidays = await apiCall(r, 'POST', '/tenants/smith/resources', {
       type: 'album',
       slug: 'holidays-2026',
       name: 'Holidays 2026',
@@ -249,9 +251,95 @@ test.describe.serial('Documentation screenshots', () => {
     ]
     for (const a of apps) await apiCall(r, 'POST', '/tenants/smith/applications', a)
     await apiCall(r, 'POST', '/tenants/smith/applications/jellyfin/shares', { tenant: 'jones' })
-    // The demo app and whoami from m2-login.spec.ts are the developer's test apps.
-    for (const slug of ['demo-app', 'whoami'])
-      await apiCall(r, 'PATCH', `/tenants/smith/applications/${slug}`, { group: 'Testing' })
+    // The demo app and whoami from m2-login.spec.ts are the developer's test apps, not part of the story.
+    for (const slug of ['demo-app', 'whoami']) await apiCall(r, 'DELETE', `/tenants/smith/applications/${slug}`)
+
+    // Only the parents may open the password manager and the dashboards: an app:access grant on each application.
+    const appUser = await apiCall(r, 'POST', '/tenants/smith/roles', {
+      slug: 'app-user',
+      name: 'App user',
+      description: 'Open an application that is limited to assigned people',
+      permissions: ['app:access'],
+    })
+    for (const slug of ['vaultwarden', 'grafana']) {
+      const app = await apiCall(r, 'PATCH', `/tenants/smith/applications/${slug}`, { access_mode: 'assigned' })
+      await apiCall(r, 'POST', '/tenants/smith/assignments', {
+        subject_type: 'group',
+        subject_id: parents?.id,
+        role_id: appUser?.id,
+        scope_type: 'resource',
+        scope_resource_type: 'app',
+        scope_resource_id: app?.id,
+      })
+    }
+
+    // Grandma sees the holiday album until the new year; a nightly job reads every album; a former babysitter is
+    // suspended rather than removed, so her history stays.
+    const rita = await apiCall(r, 'POST', '/users', { display_name: 'Rita Smith', primary_email: 'rita@smith.example' })
+    await apiCall(r, 'POST', '/tenants/smith/members', { user_id: rita?.id })
+    await apiCall(r, 'POST', '/tenants/smith/assignments', {
+      subject_type: 'user',
+      subject_id: rita?.id,
+      role_id: viewer?.id,
+      scope_type: 'resource',
+      scope_resource_type: 'album',
+      scope_resource_id: holidays?.id,
+      expires_at: '2027-01-06T00:00:00Z',
+    })
+    const backup = await apiCall(r, 'POST', '/tenants/smith/service-accounts', {
+      slug: 'photo-backup',
+      name: 'Photo backup',
+      description: 'Copies every album to the NAS at night',
+      audiences: ['https://photos.smith.example'],
+    })
+    await apiCall(r, 'POST', '/tenants/smith/assignments', {
+      subject_type: 'service_account',
+      subject_id: backup?.id,
+      role_id: viewer?.id,
+      scope_type: 'resource_type',
+      scope_resource_type: 'album',
+    })
+    const nora = await apiCall(r, 'POST', '/users', { display_name: 'Nora Lind', primary_email: 'nora@lind.example' })
+    const noraMember = await apiCall(r, 'POST', '/tenants/smith/members', { user_id: nora?.id })
+    await apiCall(r, 'PATCH', `/tenants/smith/members/${String(noraMember?.id)}`, { status: 'suspended' })
+    for (const email of ['oma@smith.example', 'sitter@lind.example'])
+      await apiCall(r, 'POST', '/tenants/smith/invites', { email, valid_seconds: 7 * 86400 })
+
+    // Operators: Jane runs the installation with Olga, and Dave may look at everything without changing it.
+    await apiCall(r, 'POST', '/installation/operators', { user_id: jane, role: 'admin' })
+    await apiCall(r, 'POST', '/installation/operators', { user_id: id('Dave Smith'), role: 'inspector' })
+
+    // Automation tokens: Terraform's token issues the tokens other integrations use (ADR-0048).
+    const tf = await apiCall(r, 'POST', '/installation/automation-tokens', {
+      name: 'terraform',
+      role: 'admin',
+      never_expires: true,
+    })
+    const asTerraform = async (path: string, body: Obj) => {
+      const res = await r.post(`${BASE}/api/v1${path}`, {
+        headers: { Authorization: `Bearer ${String(tf?.token)}`, 'Content-Type': 'application/json' },
+        data: JSON.stringify(body),
+      })
+      expect(res.status(), `POST ${path}: ${await res.text()}`).toBe(201)
+    }
+    await asTerraform('/installation/automation-tokens', {
+      name: 'app-catalogue',
+      role: 'inspector',
+      expires_in_days: 180,
+    })
+    await asTerraform('/tenants/smith/automation-tokens', {
+      name: 'smith-photo-sync',
+      permissions: ['app:read', 'group:read'],
+      expires_in_days: 90,
+    })
+    await apiCall(r, 'POST', '/installation/automation-tokens', {
+      name: 'monitoring',
+      role: 'auditor',
+      expires_in_days: 365,
+    })
+
+    // Ada's earlier test sign-ins (m2-login.spec.ts) locked her backup login; clear it for the account page.
+    await apiCall(r, 'POST', `/users/${id('Ada Smith')}/backup-lockout/unlock`)
 
     // A landscape behind the sign-in page and the launcher. One named Wikimedia Commons file keeps the captures stable
     // between runs (installations normally pick a category and get a random selection).
@@ -284,6 +372,10 @@ test.describe.serial('Documentation screenshots', () => {
     const light = await signedIn(browser, 'Ada Smith')
     await expect(light.page.getByRole('article', { name: 'Grafana' })).toBeVisible()
     await shot(light.page, 'launcher', { size: VIEW.viewport, fullPage: true })
+    // Keep only this browser in the session list (the earlier specs signed Ada in several times).
+    const sessions = (await (await light.page.request.get(`${BASE}/api/v1/me/sessions`)).json()) as Obj[]
+    for (const s of sessions.filter((s) => !s.current))
+      await apiCall(light.page.request, 'DELETE', `/me/sessions/${String(s.id)}`)
     await light.page.goto('/account')
     await expect(light.page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
     await shot(light.page, 'account', { size: VIEW.viewport, fullPage: true })
@@ -292,16 +384,31 @@ test.describe.serial('Documentation screenshots', () => {
 
   test('tenant administration pages', async () => {
     await page.goto(`${T}/members`)
-    await expect(page.getByRole('cell', { name: /Mia Smith/ }).first()).toBeVisible()
-    await shot(page, 'members')
+    await expect(page.getByRole('cell', { name: /Nora Lind/ }).first()).toBeVisible()
+    await shot(page, 'members', { fullPage: true })
 
     await page.goto(`${T}/applications`)
     await expect(page.getByRole('cell', { name: /Grafana/ }).first()).toBeVisible()
     await shot(page, 'applications')
 
     await page.goto(`${T}/assignments`)
-    await expect(page.getByText('Photo viewer').first()).toBeVisible()
+    await expect(page.getByText('Photo backup').first()).toBeVisible()
     await shot(page, 'assignments')
+
+    await page.goto(`${T}/groups`)
+    await expect(page.getByRole('table', { name: 'Groups' })).toContainText('Parents')
+    await page.getByRole('button', { name: 'Members & nesting of Parents' }).click()
+    await expect(page.getByRole('dialog', { name: 'Group Parents' })).toContainText('Ada Smith')
+    await shot(page, 'groups')
+    await page.keyboard.press('Escape')
+
+    await page.goto(`${T}/resources`)
+    await expect(page.getByRole('table', { name: 'Resources (indented by parent)' })).toContainText('School events')
+    await shot(page, 'resources')
+
+    await page.goto(`${T}/domains`)
+    await expect(page.getByRole('cell', { name: 'smith.example' }).first()).toBeVisible()
+    await shot(page, 'domains')
   })
 
   test('role editor with the permission picker', async () => {
@@ -357,7 +464,9 @@ test.describe.serial('Documentation screenshots', () => {
     const decision = page.getByRole('region', { name: 'Decision' })
     await expect(decision.getByText('Allowed', { exact: true })).toBeVisible()
     await decision.scrollIntoViewIfNeeded()
-    await shot(page, 'simulator')
+    // Wider than the other pages, so the candidate grants table fits without its horizontal scroll bar.
+    await shot(page, 'simulator', { size: { width: 1680, height: 1050 } })
+    await page.setViewportSize(VIEW.viewport)
   })
 
   test('installation pages: audit and health', async () => {
@@ -379,5 +488,43 @@ test.describe.serial('Documentation screenshots', () => {
     await page.goto('/admin/i/health')
     await expect(page.getByRole('table', { name: 'Health checks' })).toBeVisible()
     await shot(page, 'health', { fullPage: true })
+  })
+
+  test('installation pages: automation tokens and operators', async () => {
+    await page.goto('/admin/i/tokens')
+    await expect(page.getByRole('table', { name: 'Automation tokens' })).toContainText('Issued by token terraform')
+    await shot(page, 'tokens')
+
+    await page.goto('/admin/i/operators')
+    await expect(page.getByRole('table', { name: 'Installation operators' })).toContainText('inspector')
+    await shot(page, 'operators')
+  })
+
+  test('an inspector sees a tenant read-only', async ({ browser }) => {
+    const dave = await signedIn(browser, 'Dave Smith')
+    await dave.page.setViewportSize(VIEW.viewport)
+    await dave.page.goto(`${T}/applications`)
+    await expect(dave.page.getByTestId('read-only-note')).toBeVisible()
+    await expect(dave.page.getByRole('row', { name: /Vaultwarden/ })).toBeVisible()
+    await shot(dave.page, 'readonly')
+    await dave.ctx.close()
+  })
+
+  test('phone layout', async ({ browser }) => {
+    const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+    const ctx = await browser.newContext({ ...phone, colorScheme: 'light' })
+    const p = await ctx.newPage()
+    await googleLogin(p, 'Ada Smith')
+    await expect(p.getByRole('heading', { name: 'My applications' })).toBeVisible()
+    await shot(p, 'mobile-launcher')
+    await ctx.close()
+
+    const state = await owner.storageState()
+    const octx = await browser.newContext({ ...phone, colorScheme: 'light', storageState: state })
+    const op = await octx.newPage()
+    await op.goto(`${T}/applications`)
+    await expect(op.getByText('Gitea').first()).toBeVisible()
+    await shot(op, 'mobile-admin')
+    await octx.close()
   })
 })
