@@ -10,12 +10,19 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-29
+
+A security fix in a dependency. **Database:** no migrations; upgrade by replacing the binary or image. **API and
+configuration:** unchanged.
+
+> **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
+> no external security audit (see 0.1.0).
+
 ### Security
 
 - **go-jose v4.1.6** (CVE-2026-116587). Earlier versions could be made to use excessive resources while parsing a JWK
   set that contains RSA keys. Porch parses JWKs when it verifies an upstream identity provider's ID tokens, so a
-  malicious or compromised provider's JWKS endpoint could slow or stop Porch. **Database, API and configuration:**
-  unchanged.
+  malicious or compromised provider's JWKS endpoint could slow or stop Porch.
 
 ## [0.3.0] - 2026-10-26
 
@@ -180,7 +187,8 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/aurimasniekis/go-porch/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/aurimasniekis/go-porch/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/aurimasniekis/go-porch/compare/v0.1.1...v0.2.0
