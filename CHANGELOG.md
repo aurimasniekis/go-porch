@@ -10,6 +10,13 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+### Security
+
+- **go-jose v4.1.6** (CVE-2026-116587). Earlier versions could be made to use excessive resources while parsing a JWK
+  set that contains RSA keys. Porch parses JWKs when it verifies an upstream identity provider's ID tokens, so a
+  malicious or compromised provider's JWKS endpoint could slow or stop Porch. **Database, API and configuration:**
+  unchanged.
+
 ## [0.3.0] - 2026-10-26
 
 Read-only access for integrations, and Terraform-managed automation tokens.
