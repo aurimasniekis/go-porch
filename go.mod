@@ -9,7 +9,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/expr-lang/expr v1.17.8
 	github.com/go-jose/go-jose/v4 v4.1.6
-	github.com/klauspost/compress v1.20.1
+	github.com/klauspost/compress v1.20.3
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/nats-io/nats-server/v2 v2.15.1
 	github.com/nats-io/nats.go v1.55.0
@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/trustelem/zxcvbn v1.0.1
 	github.com/zitadel/oidc/v3 v3.51.16
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/crypto v0.58.0
 	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.37.0
