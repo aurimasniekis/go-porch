@@ -24,7 +24,7 @@
 #           --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) -t porch:local .
 
 ARG NODE_IMAGE=docker.io/library/node:24.22.0-trixie-slim@sha256:a6155384446670e9719bdc4fd0ebe4d4b29fb32a8d6aa523da3547a6cfbcf22c
-ARG GO_IMAGE=docker.io/library/golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4
+ARG GO_IMAGE=docker.io/library/golang:1.27.4-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d
 ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian13:nonroot@sha256:18f4cc26c9ffa7f20a359298be7deadac5c607c8e03a02b8119f1a5fc2f82c99
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=
 ARG BUILD_DATE=
-# go.mod requires go 1.27.3; the pinned toolchain satisfies it, so never download another one.
+# go.mod requires go 1.27.4; the pinned toolchain satisfies it, so never download another one.
 ENV CGO_ENABLED=0 \
     GOTOOLCHAIN=local \
     GOFLAGS=-mod=readonly

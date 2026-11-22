@@ -21,7 +21,7 @@ docker run --rm porch:local version
 ```
 
 - Stages: `node:24.22.0-trixie-slim` builds the SPA (`pnpm install --frozen-lockfile && pnpm build`, pnpm 10.11.0 through
-  corepack) into `internal/webui/dist`. `golang:1.27.3-trixie` (`GOTOOLCHAIN=local`) builds a static `porch`
+  corepack) into `internal/webui/dist`. `golang:1.27.4-trixie` (`GOTOOLCHAIN=local`) builds a static `porch`
   (`CGO_ENABLED=0 -trimpath -s -w`, version/commit/date through `-X .../internal/buildinfo.*`). The runtime is
   `gcr.io/distroless/static-debian13:nonroot`. Every base image is pinned by digest; refresh one with
   `docker buildx imagetools inspect <image>:<tag>`.
