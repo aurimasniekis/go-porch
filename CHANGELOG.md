@@ -10,14 +10,22 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-22
+
+A security fix in the Go toolchain. **Database:** no migrations; upgrade by replacing the binary or image. **API and
+configuration:** unchanged.
+
+> **Not externally reviewed.** The keyring, session handling, OIDC provider, backup login and backup format have had
+> no external security audit (see 0.1.0).
+
 ### Security
 
-- **Go 1.27.4** (GO-2026-6859). Porch is now built with Go 1.27.4 instead of 1.27.3. In Go 1.27.3, an HTTP/1 server can
-  crash when a `http.MaxBytesReader` limit is exceeded while the handler reads the request body concurrently with writing
-  its response header: the server sets `Connection: close` without synchronization, which races with the handler's header.
-  Porch's HTTP server and client code paths use `net/http`, and govulncheck reports them as reachable; Porch applies
-  `MaxBytesReader` to request bodies in `internal/httpx`. Builds made with 1.27.3, including 0.3.1, are affected;
-  upgrade to a release built with 1.27.4. **Database:** no migrations. **API and configuration:** unchanged.
+- **Go 1.27.4** (GO-2026-6859, CVE-2026-97054). Porch is now built with Go 1.27.4 instead of 1.27.3. In Go
+  1.27.3, an HTTP/1 server can crash when a `http.MaxBytesReader` limit is exceeded while the handler reads the request
+  body concurrently with writing its response header: the server sets `Connection: close` without synchronization,
+  which races with the handler's header. Porch's HTTP server and client code paths use `net/http`, and govulncheck
+  reports them as reachable; Porch applies `MaxBytesReader` to request bodies in `internal/httpx`. Builds made with 1.27.3, including 0.3.1, are affected;
+  upgrade to a release built with 1.27.4.
 
 ## [0.3.1] - 2026-10-29
 
@@ -196,7 +204,8 @@ installation tokens without expiry.
   container smoke test, multi-arch image on GHCR (and Docker Hub when configured), build provenance attestations and a
   draft GitHub release ([docs/RELEASING.md](docs/RELEASING.md)).
 
-[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/aurimasniekis/go-porch/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/aurimasniekis/go-porch/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/aurimasniekis/go-porch/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/aurimasniekis/go-porch/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/aurimasniekis/go-porch/compare/v0.2.0...v0.2.1
