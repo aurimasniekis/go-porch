@@ -24,8 +24,11 @@ configuration:** unchanged.
   1.27.3, an HTTP/1 server can crash when a `http.MaxBytesReader` limit is exceeded while the handler reads the request
   body concurrently with writing its response header: the server sets `Connection: close` without synchronization,
   which races with the handler's header. Porch's HTTP server and client code paths use `net/http`, and govulncheck
-  reports them as reachable; Porch applies `MaxBytesReader` to request bodies in `internal/httpx`. Builds made with 1.27.3, including 0.3.1, are affected;
-  upgrade to a release built with 1.27.4.
+  reports them as reachable; Porch applies `MaxBytesReader` to request bodies in `internal/httpx`. Builds made with
+  1.27.3, including 0.3.1, are affected; upgrade to a release built with 1.27.4.
+- **golang.org/x/net v0.62.0** (CVE-2026-78661). Earlier versions can be made to consume excessive resources by crafted
+  HTML input to `golang.org/x/net/html`. govulncheck does not report Porch's code as calling it, but the container
+  image scan flags the module version, so it is updated.
 
 ## [0.3.1] - 2026-10-29
 
