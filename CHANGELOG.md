@@ -10,6 +10,15 @@ checked against real external systems, is in [docs/IMPLEMENTATION_MATRIX.md](doc
 
 ## [Unreleased]
 
+### Security
+
+- **Go 1.27.4** (GO-2026-6859). Porch is now built with Go 1.27.4 instead of 1.27.3. In Go 1.27.3, an HTTP/1 server can
+  crash when a `http.MaxBytesReader` limit is exceeded while the handler reads the request body concurrently with writing
+  its response header: the server sets `Connection: close` without synchronization, which races with the handler's header.
+  Porch's HTTP server and client code paths use `net/http`, and govulncheck reports them as reachable; Porch applies
+  `MaxBytesReader` to request bodies in `internal/httpx`. Builds made with 1.27.3, including 0.3.1, are affected;
+  upgrade to a release built with 1.27.4. **Database:** no migrations. **API and configuration:** unchanged.
+
 ## [0.3.1] - 2026-10-29
 
 A security fix in a dependency. **Database:** no migrations; upgrade by replacing the binary or image. **API and

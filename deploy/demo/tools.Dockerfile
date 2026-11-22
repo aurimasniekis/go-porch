@@ -9,7 +9,7 @@
 #
 # The runtime is Alpine (not distroless) so the compose health checks can use busybox wget; both run as UID 65532.
 
-ARG GO_IMAGE=docker.io/library/golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4
+ARG GO_IMAGE=docker.io/library/golang:1.27.4-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d
 ARG RUNTIME_IMAGE=docker.io/library/alpine:3.22.7@sha256:2e0b81d60597f449baa56dc25d355367869d2dca4cd57e866f1e2b52af3eb55f
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
